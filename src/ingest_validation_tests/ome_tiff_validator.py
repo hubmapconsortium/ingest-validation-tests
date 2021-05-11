@@ -9,7 +9,7 @@ class OmeTiffValidator(Validator):
     cost = 1.0
     def collect_errors(self) -> List[str]:
         rslt = []
-        for glob_expr in ['**/*.ome.tiff', '**/*.OME.TIFF']:
+        for glob_expr in ['**/*.ome.tif', '**/*.ome.tiff', '**/*.OME.TIFF', '**/*.OME.TIF']:
             for path in self.path.glob(glob_expr):
                 try:
                     with tifffile.TiffFile(path) as tf:
