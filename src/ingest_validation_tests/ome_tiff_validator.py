@@ -7,7 +7,7 @@ from ingest_validation_tools.plugin_validator import Validator
 class OmeTiffValidator(Validator):
     description = "Recursively test all ome-tiff files for validity"
     cost = 1.0
-    def collect_errors(self) -> List[str]:
+    def collect_errors(self, **kwargs) -> List[str]:
         rslt = []
         for glob_expr in ['**/*.ome.tif', '**/*.ome.tiff', '**/*.OME.TIFF', '**/*.OME.TIF']:
             for path in self.path.glob(glob_expr):
