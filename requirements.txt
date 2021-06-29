@@ -1,2 +1,5 @@
 xmlschema>=1.6
 tifffile>=2020.10.1
+requests==2.25.1
+cryptography==3.4.7
+apache-airflow<2.0.0
