@@ -2,6 +2,7 @@ from typing import List
 from pathlib import Path
 from uuid import UUID
 import requests
+import os
 from ingest_validation_tools.plugin_validator import Validator
 # get_auth_tok is in ingest-pipeline/src/ingest-pipeline/airflow/dags/utils.py
 from cryptography.fernet import Fernet
@@ -27,12 +28,12 @@ def get_auth_tok(**kwargs) -> str:
     return auth_tok
 
 
-def verify_dataset_title_info(dataset_uuid, entity_api_scheme_host, auth_tok) -> List[str]:
+def verify_dataset_title_info(dataset_uuid, ingest_api_scheme_host, auth_tok) -> List[str]:
     auth_header = {
         'Authorization': f"Bearer {auth_tok}"
     }
     response = requests.get(
-        url=f"{entity_api_scheme_host}/datasets/{dataset_uuid}/verifytitleinfo",
+        url=f"{ingest_api_scheme_host}datasets/{dataset_uuid}/verifytitleinfo",
         headers=auth_header,
         verify=False
     )
@@ -58,5 +59,5 @@ class DonorDatasetTitleDataValidator(Validator):
             return [f'Dataset path {self.path} does not end in a UUID']
 
         auth_tok = get_auth_tok(**kwargs)
-        entity_api_scheme_host = 'NEEDS TO BE FIGURED OUT'
-        return verify_dataset_title_info(dataset_uuid, entity_api_scheme_host, auth_tok)
+        ingest_api_scheme_host = os.getenv('AIRFLOW_CONN_INGEST_API_CONNECTION')
+        return verify_dataset_title_info(dataset_uuid, ingest_api_scheme_host, auth_tok)
