@@ -16,7 +16,7 @@ class CodexJsonValidator(Validator):
         schema = json.loads(schema_path.read_text)
 
         rslt = []
-        for glob_expr in ['**/[Ee]xperiment.json']:
+        for glob_expr in ['**/dataset.json']:
             for path in self.path.glob(glob_expr):
                 instance = json.loads(path.read_text())
                 try:
