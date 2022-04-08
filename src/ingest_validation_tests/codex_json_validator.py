@@ -13,7 +13,7 @@ class CodexJsonValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[str]:
         schema_path = Path(__file__).parent / 'codex_schema.json'
-        schema = json.loads(schema_path.read_text)
+        schema = json.loads(schema_path.read_text())
 
         rslt = []
         for glob_expr in ['**/dataset.json']:
