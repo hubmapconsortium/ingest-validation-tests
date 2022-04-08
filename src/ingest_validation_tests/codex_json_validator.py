@@ -12,6 +12,9 @@ class CodexJsonValidator(Validator):
     cost = 1.0
 
     def collect_errors(self, **kwargs) -> List[str]:
+        if 'codex' not in self.assay_type.lower():
+            return []
+
         schema_path = Path(__file__).parent / 'codex_schema.json'
         schema = json.loads(schema_path.read_text())
 
