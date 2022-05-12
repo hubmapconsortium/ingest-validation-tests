@@ -79,11 +79,6 @@
     "required": [
         "Version",
         "DatasetName",
-        "AcquisitionDate",
-        "AssayType",
-        "AssaySpecificSoftware",
-        "Microscope",
-        "AcquisitionMode",
         "ImmersionMedium",
         "NominalMagnification",
         "NumericalAperture",
@@ -105,8 +100,6 @@
         "TileOverlapX",
         "TileOverlapY",
         "TileLayout",
-        "NuclearStain",
-        "MembraneStain",
         "NuclearStainForSegmentation",
         "MembraneStainForSegmentation",
         "ChannelDetails"
@@ -747,14 +740,9 @@
                                     "Name",
                                     "ChannelID",
                                     "CycleID",
-                                    "Fluorophore",
                                     "PassedQC",
-                                    "QCDetails",
                                     "ExposureTimeMS",
-                                    "ExcitationWavelengthNM",
-                                    "EmissionWavelengthNM",
-                                    "Binning",
-                                    "Gain"
+                                    "EmissionWavelengthNM"
                                 ],
                                 "properties": {
                                     "Name": {
