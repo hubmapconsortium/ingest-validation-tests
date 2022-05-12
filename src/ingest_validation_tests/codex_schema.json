@@ -34,7 +34,7 @@
             "TileHeight": 2048,
             "TileOverlapX": 0.3,
             "TileOverlapY": 0.3,
-            "TileLayout": "snake",
+            "TileLayout": "Snake",
             "NuclearStain": [
                 {"CycleID": 2, "ChannelID": 1}
             ],
