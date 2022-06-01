@@ -163,3 +163,37 @@ class TestFASTQValidatorLogic:
 
         assert "contains 3 characters which does not match line 2's 15" in \
                result[0]
+
+    def test_fastq_validator_record_counts_good(self, fastq_validator,
+                                                tmp_path):
+        for filename in [
+            'SREQ-1_1-ACTGACTGAC-TGACTGACTG_S1_L001_I1_001.fastq',
+            'SREQ-1_1-ACTGACTGAC-TGACTGACTG_S1_L001_I2_001.fastq'
+        ]:
+            new_file = tmp_path.joinpath(filename)
+            with _open_output_file(new_file, False) as output:
+                output.write(_GOOD_RECORDS)
+
+        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
+
+        assert not result
+
+    def test_fastq_validator_record_counts_bad(self, fastq_validator,
+                                               tmp_path):
+        with _open_output_file(tmp_path.joinpath(
+                'SREQ-1_1-ACTGACTGAC-TGACTGACTG_S1_L001_I1_001.fastq'),
+                False) as output:
+            output.write(_GOOD_RECORDS)
+        with _open_output_file(tmp_path.joinpath(
+                'SREQ-1_1-ACTGACTGAC-TGACTGACTG_S1_L001_I2_001.fastq'),
+                False) as output:
+            output.write(_GOOD_RECORDS)
+            output.write(_GOOD_RECORDS)
+
+        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
+
+        # Order of the files being processed is not guaranteed, however these
+        # strings ensure that a mismatch was found.
+        assert "(4 lines)" in result[0]
+        assert "does not match" in result[0]
+        assert "(8 lines)" in result[0]

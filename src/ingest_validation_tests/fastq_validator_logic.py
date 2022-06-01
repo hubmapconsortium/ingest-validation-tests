@@ -3,16 +3,7 @@ import re
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, TextIO
-
-_FASTQ_FILE_MATCH = '**/*.fastq*'
-
-# This pattern seeks out the string that includes the lane number (since that
-# is expected to be present to help anchor the prefix) that comes before any of
-# _I1, _I2, _R1, or _R2.
-_FASTQ_FILE_PREFIX_REGEX = re.compile(r'(.+_L\d+.*)_[IR][12][._]')
-
-_FASTQ_LINE_2_VALID_CHARS = 'ACGNT'
+from typing import Callable, Dict, List, TextIO
 
 
 def _validate_fastq_filename(filename: str) -> List[str]:
@@ -47,12 +38,21 @@ class FASTQValidatorLogic:
     contain the same number of symbols as letters in the sequence.
     """
 
+    _FASTQ_FILE_MATCH = '**/*.fastq*'
+
+    # This pattern seeks out the string that includes the lane number (since that
+    # is expected to be present to help anchor the prefix) that comes before any of
+    # _I1, _I2, _R1, or _R2.
+    _FASTQ_FILE_PREFIX_REGEX = re.compile(r'(.+_L\d+.*)_[IR][12][._]')
+
+    _FASTQ_LINE_2_VALID_CHARS = 'ACGNT'
+
     def __init__(self):
         self.errors: [str] = []
         self._filename = ''
         self._line_number = 0
-        self._file_record_counts: {str: int} = {}
-        self._file_prefix_counts: {str: int} = {}
+        self._file_record_counts: Dict[str, int] = {}
+        self._file_prefix_counts: Dict[str, int] = {}
 
         self._line_2_length = 0
 
@@ -73,7 +73,7 @@ class FASTQValidatorLogic:
         self._line_2_length = len(line)
 
         invalid_chars = ''.join(
-            c for c in line if c not in _FASTQ_LINE_2_VALID_CHARS)
+            c for c in line if c not in self._FASTQ_LINE_2_VALID_CHARS)
         if invalid_chars:
             return [f"Line contains invalid character(s): {invalid_chars}"]
 
@@ -125,7 +125,6 @@ class FASTQValidatorLogic:
         line_count = 0
 
         result = self.ValidationResult()
-        result.record_count = line_count
 
         line: str
         for line_count, line in enumerate(fastq_data):
@@ -135,6 +134,7 @@ class FASTQValidatorLogic:
                 self.validate_fastq_record(line.rstrip(), line_count)
             )
 
+        result.record_count = line_count + 1
         return result
 
     def validate_fastq_file(self, fastq_file: Path) -> List[str]:
@@ -151,11 +151,35 @@ class FASTQValidatorLogic:
         except IOError:
             return [self._format_error("Unable to open FASTQ data file.")]
 
-        if self._file_record_counts.get(fastq_file.name) is not None:
+        if fastq_file.name in self._file_record_counts.keys():
             result.errors.append(f"{fastq_file.name} has been found multiple "
                                  "times during this validation.")
-
         self._file_record_counts[fastq_file.name] = result.record_count
+
+        match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
+        if match:
+            filename_prefix = match.group(1)
+            if filename_prefix in self._file_prefix_counts.keys():
+                extant_count = self._file_prefix_counts[filename_prefix]
+                if extant_count != result.record_count:
+                    # Find a file we've validated already that matches this
+                    # prefix.
+                    extant_files = [
+                        filename for filename
+                        in self._file_record_counts.keys()
+                        if self._file_record_counts[filename] == extant_count
+                           and filename.startswith(filename_prefix)
+                    ]
+                    # Based on how the dictionaries are created, there should
+                    # always be at least one matching filename.
+                    assert extant_files
+
+                    result.errors.append(
+                        f"{fastq_file.name} ({result.record_count} lines) "
+                        f"does not match length of {extant_files[0]} "
+                        f"({extant_count} lines).")
+            else:
+                self._file_prefix_counts[filename_prefix] = result.record_count
 
         return result.errors
 
@@ -164,7 +188,7 @@ class FASTQValidatorLogic:
         errors: [str] = []
 
         fastq_file: Path
-        for fastq_file in path.glob(_FASTQ_FILE_MATCH):
+        for fastq_file in path.glob(self._FASTQ_FILE_MATCH):
             self._filename = fastq_file.name
 
             new_errors = self.validate_fastq_file(fastq_file)
@@ -175,7 +199,7 @@ class FASTQValidatorLogic:
                 found_one = True
 
         if not found_one:
-            errors.append(f"No good files matching {_FASTQ_FILE_MATCH} were "
-                          f"found in {path}.")
+            errors.append(f"No good files matching {self._FASTQ_FILE_MATCH} "
+                          f"were found in {path}.")
 
         return errors
