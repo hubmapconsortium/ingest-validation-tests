@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Generator
+from typing import List
 
 from ingest_validation_tools.plugin_validator import Validator
 
@@ -11,10 +11,11 @@ def has_valid_name(filename: str) -> bool:
 
 
 class FASTQValidator(Validator):
-    """Validate FASTQ input files for basic syntax."""
+    description = "Check FASTQ files for basic syntax and consistency."
+    cost = 5.0
 
     def collect_errors(self, **kwargs) -> List[str]:
-        self.errors: List[str] = []
+        errors: List[str] = []
         found_one = False
 
         fastq_file: Path
