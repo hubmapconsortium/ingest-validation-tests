@@ -1,13 +1,7 @@
-from pathlib import Path
 from typing import List
 
 from ingest_validation_tools.plugin_validator import Validator
-
-_FASTQ_FILE_MATCH = '**/*.fastq*'
-
-
-def has_valid_name(filename: str) -> bool:
-    return filename.endswith('.fastq.gz') or filename.endswith('.fastq')
+from fastq_validator_logic import FASTQValidatorLogic
 
 
 class FASTQValidator(Validator):
@@ -15,21 +9,6 @@ class FASTQValidator(Validator):
     cost = 5.0
 
     def collect_errors(self, **kwargs) -> List[str]:
-        errors: List[str] = []
-        found_one = False
-
-        fastq_file: Path
-        for fastq_file in self.path.glob(_FASTQ_FILE_MATCH):
-            found_one = True
-
-            if not has_valid_name(fastq_file.name):
-                self.errors.append(
-                    f"{fastq_file} is not an expected filename and will "
-                    "not be processed."
-                )
-
-        if not found_one:
-            self.errors.append(f"No files matching {_FASTQ_FILE_MATCH} were "
-                               f"found in {self.path}.")
-
-        return self.errors
+        validator = FASTQValidatorLogic()
+        validator.validate_fastq_files_in_path(self.path)
+        return validator.errors
