@@ -4,7 +4,7 @@ from typing import TextIO
 import gzip
 import pytest
 
-from ingest_validation_tests.fastq_validator_logic import \
+from src.ingest_validation_tests.fastq_validator_logic import \
     FASTQValidatorLogic
 
 _GOOD_RECORDS = '''\
