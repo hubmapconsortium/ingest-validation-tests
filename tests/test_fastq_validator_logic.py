@@ -157,11 +157,24 @@ class TestFASTQValidatorLogic:
 
         assert not result
 
-    def test_fastq_validator_line_4_mismatched_length(self, fastq_validator):
+    def test_fastq_validator_line_4_mismatched_length(self, fastq_validator,
+                                                      tmp_path):
         fastq_validator.validate_fastq_record('123456789ABCDEF', 1)
         result = fastq_validator.validate_fastq_record('ABC', 3)
 
-        assert "contains 3 characters which does not match line 2's 15" in \
+        test_data = '''\
+@A12345:123:A12BCDEFG:1:1234:1000:1234 1:N:0:NACTGACTGA+CTGACTGACT
+NACTGACTGA
++
+#FFFFFFFF
+'''
+
+        new_file = tmp_path.joinpath('test.fastq')
+        with _open_output_file(new_file, False) as output:
+            output.write(test_data)
+
+        result = fastq_validator.validate_fastq_file(new_file)
+        assert "contains 9 characters which does not match line 2's 10" in \
                result[0]
 
     def test_fastq_validator_record_counts_good(self, fastq_validator,
