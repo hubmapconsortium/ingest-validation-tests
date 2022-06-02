@@ -1,3 +1,4 @@
+import argparse
 import gzip
 import re
 
@@ -23,6 +24,11 @@ def _open_fastq_file(file: Path) -> TextIO:
     )
 
 
+def _log(message: str) -> str:
+    print(message)
+    return message
+
+
 class FASTQValidatorLogic:
     """Validate FASTQ input files for basic syntax.
 
@@ -40,28 +46,35 @@ class FASTQValidatorLogic:
 
     _FASTQ_FILE_MATCH = '**/*.fastq*'
 
-    # This pattern seeks out the string that includes the lane number (since that
-    # is expected to be present to help anchor the prefix) that comes before any of
-    # _I1, _I2, _R1, or _R2.
+    # This pattern seeks out the string that includes the lane number (since
+    # that is expected to be present to help anchor the prefix) that comes
+    # before any of _I1, _I2, _R1, or _R2.
     _FASTQ_FILE_PREFIX_REGEX = re.compile(r'(.+_L\d+.*)_[IR][12][._]')
 
     _FASTQ_LINE_2_VALID_CHARS = 'ACGNT'
 
-    def __init__(self):
+    def __init__(self, verbose=False):
         self.errors: [str] = []
         self._filename = ''
         self._line_number = 0
         self._file_record_counts: Dict[str, int] = {}
         self._file_prefix_counts: Dict[str, int] = {}
 
+        self._verbose = verbose
+
         self._line_2_length = 0
+        self._last_line_2_number = 0
 
     def _format_error(self, error: str) -> str:
         location = self._filename
         if self._line_number:
             location += f":{self._line_number}"
 
-        return f"{location}: {error}"
+        message = f"{location}: {error}"
+
+        if self._verbose:
+            _log(message)
+        return message
 
     def _validate_fastq_line_1(self, line: str) -> List[str]:
         if not line or line[0] != '@':
@@ -71,6 +84,7 @@ class FASTQValidatorLogic:
 
     def _validate_fastq_line_2(self, line: str) -> List[str]:
         self._line_2_length = len(line)
+        self._last_line_2_number = self._line_number
 
         invalid_chars = ''.join(
             c for c in line if c not in self._FASTQ_LINE_2_VALID_CHARS)
@@ -95,7 +109,7 @@ class FASTQValidatorLogic:
 
         if len(line) != self._line_2_length:
             errors.append(f"Line contains {len(line)} characters which "
-                          "does not match line 2's "
+                          f"does not match line {self._last_line_2_number}'s "
                           f"{self._line_2_length} characters.")
 
         return errors
@@ -143,6 +157,9 @@ class FASTQValidatorLogic:
             # If we don't like the filename, don't bother reading the contents.
             return filename_errors
 
+        self._line_number = 0
+        self._filename = fastq_file.name
+
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
                 result = self.validate_fastq_stream(fastq_data)
@@ -152,8 +169,9 @@ class FASTQValidatorLogic:
             return [self._format_error("Unable to open FASTQ data file.")]
 
         if fastq_file.name in self._file_record_counts.keys():
-            result.errors.append(f"{fastq_file.name} has been found multiple "
-                                 "times during this validation.")
+            result.errors.append(_log(
+                f"{fastq_file.name} has been found multiple times during this "
+                "validation."))
         self._file_record_counts[fastq_file.name] = result.record_count
 
         match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
@@ -165,19 +183,19 @@ class FASTQValidatorLogic:
                     # Find a file we've validated already that matches this
                     # prefix.
                     extant_files = [
-                        filename for filename
-                        in self._file_record_counts.keys()
-                        if self._file_record_counts[filename] == extant_count
-                           and filename.startswith(filename_prefix)
+                        filename for filename, record_count
+                        in self._file_record_counts.items()
+                        if record_count == extant_count
+                            and filename.startswith(filename_prefix)
                     ]
                     # Based on how the dictionaries are created, there should
                     # always be at least one matching filename.
                     assert extant_files
 
-                    result.errors.append(
+                    result.errors.append(_log(
                         f"{fastq_file.name} ({result.record_count} lines) "
                         f"does not match length of {extant_files[0]} "
-                        f"({extant_count} lines).")
+                        f"({extant_count} lines)."))
             else:
                 self._file_prefix_counts[filename_prefix] = result.record_count
 
@@ -189,7 +207,8 @@ class FASTQValidatorLogic:
 
         fastq_file: Path
         for fastq_file in path.glob(self._FASTQ_FILE_MATCH):
-            self._filename = fastq_file.name
+            if self._verbose:
+                _log(f"Validating {fastq_file.name}...")
 
             new_errors = self.validate_fastq_file(fastq_file)
             if new_errors:
@@ -199,7 +218,31 @@ class FASTQValidatorLogic:
                 found_one = True
 
         if not found_one:
-            errors.append(f"No good files matching {self._FASTQ_FILE_MATCH} "
-                          f"were found in {path}.")
+            errors.append(_log(
+                f"No good files matching {self._FASTQ_FILE_MATCH} were found "
+                f"in {path}."))
 
         return errors
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Validate FASTQ files.')
+    parser.add_argument('filepaths', type=Path, nargs='+',
+                        help="Files to validate for FASTQ syntax")
+
+    args = parser.parse_args()
+
+    validator = FASTQValidatorLogic(True)
+
+    path: Path
+    for path in args.filepaths:
+        _log(f"Validating {path.as_posix()}...")
+
+        if path.is_dir():
+            validator.validate_fastq_files_in_path(path)
+        else:
+            validator.validate_fastq_file(path)
+
+
+if __name__ == '__main__':
+    main()
