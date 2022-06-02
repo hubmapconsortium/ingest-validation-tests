@@ -2,7 +2,6 @@ import argparse
 import gzip
 import re
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, TextIO
 
@@ -130,10 +129,12 @@ class FASTQValidatorLogic:
 
         return validator_method(self, line)
 
-    @dataclass
     class ValidationResult:
         record_count = 0
-        errors: List[str] = field(default_factory=list)
+        errors: List[str]
+
+        def __init__(self):
+            self.errors = list()
 
     def validate_fastq_stream(self, fastq_data: TextIO) -> ValidationResult:
         line_count = 0
@@ -163,8 +164,7 @@ class FASTQValidatorLogic:
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
                 result = self.validate_fastq_stream(fastq_data)
-        except gzip.BadGzipFile:
-            return [self._format_error("FASTQ .gz file cannot be read")]
+        # TODO: Add gzip.BadGzipFile when Python 3.8 is available
         except IOError:
             return [self._format_error("Unable to open FASTQ data file.")]
 
