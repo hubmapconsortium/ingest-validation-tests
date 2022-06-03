@@ -153,6 +153,7 @@ class FASTQValidatorLogic:
         return result
 
     def validate_fastq_file(self, fastq_file: Path) -> List[str]:
+        _log(f"Validating {fastq_file.name}...")
         filename_errors = _validate_fastq_filename(fastq_file.name)
         if filename_errors:
             # If we don't like the filename, don't bother reading the contents.
@@ -205,11 +206,10 @@ class FASTQValidatorLogic:
         found_one = False
         errors: [str] = []
 
+        _log(f"Validating matching files in {path.as_posix()}")
+
         fastq_file: Path
         for fastq_file in path.glob(self._FASTQ_FILE_MATCH):
-            if self._verbose:
-                _log(f"Validating {fastq_file.name}...")
-
             new_errors = self.validate_fastq_file(fastq_file)
             if new_errors:
                 errors.extend(new_errors)
@@ -236,8 +236,6 @@ def main():
 
     path: Path
     for path in args.filepaths:
-        _log(f"Validating {path.as_posix()}...")
-
         if path.is_dir():
             validator.validate_fastq_files_in_path(path)
         else:
