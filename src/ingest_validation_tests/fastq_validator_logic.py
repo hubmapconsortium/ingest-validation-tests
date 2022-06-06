@@ -53,7 +53,7 @@ class FASTQValidatorLogic:
     _FASTQ_LINE_2_VALID_CHARS = 'ACGNT'
 
     def __init__(self, verbose=False):
-        self.errors: [str] = []
+        self.errors: List[str] = []
         self._filename = ''
         self._line_number = 0
         self._file_record_counts: Dict[str, int] = {}
@@ -99,8 +99,7 @@ class FASTQValidatorLogic:
         return []
 
     def _validate_fastq_line_4(self, line: str) -> List[str]:
-        errors: [str] = []
-
+        errors: List[str] = []
         invalid_chars = ''.join(c for c in line if not 33 <= ord(c) <= 126)
         if invalid_chars:
             errors.append("Line contains invalid quality character(s): "
@@ -129,100 +128,90 @@ class FASTQValidatorLogic:
 
         return validator_method(self, line)
 
-    class ValidationResult:
-        record_count = 0
-        errors: List[str]
-
-        def __init__(self):
-            self.errors = list()
-
-    def validate_fastq_stream(self, fastq_data: TextIO) -> ValidationResult:
+    def validate_fastq_stream(self, fastq_data: TextIO) -> int:
+        # Returns the number of records read from fastq_data.
         line_count = 0
-
-        result = self.ValidationResult()
 
         line: str
         for line_count, line in enumerate(fastq_data):
             self._line_number = line_count + 1
-            result.errors.extend(
+            self.errors.extend(
                 self._format_error(error) for error in
                 self.validate_fastq_record(line.rstrip(), line_count)
             )
 
-        result.record_count = line_count + 1
-        return result
+        return line_count + 1
 
-    def validate_fastq_file(self, fastq_file: Path) -> List[str]:
+    def validate_fastq_file(self, fastq_file: Path) -> None:
         _log(f"Validating {fastq_file.name}...")
-        filename_errors = _validate_fastq_filename(fastq_file.name)
-        if filename_errors:
+        filename_error = _validate_fastq_filename(fastq_file.name)
+        if filename_error:
             # If we don't like the filename, don't bother reading the contents.
-            return filename_errors
+            self.errors.append(filename_error)
+            return
 
         self._line_number = 0
         self._filename = fastq_file.name
 
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
-                result = self.validate_fastq_stream(fastq_data)
+                records_read = self.validate_fastq_stream(fastq_data)
         # TODO: Add gzip.BadGzipFile when Python 3.8 is available
         except IOError:
-            return [self._format_error("Unable to open FASTQ data file.")]
+            self.errors.append(
+                self._format_error("Unable to open FASTQ data file."))
+            return
 
         if fastq_file.name in self._file_record_counts.keys():
-            result.errors.append(_log(
+            self.errors.append(_log(
                 f"{fastq_file.name} has been found multiple times during this "
                 "validation."))
-        self._file_record_counts[fastq_file.name] = result.record_count
+        self._file_record_counts[fastq_file.name] = records_read
 
         match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
         if match:
             filename_prefix = match.group(1)
             if filename_prefix in self._file_prefix_counts.keys():
                 extant_count = self._file_prefix_counts[filename_prefix]
-                if extant_count != result.record_count:
+                if extant_count != records_read:
                     # Find a file we've validated already that matches this
                     # prefix.
                     extant_files = [
                         filename for filename, record_count
                         in self._file_record_counts.items()
                         if record_count == extant_count
-                            and filename.startswith(filename_prefix)
+                           and filename.startswith(filename_prefix)
                     ]
                     # Based on how the dictionaries are created, there should
                     # always be at least one matching filename.
                     assert extant_files
 
-                    result.errors.append(_log(
-                        f"{fastq_file.name} ({result.record_count} lines) "
+                    self.errors.append(_log(
+                        f"{fastq_file.name} ({records_read} lines) "
                         f"does not match length of {extant_files[0]} "
                         f"({extant_count} lines)."))
             else:
-                self._file_prefix_counts[filename_prefix] = result.record_count
+                self._file_prefix_counts[filename_prefix] = records_read
 
-        return result.errors
-
-    def validate_fastq_files_in_path(self, path: Path) -> List[str]:
+    def validate_fastq_files_in_path(self, path: Path) -> None:
         found_one = False
-        errors: [str] = []
 
         _log(f"Validating matching files in {path.as_posix()}")
 
         fastq_file: Path
         for fastq_file in path.glob(self._FASTQ_FILE_MATCH):
-            new_errors = self.validate_fastq_file(fastq_file)
-            if new_errors:
-                errors.extend(new_errors)
-            else:
-                # If we successfully process any input file, this can be set.
+            previous_error_count = len(self.errors)
+
+            self.validate_fastq_file(fastq_file)
+            if previous_error_count == len(self.errors):
+                # If no new errors were found in any input file, this can be
+                # set.
                 found_one = True
 
         if not found_one:
-            errors.append(_log(
+            self.errors.append(_log(
                 f"No good files matching {self._FASTQ_FILE_MATCH} were found "
                 f"in {path}."))
-
-        return errors
 
 
 def main():

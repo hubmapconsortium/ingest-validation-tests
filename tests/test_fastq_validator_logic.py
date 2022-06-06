@@ -38,8 +38,8 @@ class TestFASTQValidatorLogic:
         return FASTQValidatorLogic()
 
     def test_fastq_validator_no_files(self, fastq_validator, tmp_path):
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
-        assert "No good files matching" in result[0]
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
+        assert "No good files matching" in fastq_validator.errors[0]
 
     def test_fastq_validator_bad_gzip_data(self, fastq_validator, tmp_path):
         # Note that the filename ends in .gz, although it will not contain
@@ -48,8 +48,8 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, False) as output:
             output.write(_GOOD_RECORDS)
 
-        result = fastq_validator.validate_fastq_file(test_file)
-        assert ".gz file cannot be read" in result[0]
+        fastq_validator.validate_fastq_file(test_file)
+        assert "Unable to open" in fastq_validator.errors[0]
 
     def test_fastq_validator_unrecognized_file(self, fastq_validator,
                                                tmp_path):
@@ -57,13 +57,14 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, False) as output:
             output.write(_GOOD_RECORDS)
 
-        result = fastq_validator.validate_fastq_file(test_file)
-        assert "Filename does not have proper format" in result[0]
+        fastq_validator.validate_fastq_file(test_file)
+        assert "Filename does not have proper format" in \
+               fastq_validator.errors[0][0]
 
     def test_fastq_validator_empty_directory(self, fastq_validator,
                                              tmp_path):
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
-        assert "No good files" in result[0]
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
+        assert "No good files" in fastq_validator.errors[0]
 
     @pytest.mark.parametrize("use_gzip", [False, True])
     def test_fastq_validator_basic(self, fastq_validator, tmp_path, use_gzip):
@@ -72,19 +73,19 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, use_gzip) as output:
             output.write(_GOOD_RECORDS)
 
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
-        assert not result
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
+        assert not fastq_validator.errors
 
     def test_fastq_validator_bad_file(self, fastq_validator, tmp_path):
         test_file = tmp_path.joinpath('test.fastq')
         with _open_output_file(test_file, False) as output:
             output.write('ABCDEF')
 
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
 
         # This test does not assert specific validations but instead that the
         # overall file failed and that error messages were returned.
-        assert result
+        assert fastq_validator.errors
 
     def test_fastq_validator_duplicate_file(self, fastq_validator, tmp_path):
         for subdirectory in ['a', 'b']:
@@ -94,15 +95,16 @@ class TestFASTQValidatorLogic:
                                    False) as output:
                 output.write(_GOOD_RECORDS)
 
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
-        assert "test.fastq has been found multiple times" in result[0]
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
+        assert "test.fastq has been found multiple times" in \
+               fastq_validator.errors[0]
 
     def test_fastq_validator_io_error(self, fastq_validator, tmp_path):
         fake_path = tmp_path.joinpath('does-not-exist.fastq')
 
-        result = fastq_validator.validate_fastq_file(fake_path)
+        fastq_validator.validate_fastq_file(fake_path)
 
-        assert "Unable to open" in result[0]
+        assert "Unable to open" in fastq_validator.errors[0]
 
     def test_fastq_validator_line_1_good(self, fastq_validator):
         result = fastq_validator.validate_fastq_record('@SEQ_ID', 0)
@@ -160,7 +162,7 @@ class TestFASTQValidatorLogic:
     def test_fastq_validator_line_4_mismatched_length(self, fastq_validator,
                                                       tmp_path):
         fastq_validator.validate_fastq_record('123456789ABCDEF', 1)
-        result = fastq_validator.validate_fastq_record('ABC', 3)
+        fastq_validator.validate_fastq_record('ABC', 3)
 
         test_data = '''\
 @A12345:123:A12BCDEFG:1:1234:1000:1234 1:N:0:NACTGACTGA+CTGACTGACT
@@ -173,9 +175,9 @@ NACTGACTGA
         with _open_output_file(new_file, False) as output:
             output.write(test_data)
 
-        result = fastq_validator.validate_fastq_file(new_file)
+        fastq_validator.validate_fastq_file(new_file)
         assert "contains 9 characters which does not match line 2's 10" in \
-               result[0]
+               fastq_validator.errors[0]
 
     def test_fastq_validator_record_counts_good(self, fastq_validator,
                                                 tmp_path):
@@ -187,9 +189,9 @@ NACTGACTGA
             with _open_output_file(new_file, False) as output:
                 output.write(_GOOD_RECORDS)
 
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
 
-        assert not result
+        assert not fastq_validator.errors
 
     def test_fastq_validator_record_counts_bad(self, fastq_validator,
                                                tmp_path):
@@ -203,10 +205,10 @@ NACTGACTGA
             output.write(_GOOD_RECORDS)
             output.write(_GOOD_RECORDS)
 
-        result = fastq_validator.validate_fastq_files_in_path(tmp_path)
+        fastq_validator.validate_fastq_files_in_path(tmp_path)
 
         # Order of the files being processed is not guaranteed, however these
         # strings ensure that a mismatch was found.
-        assert "(4 lines)" in result[0]
-        assert "does not match" in result[0]
-        assert "(8 lines)" in result[0]
+        assert "(4 lines)" in fastq_validator.errors[0]
+        assert "does not match" in fastq_validator.errors[0]
+        assert "(8 lines)" in fastq_validator.errors[0]
