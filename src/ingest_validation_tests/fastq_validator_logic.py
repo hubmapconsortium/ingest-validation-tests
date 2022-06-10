@@ -5,15 +5,11 @@ import re
 from pathlib import Path
 from typing import Callable, Dict, List, TextIO
 
+import fastq_utils
 
-def _validate_fastq_filename(filename: str) -> List[str]:
-    valid_filename = filename.endswith('.fastq.gz') or \
-                     filename.endswith('.fastq')
-    if not valid_filename:
-        return ["Filename does not have proper format and will not be "
-                "processed"]
 
-    return []
+def is_valid_filename(filename: str) -> bool:
+    return fastq_utils.FASTQ_PATTERN.fullmatch(filename)
 
 
 def _open_fastq_file(file: Path) -> TextIO:
@@ -144,10 +140,13 @@ class FASTQValidatorLogic:
 
     def validate_fastq_file(self, fastq_file: Path) -> None:
         _log(f"Validating {fastq_file.name}...")
-        filename_error = _validate_fastq_filename(fastq_file.name)
-        if filename_error:
+        _log(f"    → {fastq_file.absolute().as_posix()}")
+
+        if not is_valid_filename(fastq_file.name):
             # If we don't like the filename, don't bother reading the contents.
-            self.errors.append(filename_error)
+            self.errors.append(_log(
+                "Filename does not have proper format "
+                "and will not be processed"))
             return
 
         self._line_number = 0
@@ -198,20 +197,21 @@ class FASTQValidatorLogic:
 
         _log(f"Validating matching files in {path.as_posix()}")
 
-        fastq_file: Path
-        for fastq_file in path.glob(self._FASTQ_FILE_MATCH):
-            previous_error_count = len(self.errors)
+        dirs_and_files = fastq_utils.collect_fastq_files_by_directory(path)
+        for directory, file_list in dirs_and_files.items():
+            for fastq_file in file_list:
+                previous_error_count = len(self.errors)
 
-            self.validate_fastq_file(fastq_file)
-            if previous_error_count == len(self.errors):
-                # If no new errors were found in any input file, this can be
-                # set.
-                found_one = True
+                self.validate_fastq_file(path / fastq_file)
+                if previous_error_count == len(self.errors):
+                    # If no new errors were found in any input file, this can
+                    # be set.
+                    found_one = True
 
         if not found_one:
             self.errors.append(_log(
-                f"No good files matching {self._FASTQ_FILE_MATCH} were found "
-                f"in {path}."))
+                f"No good files matching {fastq_utils.FASTQ_EXTENSION} "
+                f"found in in {path}."))
 
 
 def main():
