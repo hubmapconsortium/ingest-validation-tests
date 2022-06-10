@@ -209,9 +209,8 @@ class FASTQValidatorLogic:
                     found_one = True
 
         if not found_one:
-            self.errors.append(_log(
-                f"No good files matching {fastq_utils.FASTQ_EXTENSION} "
-                f"found in in {path}."))
+            _log(f"No good files matching {fastq_utils.FASTQ_EXTENSION} "
+                 f"were found in in {path}.")
 
 
 def main():
