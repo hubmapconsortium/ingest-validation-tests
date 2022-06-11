@@ -195,7 +195,7 @@ class FASTQValidatorLogic:
     def validate_fastq_files_in_path(self, path: Path) -> None:
         found_one = False
 
-        _log(f"Validating matching files in {path.as_posix()}")
+        _log(f"Validating matching fastq files in {path.as_posix()}")
 
         dirs_and_files = fastq_utils.collect_fastq_files_by_directory(path)
         for directory, file_list in dirs_and_files.items():
