@@ -9,6 +9,6 @@ class FASTQValidator(Validator):
     cost = 5.0
 
     def collect_errors(self, **kwargs) -> List[str]:
-        validator = FASTQValidatorLogic()
+        validator = FASTQValidatorLogic(verbose=True)
         validator.validate_fastq_files_in_path(self.path)
         return validator.errors
