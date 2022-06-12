@@ -39,8 +39,6 @@ class FASTQValidatorLogic:
     contain the same number of symbols as letters in the sequence.
     """
 
-    _FASTQ_FILE_MATCH = '**/*.fastq*'
-
     # This pattern seeks out the string that includes the lane number (since
     # that is expected to be present to help anchor the prefix) that comes
     # before any of _I1, _I2, _R1, or _R2.
