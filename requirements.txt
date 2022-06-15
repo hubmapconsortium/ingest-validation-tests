@@ -1,4 +1,4 @@
 xmlschema>=1.6
 tifffile>=2020.10.1
 jsonschema==4.4.0
-git+https://github.com/hubmapconsortium/fastq-utils.git@main#egg=hubmap-fastq-utils
+git+https://github.com/hubmapconsortium/fastq-utils.git@v0.2.5#egg=hubmap-fastq-utils
