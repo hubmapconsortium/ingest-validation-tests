@@ -6,7 +6,7 @@ from fastq_validator_logic import FASTQValidatorLogic
 
 class FASTQValidator(Validator):
     description = "Check FASTQ files for basic syntax and consistency."
-    cost = 5.0
+    cost = 15.0
 
     def collect_errors(self, **kwargs) -> List[str]:
         validator = FASTQValidatorLogic(verbose=True)
