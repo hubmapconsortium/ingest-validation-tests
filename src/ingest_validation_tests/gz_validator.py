@@ -24,21 +24,8 @@ class Engine(object):
 
 
 class GZValidator(Validator):
-    description = "Recursively checking gzipped files for damage"
+    description = "Recursively checking gzipped files for damage using multiprocessing pools"
     cost = 5.0
-    # def collect_errors(self, **kwargs) -> List[str]:
-    #     rslt = []
-    #     for glob_expr in ['**/*.gz']:
-    #         for path in self.path.glob(glob_expr):
-    #             try:
-    #                 with gzip.open(path) as g_f:
-    #                     while True:
-    #                         buf = g_f.read(1024*1024)
-    #                         if not buf:
-    #                             break
-    #             except Exception:
-    #                 rslt.append(f'{path} is not a valid gzipped file')
-    #     return rslt
 
     def collect_errors(self, **kwargs) -> List[str]:
         data_output2 = []
