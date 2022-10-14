@@ -26,13 +26,14 @@ class Engine(object):
 class GZValidator(Validator):
     description = "Recursively checking gzipped files for damage using multiprocessing pools"
     cost = 5.0
-    threads = 16
 
     def collect_errors(self, **kwargs) -> List[str]:
         data_output2 = []
         for glob_expr in ['**/*.gz']:
             try:
-                pool = Pool(self.threads)
+                # ToDo finding a way to have this value from the resource_map
+                threads = 16
+                pool = Pool(threads)
                 engine = Engine()
                 data_output = pool.imap_unordered(engine, self.path.glob(glob_expr))
             except Exception as e:
