@@ -1,3 +1,5 @@
+import math
+import os
 from multiprocessing import Pool
 from typing import List
 
@@ -29,10 +31,15 @@ class GZValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[str]:
         data_output2 = []
+        threads = kwargs.get('coreuse', None)
+        if not threads:
+            _log(f'No threads found in kwargs')
+            threads = os.cpu_count() // 2
+        else:
+            _log(f'Using {threads} from kwargs')
+            threads = math.ceil(os.cpu_count() * (threads / 100))
         for glob_expr in ['**/*.gz']:
             try:
-                # ToDo finding a way to have this value from the resource_map
-                threads = 16
                 pool = Pool(threads)
                 engine = Engine()
                 data_output = pool.imap_unordered(engine, self.path.glob(glob_expr))
