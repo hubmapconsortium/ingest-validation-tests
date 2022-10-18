@@ -33,7 +33,6 @@ class CodexCommonErrorsValidator(Validator):
             right_place = False
             for path in self.path.glob('*/[Ss]egmentation.json'):
                 rel_path = path.relative_to(self.path)
-                #print(f'path {rel_path}')
                 found = True
                 if str(rel_path).startswith(('raw','src_')):
                     right_place = True

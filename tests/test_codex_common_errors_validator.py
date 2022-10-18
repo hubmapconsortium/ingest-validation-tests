@@ -24,10 +24,6 @@ def test_codex_common_errors_validator(test_data_fname, msg_starts_list, tmp_pat
                                            'CODEX'
                                            )
     errors = validator.collect_errors()[:]
-    #print('ERRORS FOLLOW')
-    #for elt in errors:
-    #    print(elt)
-    #print('ERRORS ABOVE')
     assert len(msg_starts_list) == len(errors)
     for err_str, expected_str in zip(errors, msg_starts_list):
         assert err_str.startswith(expected_str)
