@@ -10,7 +10,9 @@ end() { [[ -z "$CI" ]] || echo "travis_fold:end:$1"; }
 die() { set +v; echo "$red$*$reset" 1>&2 ; exit 1; }
 
 
+path_to_tools='../ingest-validation-tools'
 start placeholder
-../ingest-validation-tools/src/validate_submission.py --help \
-  || die 'validate_submission.py failed'
+${path_to_tools}/src/validate_upload.py --help > /dev/null \
+    || die 'validate_upload.py failed'
+python tests/pytest_runner.py ${path_to_tools}
 end placeholder

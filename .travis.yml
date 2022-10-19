@@ -11,7 +11,7 @@ install:
   - git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
   - cd ingest-validation-tools
   - pwd
-  - git checkout v0.0.5
+  - git checkout v0.0.14
   - pip install "setuptools==60.9.0"
   - pip install -r requirements.txt
  

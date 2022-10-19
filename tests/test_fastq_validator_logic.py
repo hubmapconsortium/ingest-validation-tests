@@ -39,7 +39,8 @@ class TestFASTQValidatorLogic:
 
     def test_fastq_validator_no_files(self, fastq_validator, tmp_path):
         fastq_validator.validate_fastq_files_in_path(tmp_path)
-        assert "No good files matching" in fastq_validator.errors[0]
+        # This case should return no errors
+        assert fastq_validator.errors == []
 
     def test_fastq_validator_bad_gzip_data(self, fastq_validator, tmp_path):
         # Note that the filename ends in .gz, although it will not contain
@@ -59,12 +60,13 @@ class TestFASTQValidatorLogic:
 
         fastq_validator.validate_fastq_file(test_file)
         assert "Filename does not have proper format" in \
-               fastq_validator.errors[0][0]
+               fastq_validator.errors[0]
 
     def test_fastq_validator_empty_directory(self, fastq_validator,
                                              tmp_path):
         fastq_validator.validate_fastq_files_in_path(tmp_path)
-        assert "No good files" in fastq_validator.errors[0]
+        # No files in path means no errors
+        assert fastq_validator.errors == []
 
     @pytest.mark.parametrize("use_gzip", [False, True])
     def test_fastq_validator_basic(self, fastq_validator, tmp_path, use_gzip):
