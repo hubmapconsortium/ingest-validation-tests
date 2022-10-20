@@ -33,11 +33,8 @@ class GZValidator(Validator):
         data_output2 = []
         threads = kwargs.get('coreuse', None)
         if not threads:
-            _log(f'No threads found in kwargs')
-            threads = os.cpu_count() // 2
-        else:
-            _log(f'Using {threads} from kwargs')
-            threads = math.ceil(os.cpu_count() * (threads / 100))
+            _log(f'No threads where sent for this plugin, defaulting to 25%')
+            threads = os.cpu_count() // 4
         for glob_expr in ['**/*.gz']:
             try:
                 pool = Pool(threads)
