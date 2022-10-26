@@ -14,6 +14,16 @@ import zipfile
                                          'channelnames.txt does not match channelnames_report.txt on line 6: Empty vs Blank']),
     ('test_data/fake_codex_tree_6.zip', ['Could not parse ']),
     ('test_data/fake_codex_tree_7.zip', []),
+    ('test_data/fake_codex_tree_8.zip', ['Region numbers are not contiguous']),
+    ('test_data/fake_codex_tree_9.zip', ['Cycle numbers are not contiguous',
+                                         'The number of channels per cycle is not constant']),
+    ('test_data/fake_codex_tree_10.zip', ['Directory string "cyc0a3_reg001_211119_040351" cycle number is not an integer']),
+    ('test_data/fake_codex_tree_11.zip', ['Directory string "cyc003_reg0a1_211119_040351" region number is not an integer']),
+    ('test_data/fake_codex_tree_12.zip', ['Directory string "cyc002_rig001_211119_040351" does not include "_reg"']),
+    ('test_data/fake_codex_tree_13.zip', ['Cycle numbering does not start at 1']),
+    ('test_data/fake_codex_tree_14.zip', ['Region numbering does not start at 1']),
+    ('test_data/fake_codex_tree_15.zip', ['Not all cycle/region pairs are present',
+                                          'The number of channels per cycle is not constant']),
     ))
 def test_codex_common_errors_validator(test_data_fname, msg_starts_list, tmp_path):
     from codex_common_errors_validator import CodexCommonErrorsValidator
