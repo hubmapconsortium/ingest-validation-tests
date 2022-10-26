@@ -1,38 +1,53 @@
+"""
+Test for some common errors in the directory and file structure of CODEX datasets.
+"""
+
 from typing import List
-from pathlib import Path
 
 import pandas as pd
 from ingest_validation_tools.plugin_validator import Validator
 
 
 class QuitNowException(Exception):
+    """
+    Signal exit from this validation test
+    """
     pass
 
 
-def _split_cycle_dir_string(s):
-    words = s.split('_')
-    assert len(words) >= 2, f'Directory string "{s}" has unexpected form'
-    assert words[0].startswith('cyc'), (f'directory string "{s}" does'
+def _split_cycle_dir_string(cycle_str):
+    """
+    Given a cycle-and-region directory name, split out the cyle and region numbers
+    """
+    words = cycle_str.split('_')
+    assert len(words) >= 2, f'Directory string "{cycle_str}" has unexpected form'
+    assert words[0].startswith('cyc'), (f'directory string "{cycle_str}" does'
                                         ' not start with "cyc"')
     try:
         cyc_id = int(words[0][len('cyc'):])
     except ValueError:
-        raise AssertionError(f'Directory string "{s}" cycle number is'
+        raise AssertionError(f'Directory string "{cycle_str}" cycle number is'
                              ' not an integer')
-    assert words[1].startswith('reg'), (f'Directory string "{s}" does'
+    assert words[1].startswith('reg'), (f'Directory string "{cycle_str}" does'
                                         ' not include "_reg"')
     try:
         reg_id = int(words[1][len('reg'):])
     except ValueError:
-        raise AssertionError(f'Directory string "{s}" region number is'
+        raise AssertionError(f'Directory string "{cycle_str}" region number is'
                              ' not an integer')
     return cyc_id, reg_id
-    
+
 
 class CodexCommonErrorsValidator(Validator):
+    """
+    Test for some common errors in the directory and file structure of CODEX datasets.
+    """
     description = "Test for common problems found in CODEX"
     cost = 1.0
     def collect_errors(self, **kwargs) -> List[str]:
+        """
+        Return the errors found by this validator
+        """
         if self.assay_type != 'CODEX':
             return []  # We only test CODEX data
         rslt = []
@@ -47,7 +62,7 @@ class CodexCommonErrorsValidator(Validator):
             if prefix is None:
                 rslt.append('The raw/src_ subdirectory is missing?')
                 raise QuitNowException()
-            
+
             # is the segmentation.json file on the right side?
             found = False
             right_place = False
@@ -99,14 +114,14 @@ class CodexCommonErrorsValidator(Validator):
             # Do they match?
             rpt_df['other'] = cn_df[0]
             mismatches_df = rpt_df[rpt_df['other'] != rpt_df['Marker']]
-            if len(mismatches_df):
+            if len(mismatches_df) != 0:
                 for idx, row in mismatches_df.iterrows():
                     rslt.append(
                         "channelnames.txt does not match channelnames_report.txt"
                         f" on line {idx}: {row['other']} vs {row['Marker']}"
                     )
                 raise QuitNowException()
-                    
+
             # Tabulate the cycle and region info
             all_cycle_dirs = []
             for glob_str in ['cyc*', 'Cyc*']:
@@ -154,9 +169,7 @@ class CodexCommonErrorsValidator(Validator):
             if failures:
                 rslt += failures
                 raise QuitNowException()
-            
+
         except QuitNowException:
             pass
         return rslt
-
-
