@@ -8,10 +8,8 @@ import pytest
     ('test_data/fake_codex_tree_1.zip', ['The segmentation.json file is in',
                                          'Unexpected error reading']),
     ('test_data/fake_codex_tree_2.zip', ['The raw/src_ subdirectory is missing?']),
-    ('test_data/fake_codex_tree_3.zip', ['channelnames.txt and/or channelnames_report.csv'
-                                         ' is missing']),
-    ('test_data/fake_codex_tree_4.zip', ['channelnames.txt and/or channelnames_report.csv'
-                                         ' is missing']),
+    ('test_data/fake_codex_tree_3.zip', ['channelnames.txt is missing']),
+    ('test_data/fake_codex_tree_4.zip', ['Unexpected error reading']),
     ('test_data/fake_codex_tree_5.zip', ['channelnames.txt does not match channelnames_report.txt'
                                          ' on line 1: HLADR vs HLA-DR',
                                          'channelnames.txt does not match channelnames_report.txt'
@@ -31,6 +29,11 @@ import pytest
     ('test_data/fake_codex_tree_14.zip', ['Region numbering does not start at 1']),
     ('test_data/fake_codex_tree_15.zip', ['Not all cycle/region pairs are present',
                                           'The number of channels per cycle is not constant']),
+    ('test_data/fake_codex_tree_16.zip', []),
+    ('test_data/fake_codex_tree_17.zip', ['A dataset.json file exists but is in the wrong place',
+                                          'Region numbering does not start at 1']),
+    ('test_data/fake_codex_tree_18.zip', ['The number of channels per cycle is not constant']),
+    ('test_data/fake_codex_tree_19.zip', []),
     ))
 def test_codex_common_errors_validator(test_data_fname, msg_starts_list, tmp_path):
     from codex_common_errors_validator import CodexCommonErrorsValidator
@@ -41,6 +44,10 @@ def test_codex_common_errors_validator(test_data_fname, msg_starts_list, tmp_pat
                                            'CODEX'
                                            )
     errors = validator.collect_errors()[:]
+    print(f'ERRORS FOLLOW FOR {test_data_fname}')
+    for err in errors:
+        print(err)
+    print('ERRORS ABOVE')
     assert len(msg_starts_list) == len(errors)
     for err_str, expected_str in zip(errors, msg_starts_list):
         assert err_str.startswith(expected_str)
