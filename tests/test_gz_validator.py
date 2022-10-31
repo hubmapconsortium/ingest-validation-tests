@@ -15,10 +15,6 @@ def test_gz_validator(test_data_fname, msg_re_list, tmp_path):
     zfile.extractall(tmp_path)
     validator = GZValidator(tmp_path / test_data_path.stem, 'snRNAseq')
     errors = validator.collect_errors(coreuse=4)[:]
-    print(f'ERRORS FOLLOW FOR {test_data_fname}')
-    for err in errors:
-        print(err)
-    print('ERRORS ABOVE')
     assert len(msg_re_list) == len(errors)
     for err_str, re_str in zip(errors, msg_re_list):
         assert re.match(re_str, err_str, flags=re.MULTILINE)
