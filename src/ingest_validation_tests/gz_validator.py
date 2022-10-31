@@ -33,7 +33,7 @@ class GZValidator(Validator):
         data_output2 = []
         threads = kwargs.get('coreuse', None)
         if not threads:
-            _log(f'No threads where sent for this plugin, defaulting to 25%')
+            _log(f'No threads were sent for this plugin, defaulting to 25%')
             threads = os.cpu_count() // 4
         for glob_expr in ['**/*.gz']:
             try:
