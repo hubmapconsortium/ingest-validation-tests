@@ -4,6 +4,8 @@ import re
 
 from pathlib import Path
 from typing import Callable, Dict, List, TextIO
+from multiprocessing import Pool
+
 
 import fastq_utils
 
@@ -22,6 +24,23 @@ def _open_fastq_file(file: Path) -> TextIO:
 def _log(message: str) -> str:
     print(message)
     return message
+
+
+class Engine(object):
+    def __init__(self, validate_object, path: Path):
+        self.validate_object = validate_object
+        self.path = path
+
+    def __call__(self, fastq_file):
+        found_one = False
+        previous_error_count = len(self.validate_object.errors)
+
+        self.validate_object.validate_fastq_file(self.path / fastq_file)
+        if previous_error_count == len(self.validate_object.errors):
+            # If no new errors were found in any input file, this can
+            # be set.
+            found_one = True
+        return found_one
 
 
 class FASTQValidatorLogic:
@@ -153,7 +172,7 @@ class FASTQValidatorLogic:
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
                 records_read = self.validate_fastq_stream(fastq_data)
-        # TODO: Add gzip.BadGzipFile when Python 3.8 is available
+            # TODO: Add gzip.BadGzipFile when Python 3.8 is available
         except IOError:
             self.errors.append(
                 self._format_error("Unable to open FASTQ data file."))
@@ -176,8 +195,7 @@ class FASTQValidatorLogic:
                     extant_files = [
                         filename for filename, record_count
                         in self._file_record_counts.items()
-                        if record_count == extant_count
-                           and filename.startswith(filename_prefix)
+                        if record_count == extant_count and filename.startswith(filename_prefix)
                     ]
                     # Based on how the dictionaries are created, there should
                     # always be at least one matching filename.
@@ -190,23 +208,25 @@ class FASTQValidatorLogic:
             else:
                 self._file_prefix_counts[filename_prefix] = records_read
 
-    def validate_fastq_files_in_path(self, path: Path) -> None:
-        found_one = False
-
+    def validate_fastq_files_in_path(self, path: Path, threads: int) -> None:
+        data_found_one = []
+        found_one = True
         _log(f"Validating matching fastq files in {path.as_posix()}")
 
         dirs_and_files = fastq_utils.collect_fastq_files_by_directory(path)
         for directory, file_list in dirs_and_files.items():
-            for fastq_file in file_list:
-                previous_error_count = len(self.errors)
+            try:
+                pool = Pool(threads)
+                engine = Engine(self, path)
+                data_output = pool.imap_unordered(engine, file_list)
+            except Exception as e:
+                _log(f'Error {e}')
+            else:
+                pool.close()
+                pool.join()
+                [data_found_one.append(output) for output in data_output if output]
 
-                self.validate_fastq_file(path / fastq_file)
-                if previous_error_count == len(self.errors):
-                    # If no new errors were found in any input file, this can
-                    # be set.
-                    found_one = True
-
-        if not found_one:
+        if found_one not in data_found_one:
             _log(f"No good files matching {fastq_utils.FASTQ_EXTENSION} "
                  f"were found in in {path}.")
 
@@ -223,7 +243,7 @@ def main():
     path: Path
     for path in args.filepaths:
         if path.is_dir():
-            validator.validate_fastq_files_in_path(path)
+            validator.validate_fastq_files_in_path(path, 1)
         else:
             validator.validate_fastq_file(path)
 
