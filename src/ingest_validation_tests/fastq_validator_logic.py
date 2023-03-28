@@ -32,15 +32,8 @@ class Engine(object):
         self.path = path
 
     def __call__(self, fastq_file):
-        found_one = False
-        previous_error_count = len(self.validate_object.errors)
-
         self.validate_object.validate_fastq_file(self.path / fastq_file)
-        if previous_error_count == len(self.validate_object.errors):
-            # If no new errors were found in any input file, this can
-            # be set.
-            found_one = True
-        return found_one
+        return next(iter(self.validate_object.errors), None)
 
 
 class FASTQValidatorLogic:
@@ -210,7 +203,6 @@ class FASTQValidatorLogic:
 
     def validate_fastq_files_in_path(self, path: Path, threads: int) -> None:
         data_found_one = []
-        found_one = True
         _log(f"Validating matching fastq files in {path.as_posix()}")
 
         dirs_and_files = fastq_utils.collect_fastq_files_by_directory(path)
@@ -226,9 +218,8 @@ class FASTQValidatorLogic:
                 pool.join()
                 [data_found_one.append(output) for output in data_output if output]
 
-        if found_one not in data_found_one:
-            _log(f"No good files matching {fastq_utils.FASTQ_EXTENSION} "
-                 f"were found in in {path}.")
+        if len(data_found_one) > 0:
+            self.errors = data_found_one
 
 
 def main():
