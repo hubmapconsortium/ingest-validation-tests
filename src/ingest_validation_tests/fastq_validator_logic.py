@@ -3,9 +3,8 @@ import gzip
 import re
 
 from pathlib import Path
-from typing import Callable, Dict, List, TextIO
-from multiprocessing import Pool
-
+from typing import Callable, List, TextIO
+from multiprocessing import Pool, Manager, Lock
 
 import fastq_utils
 
@@ -27,12 +26,13 @@ def _log(message: str) -> str:
 
 
 class Engine(object):
-    def __init__(self, validate_object, path: Path):
+    def __init__(self, validate_object, path: Path, lock):
         self.validate_object = validate_object
         self.path = path
+        self.lock = lock
 
     def __call__(self, fastq_file):
-        self.validate_object.validate_fastq_file(self.path / fastq_file)
+        self.validate_object.validate_fastq_file(self.path / fastq_file, self.lock)
         return next(iter(self.validate_object.errors), None)
 
 
@@ -62,8 +62,8 @@ class FASTQValidatorLogic:
         self.errors: List[str] = []
         self._filename = ''
         self._line_number = 0
-        self._file_record_counts: Dict[str, int] = {}
-        self._file_prefix_counts: Dict[str, int] = {}
+        self._file_record_counts = Manager().dict()
+        self._file_prefix_counts = Manager().dict()
 
         self._verbose = verbose
 
@@ -148,7 +148,7 @@ class FASTQValidatorLogic:
 
         return line_count + 1
 
-    def validate_fastq_file(self, fastq_file: Path) -> None:
+    def validate_fastq_file(self, fastq_file: Path, lock) -> None:
         _log(f"Validating {fastq_file.name}...")
         _log(f"    → {fastq_file.absolute().as_posix()}")
 
@@ -178,45 +178,48 @@ class FASTQValidatorLogic:
         self._file_record_counts[fastq_file.name] = records_read
 
         match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
-        if match:
-            filename_prefix = match.group(1)
-            if filename_prefix in self._file_prefix_counts.keys():
-                extant_count = self._file_prefix_counts[filename_prefix]
-                if extant_count != records_read:
-                    # Find a file we've validated already that matches this
-                    # prefix.
-                    extant_files = [
-                        filename for filename, record_count
-                        in self._file_record_counts.items()
-                        if record_count == extant_count and filename.startswith(filename_prefix)
-                    ]
-                    # Based on how the dictionaries are created, there should
-                    # always be at least one matching filename.
-                    assert extant_files
+        with lock:
+            if match:
+                filename_prefix = match.group(1)
+                if filename_prefix in self._file_prefix_counts.keys():
+                    extant_count = self._file_prefix_counts[filename_prefix]
+                    if extant_count != records_read:
+                        # Find a file we've validated already that matches this
+                        # prefix.
+                        extant_files = [
+                            filename for filename, record_count
+                            in self._file_record_counts.items()
+                            if record_count == extant_count and filename.startswith(filename_prefix)
+                        ]
+                        # Based on how the dictionaries are created, there should
+                        # always be at least one matching filename.
+                        assert extant_files
 
-                    self.errors.append(_log(
-                        f"{fastq_file.name} ({records_read} lines) "
-                        f"does not match length of {extant_files[0]} "
-                        f"({extant_count} lines)."))
-            else:
-                self._file_prefix_counts[filename_prefix] = records_read
+                        self.errors.append(_log(
+                            f"{fastq_file.name} ({records_read} lines) "
+                            f"does not match length of {extant_files[0]} "
+                            f"({extant_count} lines)."))
+                else:
+                    self._file_prefix_counts[filename_prefix] = records_read
 
     def validate_fastq_files_in_path(self, path: Path, threads: int) -> None:
         data_found_one = []
         _log(f"Validating matching fastq files in {path.as_posix()}")
 
         dirs_and_files = fastq_utils.collect_fastq_files_by_directory(path)
-        for directory, file_list in dirs_and_files.items():
-            try:
-                pool = Pool(threads)
-                engine = Engine(self, path)
-                data_output = pool.imap_unordered(engine, file_list)
-            except Exception as e:
-                _log(f'Error {e}')
-            else:
-                pool.close()
-                pool.join()
-                [data_found_one.append(output) for output in data_output if output]
+        with Manager() as manager:
+            lock = manager.Lock()
+            for directory, file_list in dirs_and_files.items():
+                try:
+                    pool = Pool(threads)
+                    engine = Engine(self, path, lock)
+                    data_output = pool.imap_unordered(engine, file_list)
+                except Exception as e:
+                    _log(f'Error {e}')
+                else:
+                    pool.close()
+                    pool.join()
+                    [data_found_one.append(output) for output in data_output if output]
 
         if len(data_found_one) > 0:
             self.errors = data_found_one
@@ -236,7 +239,7 @@ def main():
         if path.is_dir():
             validator.validate_fastq_files_in_path(path, 1)
         else:
-            validator.validate_fastq_file(path)
+            validator.validate_fastq_file(path, Lock())
 
 
 if __name__ == '__main__':
