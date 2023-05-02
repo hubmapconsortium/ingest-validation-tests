@@ -1,5 +1,5 @@
-import math
 import os
+import re
 from multiprocessing import Pool
 from typing import List
 
@@ -13,6 +13,9 @@ def _log(message: str):
 
 class Engine(object):
     def __call__(self, filename):
+        excluded = r'.*/*fastq.gz'
+        if re.search(excluded, filename):
+            return
         try:
             _log(f'Threaded {filename}')
             with gzip.open(filename) as g_f:
@@ -33,8 +36,10 @@ class GZValidator(Validator):
         data_output2 = []
         threads = kwargs.get('coreuse', None)
         if not threads:
-            _log(f'No threads were sent for this plugin, defaulting to 25%')
             threads = os.cpu_count() // 4
+            _log(f'No threads were sent for this plugin, defaulting to 25% ({threads})')
+        else:
+            _log(f'Threading at {threads}')
         for glob_expr in ['**/*.gz']:
             try:
                 pool = Pool(threads)
