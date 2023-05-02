@@ -14,7 +14,7 @@ def _log(message: str):
 class Engine(object):
     def __call__(self, filename):
         excluded = r'.*/*fastq.gz'
-        if re.search(excluded, filename):
+        if re.search(excluded, filename.as_posix()):
             return
         try:
             _log(f'Threaded {filename}')
