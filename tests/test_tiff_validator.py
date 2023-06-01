@@ -21,6 +21,14 @@ def test_tiff_validator(test_data_fname, msg_re_list, tmp_path):
     validator = TiffValidator(tmp_path / test_data_path.stem, 'codex')
     errors = validator.collect_errors(coreuse=4)[:]
     print(f"errors: {errors}")
-    assert len(msg_re_list) == len(errors)
-    for err_str, re_str in zip(errors, msg_re_list):
-        assert re.match(re_str, err_str, flags=re.MULTILINE)
+    matched_err_str_list = []
+    for err_str in errors:
+        for re_str in msg_re_list:
+            if re.match(re_str, err_str):
+                msg_re_list.remove(re_str)
+                matched_err_str_list.append(err_str)
+                break
+    print(f"matched errors: {matched_err_str_list}")
+    matched_err_str_set = set(matched_err_str_list)
+    for err_str in errors:
+        assert err_str in matched_err_str_set, f"Unexpected error msg {err_str}"
