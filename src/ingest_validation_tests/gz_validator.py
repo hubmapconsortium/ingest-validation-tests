@@ -1,4 +1,4 @@
-import os
+from os import cpu_count
 import re
 from multiprocessing import Pool
 from typing import List
@@ -34,12 +34,8 @@ class GZValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[str]:
         data_output2 = []
-        threads = kwargs.get('coreuse', None)
-        if not threads:
-            threads = os.cpu_count() // 4
-            _log(f'No threads were sent for this plugin, defaulting to 25% ({threads})')
-        else:
-            _log(f'Threading at {threads}')
+        threads = kwargs.get('coreuse', None) or cpu_count() // 4 or 1
+        _log(f'Threading at {threads}')
         for glob_expr in ['**/*.gz']:
             try:
                 pool = Pool(threads)
