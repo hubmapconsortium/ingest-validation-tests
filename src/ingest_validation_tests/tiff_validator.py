@@ -5,6 +5,7 @@ from typing import List
 import tifffile
 from ingest_validation_tools.plugin_validator import Validator
 
+
 def _log(message: str):
     print(message)
 
@@ -24,9 +25,10 @@ def _check_tiff_file(path: str) -> str or None:
 class TiffValidator(Validator):
     description = "Recursively test all tiff files that are not ome.tiffs for validity"
     cost = 1.0
+
     def collect_errors(self, **kwargs) -> List[str]:
         threads = kwargs.get('coreuse', None) or cpu_count() // 4 or 1
-        print(f"THREADS {threads}")
+        _log(f'Threading at {threads}')
         pool = Pool(threads)
         filenames_to_test = []
         for glob_expr in ['**/*.tif', '**/*.tiff', '**/*.TIFF', '**/*.TIF']:
