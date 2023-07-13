@@ -6,14 +6,14 @@ import pytest
 
 @pytest.mark.parametrize(('test_data_fname', 'msg_re_list'), (
     ('test_data/publication_tree_good.zip', []),
-    # ('test_data/tiff_tree_bad.zip', [
-    #     '.*notatiff.tif is not a valid TIFF file',
-    #     '.*notatiff.tiff is not a valid TIFF file',
-    #     '.*notatiff.TIFF is not a valid TIFF file',
-    #     '.*notatiff.TIF is not a valid TIFF file',
-    # ]),
+    ('test_data/publication_tree_bad_1.zip', ['vignettes not found or not a directory']),
+    ('test_data/publication_tree_bad_2.zip', ['Found a subdirectory in a vignette']),
+    ('test_data/publication_tree_bad_3.zip', ['A vignette has more than one markdown file']),
+    ('test_data/publication_tree_bad_4.zip', ['figure dict does not provide a name']),
+    ('test_data/publication_tree_bad_5.zip', ['figure dict does not reference a file']),
+    ('test_data/publication_tree_bad_6.zip', ['unexpected files in vignette.*']),
     ))
-def test_tiff_validator(test_data_fname, msg_re_list, tmp_path):
+def test_publication_validator(test_data_fname, msg_re_list, tmp_path):
     from publication_validator import PublicationValidator
     test_data_path = Path(test_data_fname)
     zfile = zipfile.ZipFile(test_data_path)

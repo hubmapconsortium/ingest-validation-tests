@@ -47,10 +47,10 @@ class PublicationValidator(Validator):
                     this_vignette_all_paths.remove(md_path)
                     for fname in vig_figures:
                         this_vignette_all_paths.remove(this_vignette_path / fname)
-                    assert not this_vignette_all_paths, ('unexpected files in vignette:'
-                                                         f' {this_vignette_all_paths}')
+                assert not this_vignette_all_paths, ('unexpected files in vignette:'
+                                                     f' {list(str(elt) for elt in this_vignette_all_paths)}')
 
         except AssertionError as excp:
-            rslt.append(excp)
+            rslt.append(str(excp))
                                           
         return rslt
