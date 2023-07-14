@@ -5,6 +5,14 @@ from typing import List
 import tifffile
 from ingest_validation_tools.plugin_validator import Validator
 
+# monkey patch tifffile to raise an exception every time a warning
+# is logged
+original_log_warning = tifffile.tifffile.log_warning
+def my_log_warning(msg, *args, **kwargs):
+    raise RuntimeError(f"{msg.format(*args, **kwargs)}")
+tifffile.tifffile.log_warning = my_log_warning
+
+
 def _log(message: str):
     print(message)
 
@@ -15,10 +23,10 @@ def _check_tiff_file(path: str) -> str or None:
             for page in tfile.pages:
                 _ = page.shape
                 _ = page.dtype
-            return None
+        return None
     except Exception as excp:
         _log(f"{path} is not a valid TIFF file: {excp}")
-        return f"{path} is not a valid TIFF file"
+        return f"{path} is not a valid TIFF file: {excp}"
 
 
 class TiffValidator(Validator):
