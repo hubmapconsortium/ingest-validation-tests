@@ -3,6 +3,9 @@ Test for some common errors in the directory and file structure of publications.
 """
 
 from typing import List
+import re
+import json
+from pathlib import Path
 import frontmatter
 from ingest_validation_tools.plugin_validator import Validator
 
@@ -14,6 +17,7 @@ class PublicationValidator(Validator):
     """
     description = "Test for common problems found in publications"
     cost = 1.0
+    base_url_re = r'(\s*\{\{\s*base_url\s*\}\})/(.*)'
     def collect_errors(self, **kwargs) -> List[str]:
         """
         Return the errors found by this validator
@@ -46,11 +50,33 @@ class PublicationValidator(Validator):
                         vig_figures.append(fig_dict['file'])
                     this_vignette_all_paths.remove(md_path)
                     for fname in vig_figures:
+                        rslt.extend(self.validate_vitessce_config(this_vignette_path / fname))
                         this_vignette_all_paths.remove(this_vignette_path / fname)
                 assert not this_vignette_all_paths, ('unexpected files in vignette:'
                                                      f' {list(str(elt) for elt in this_vignette_all_paths)}')
 
         except AssertionError as excp:
             rslt.append(str(excp))
-                                          
+
+        return rslt
+
+    def validate_vitessce_config(self, json_path):
+        rslt = []
+        with open(json_path) as f:
+            dct = json.load(f)
+        dataset_list = dct.get('datasets', [])
+        for dataset in dataset_list:
+            fblock_list = dataset.get('files', [])
+            for fblock in fblock_list:
+                try:
+                    assert 'url' in fblock, (f"json at {json_path}"
+                                             " references a dataset with no url")
+                    match = re.match(self.base_url_re, fblock['url'])
+                    if match:  # it starts with {{ base_url }}
+                        extra_url = match.group(2)
+                        data_path = self.path / 'data' / extra_url
+                        assert data_path.exists(), ("expected data file"
+                                                    f" {Path('data') / extra_url} is absent")
+                except AssertionError as excp:
+                    rslt.append(str(excp))
         return rslt

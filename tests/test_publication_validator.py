@@ -32,3 +32,4 @@ def test_publication_validator(test_data_fname, msg_re_list, tmp_path):
     matched_err_str_set = set(matched_err_str_list)
     for err_str in errors:
         assert err_str in matched_err_str_set, f"Unexpected error msg {err_str}"
+    assert not msg_re_list, f"Expected error regexes were not matched: {msg_re_list}"
