@@ -6,6 +6,13 @@ import pytest
 
 @pytest.mark.parametrize(('test_data_fname', 'msg_re_list'), (
     ('test_data/publication_tree_good.zip', []),
+    ('test_data/publication_tree_good_complex.zip', []),
+    ('test_data/publication_tree_bad_complex.zip',
+     [
+         'expected data file data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent',
+         'expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent',
+         'expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent',
+     ]),
     ('test_data/publication_tree_bad_1.zip', ['vignettes not found or not a directory']),
     ('test_data/publication_tree_bad_2.zip', ['Found a subdirectory in a vignette']),
     ('test_data/publication_tree_bad_3.zip', ['A vignette has more than one markdown file']),
