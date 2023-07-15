@@ -44,7 +44,8 @@ class PublicationValidator(Validator):
                         md_found = True
                     vig_fm = frontmatter.loads(md_path.read_text())
                     for key in ['name', 'figures']:
-                        assert key in vig_fm.metadata, f'vignette markdown has no {key}'
+                        assert key in vig_fm.metadata, ('vignette markdown is incorrectly'
+                                                        f' formatted or has no {key}')
                     for fig_dict in vig_fm.metadata['figures']:
                         assert 'file' in fig_dict, 'figure dict does not reference a file'
                         assert 'name' in fig_dict, 'figure dict does not provide a name'
