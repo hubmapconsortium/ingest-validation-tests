@@ -12,6 +12,9 @@ import pytest
     ('test_data/publication_tree_bad_4.zip', ['figure dict does not provide a name']),
     ('test_data/publication_tree_bad_5.zip', ['figure dict does not reference a file']),
     ('test_data/publication_tree_bad_6.zip', ['unexpected files in vignette.*']),
+    ('test_data/publication_tree_bad_7.zip', ['expected data file'
+                                              ' data/codeluppi_2018_nature_methods.molecules.h5ad.zarr'
+                                              ' is absent']),
     ))
 def test_publication_validator(test_data_fname, msg_re_list, tmp_path):
     from publication_validator import PublicationValidator
