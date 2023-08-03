@@ -21,8 +21,7 @@ def _check_tiff_file(path: str) -> str or None:
     try:
         with tifffile.TiffFile(path) as tfile:
             for page in tfile.pages:
-                _ = page.shape
-                _ = page.dtype
+                _ = page.asarray()  # force decompression
         return None
     except Exception as excp:
         _log(f"{path} is not a valid TIFF file: {excp}")
