@@ -2,4 +2,6 @@ xmlschema>=1.6
 tifffile>=2020.10.1
 jsonschema==4.4.0
 pandas>=1.2.0
+imagecodecs>=2023.3.16
+python-frontmatter>=1.0.0
 git+https://github.com/hubmapconsortium/fastq-utils.git@v0.2.5#egg=hubmap-fastq-utils
