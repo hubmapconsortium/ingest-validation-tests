@@ -37,8 +37,7 @@ class TiffValidator(Validator):
         filenames_to_test = []
         for glob_expr in ['**/*.tif', '**/*.tiff', '**/*.TIFF', '**/*.TIF']:
             for path in self.path.glob(glob_expr):
-                if not path.name.lower().endswith(('.ome.tif', '.ome.tiff')):
-                    filenames_to_test.append(path)
+                filenames_to_test.append(path)
         return list(rslt for rslt in pool.imap_unordered(_check_tiff_file,
                                                          filenames_to_test)
                     if rslt is not None)
