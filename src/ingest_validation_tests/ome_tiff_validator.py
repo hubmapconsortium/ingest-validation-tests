@@ -16,8 +16,8 @@ class OmeTiffValidator(Validator):
                         xml_document = xmlschema.XmlDocument(tf.ome_metadata)
                     if not xml_document.schema.is_valid(xml_document):
                         rslt.append(f'{path} is not a valid OME.TIFF file')
-                except:
-                    rslt.append(f'{path} is not a valid OME.TIFF file')
+                except Exception as excp:
+                    rslt.append(f'{path} is not a valid OME.TIFF file: {excp}')
         return rslt
 
 
