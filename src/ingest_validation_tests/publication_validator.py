@@ -19,11 +19,16 @@ class PublicationValidator(Validator):
     cost = 1.0
     base_url_re = r'(\s*\{\{\s*base_url\s*\}\})/(.*)'
     url_re = r'[Uu][Rr][Ll]'
+    required = "publications"
+
     def collect_errors(self, **kwargs) -> List[str]:
         """
         Return the errors found by this validator
         """
-        if self.assay_type != 'Publication':
+        if (
+            self.required not in self.contains
+            and self.assay_type.lower() != self.required
+        ):
             return []  # We only test Publication data
         rslt = []
         try:
@@ -86,7 +91,7 @@ class PublicationValidator(Validator):
         rslt = []
         with open(json_path) as f:
             dct = json.load(f)
-            for key, val in self.url_search_iter(dct):
+            for _, val in self.url_search_iter(dct):
                 try:
                     match = re.match(self.base_url_re, val)
                     if match:  # it starts with {{ base_url }}

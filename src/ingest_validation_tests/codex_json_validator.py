@@ -10,10 +10,14 @@ from ingest_validation_tools.plugin_validator import Validator
 class CodexJsonValidator(Validator):
     description = "Check CODEX JSON against schema"
     cost = 1.0
+    required = "codex"
 
     def collect_errors(self, **kwargs) -> List[str]:
-        if 'codex' not in self.assay_type.lower():
-            return []
+        if (
+            self.required not in self.contains
+            and self.assay_type.lower() != self.required
+        ):
+            return []  # We only test CODEX data
 
         schema_path = Path(__file__).parent / 'codex_schema.json'
         schema = json.loads(schema_path.read_text())
