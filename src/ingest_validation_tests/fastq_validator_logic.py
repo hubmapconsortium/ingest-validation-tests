@@ -1,16 +1,16 @@
 import argparse
 import gzip
 import re
-
+from multiprocessing import Manager, pool
+from os import cpu_count
 from pathlib import Path
 from typing import Callable, List, TextIO
-from multiprocessing import Pool, Manager, Lock
 
 import fastq_utils
 
 
 def is_valid_filename(filename: str) -> bool:
-    return fastq_utils.FASTQ_PATTERN.fullmatch(filename)
+    return bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename))
 
 
 def _open_fastq_file(file: Path) -> TextIO:
@@ -26,14 +26,16 @@ def _log(message: str) -> str:
 
 
 class Engine(object):
-    def __init__(self, validate_object, path: Path, lock):
+    def __init__(self, validate_object, paths: List[Path], lock):
         self.validate_object = validate_object
-        self.path = path
+        self.paths = paths
         self.lock = lock
 
     def __call__(self, fastq_file):
-        self.validate_object.validate_fastq_file(self.path / fastq_file, self.lock)
-        return next(iter(self.validate_object.errors), None)
+        for path in self.paths:
+            _log(f"Validating matching fastq files in {path.as_posix()}")
+            self.validate_object.validate_fastq_file(path / fastq_file, self.lock)
+            return next(iter(self.validate_object.errors), None)
 
 
 class FASTQValidatorLogic:
@@ -126,7 +128,7 @@ class FASTQValidatorLogic:
     def validate_fastq_record(self, line: str, line_number: int) -> List[str]:
         line_index = line_number % 4 + 1
 
-        validator_method: Callable[[FASTQValidatorLogic, str], List] = \
+        validator_method: Callable[[FASTQValidatorLogic, str], List[str]] = \
             self._VALIDATE_FASTQ_LINE_METHODS[line_index]
 
         assert validator_method, \
@@ -202,17 +204,16 @@ class FASTQValidatorLogic:
                 else:
                     self._file_prefix_counts[filename_prefix] = records_read
 
-    def validate_fastq_files_in_path(self, path: Path, threads: int) -> None:
+    def validate_fastq_files_in_path(self, paths: List[Path], pool: pool.Pool) -> None:
         data_found_one = []
-        _log(f"Validating matching fastq files in {path.as_posix()}")
-
-        dirs_and_files = fastq_utils.collect_fastq_files_by_directory(path)
+        dirs_and_files = {}
+        for path in paths:
+            dirs_and_files.update(fastq_utils.collect_fastq_files_by_directory(path))
         with Manager() as manager:
             lock = manager.Lock()
-            for directory, file_list in dirs_and_files.items():
+            for _, file_list in dirs_and_files.items():
                 try:
-                    pool = Pool(threads)
-                    engine = Engine(self, path, lock)
+                    engine = Engine(self, paths, lock)
                     data_output = pool.imap_unordered(engine, file_list)
                 except Exception as e:
                     _log(f'Error {e}')
@@ -233,13 +234,9 @@ def main():
     args = parser.parse_args()
 
     validator = FASTQValidatorLogic(True)
-
-    path: Path
-    for path in args.filepaths:
-        if path.is_dir():
-            validator.validate_fastq_files_in_path(path, 1)
-        else:
-            validator.validate_fastq_file(path, Lock())
+    threads = cpu_count() // 4 or 1
+    pool = Pool(threads)
+    validator.validate_fastq_files_in_path(args.filepaths, pool)
 
 
 if __name__ == '__main__':

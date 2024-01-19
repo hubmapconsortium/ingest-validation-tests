@@ -1,10 +1,9 @@
-from typing import List
-from pathlib import Path
 import json
-
-from jsonschema import validate
+from pathlib import Path
+from typing import List
 
 from ingest_validation_tools.plugin_validator import Validator
+from jsonschema import validate
 
 
 class CodexJsonValidator(Validator):
@@ -20,10 +19,11 @@ class CodexJsonValidator(Validator):
 
         rslt = []
         for glob_expr in ['**/dataset.json']:
-            for path in self.path.glob(glob_expr):
-                instance = json.loads(path.read_text())
-                try:
-                    validate(instance=instance, schema=schema)
-                except Exception as e:
-                    rslt.append(f'{path}: {e}')
+            for path in self.paths:
+                for file in path.glob(glob_expr):
+                    instance = json.loads(file.read_text())
+                    try:
+                        validate(instance=instance, schema=schema)
+                    except Exception as e:
+                        rslt.append(f'{file}: {e}')
         return rslt
