@@ -1,6 +1,4 @@
-from os import cpu_count
 import re
-from multiprocessing import Pool
 from typing import List
 
 import gzip
@@ -43,7 +41,7 @@ class GZValidator(Validator):
         except Exception as e:
             _log(f'Error {e}')
         else:
-            pool.close()
-            pool.join()
+            self.pool.close()
+            self.pool.join()
             [data_output2.append(output) for output in data_output if output]
         return data_output2
