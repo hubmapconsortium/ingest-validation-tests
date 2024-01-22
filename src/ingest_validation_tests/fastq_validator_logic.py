@@ -1,6 +1,8 @@
 import argparse
 import gzip
+import logging
 import re
+from collections import defaultdict
 from multiprocessing import Manager, Pool, pool
 from os import cpu_count
 from pathlib import Path
@@ -14,10 +16,7 @@ def is_valid_filename(filename: str) -> bool:
 
 
 def _open_fastq_file(file: Path) -> TextIO:
-    return (
-        gzip.open(file, 'rt') if file.name.endswith('.gz')
-        else file.open()
-    )
+    return gzip.open(file, "rt") if file.name.endswith(".gz") else file.open()
 
 
 def _log(message: str) -> str:
@@ -56,13 +55,13 @@ class FASTQValidatorLogic:
     # This pattern seeks out the string that includes the lane number (since
     # that is expected to be present to help anchor the prefix) that comes
     # before any of _I1, _I2, _R1, or _R2.
-    _FASTQ_FILE_PREFIX_REGEX = re.compile(r'(.+_L\d+.*)_[IR][12][._]')
+    _FASTQ_FILE_PREFIX_REGEX = re.compile(r"(.+_L\d+.*)_[IR][12][._]")
 
-    _FASTQ_LINE_2_VALID_CHARS = 'ACGNT'
+    _FASTQ_LINE_2_VALID_CHARS = "ACGNT"
 
     def __init__(self, verbose=False):
         self.errors: List[str] = []
-        self._filename = ''
+        self._filename = ""
         self._line_number = 0
         self._file_record_counts = Manager().dict()
         self._file_prefix_counts = Manager().dict()
@@ -84,7 +83,7 @@ class FASTQValidatorLogic:
         return message
 
     def _validate_fastq_line_1(self, line: str) -> List[str]:
-        if not line or line[0] != '@':
+        if not line or line[0] != "@":
             return ["Line does not begin with '@'."]
 
         return []
@@ -93,46 +92,54 @@ class FASTQValidatorLogic:
         self._line_2_length = len(line)
         self._last_line_2_number = self._line_number
 
-        invalid_chars = ''.join(
-            c for c in line if c not in self._FASTQ_LINE_2_VALID_CHARS)
+        invalid_chars = "".join(
+            c for c in line if c not in self._FASTQ_LINE_2_VALID_CHARS
+        )
         if invalid_chars:
             return [f"Line contains invalid character(s): {invalid_chars}"]
 
         return []
 
     def _validate_fastq_line_3(self, line: str) -> List[str]:
-        if not line or line[0] != '+':
+        if not line or line[0] != "+":
             return ["Line does not begin with '+'."]
 
         return []
 
     def _validate_fastq_line_4(self, line: str) -> List[str]:
         errors: List[str] = []
-        invalid_chars = ''.join(c for c in line if not 33 <= ord(c) <= 126)
+        invalid_chars = "".join(c for c in line if not 33 <= ord(c) <= 126)
         if invalid_chars:
-            errors.append("Line contains invalid quality character(s): "
-                          f'"{invalid_chars}"')
+            errors.append(
+                "Line contains invalid quality character(s): " f'"{invalid_chars}"'
+            )
 
         if len(line) != self._line_2_length:
-            errors.append(f"Line contains {len(line)} characters which "
-                          f"does not match line {self._last_line_2_number}'s "
-                          f"{self._line_2_length} characters.")
+            errors.append(
+                f"Line contains {len(line)} characters which "
+                f"does not match line {self._last_line_2_number}'s "
+                f"{self._line_2_length} characters."
+            )
 
         return errors
 
-    _VALIDATE_FASTQ_LINE_METHODS = {1: _validate_fastq_line_1,
-                                    2: _validate_fastq_line_2,
-                                    3: _validate_fastq_line_3,
-                                    4: _validate_fastq_line_4}
+    _VALIDATE_FASTQ_LINE_METHODS = {
+        1: _validate_fastq_line_1,
+        2: _validate_fastq_line_2,
+        3: _validate_fastq_line_3,
+        4: _validate_fastq_line_4,
+    }
 
     def validate_fastq_record(self, line: str, line_number: int) -> List[str]:
         line_index = line_number % 4 + 1
 
-        validator_method: Callable[[FASTQValidatorLogic, str], List[str]] = \
-            self._VALIDATE_FASTQ_LINE_METHODS[line_index]
+        validator_method: Callable[
+            [FASTQValidatorLogic, str], List[str]
+        ] = self._VALIDATE_FASTQ_LINE_METHODS[line_index]
 
-        assert validator_method, \
-            f"No validator method defined for record index {line_index}"
+        assert (
+            validator_method
+        ), f"No validator method defined for record index {line_index}"
 
         return validator_method(self, line)
 
@@ -144,8 +151,8 @@ class FASTQValidatorLogic:
         for line_count, line in enumerate(fastq_data):
             self._line_number = line_count + 1
             self.errors.extend(
-                self._format_error(error) for error in
-                self.validate_fastq_record(line.rstrip(), line_count)
+                self._format_error(error)
+                for error in self.validate_fastq_record(line.rstrip(), line_count)
             )
 
         return line_count + 1
@@ -156,9 +163,11 @@ class FASTQValidatorLogic:
 
         if not is_valid_filename(fastq_file.name):
             # If we don't like the filename, don't bother reading the contents.
-            self.errors.append(_log(
-                "Filename does not have proper format "
-                "and will not be processed"))
+            self.errors.append(
+                _log(
+                    "Filename does not have proper format " "and will not be processed"
+                )
+            )
             return
 
         self._line_number = 0
@@ -169,14 +178,16 @@ class FASTQValidatorLogic:
                 records_read = self.validate_fastq_stream(fastq_data)
             # TODO: Add gzip.BadGzipFile when Python 3.8 is available
         except IOError:
-            self.errors.append(
-                self._format_error("Unable to open FASTQ data file."))
+            self.errors.append(self._format_error("Unable to open FASTQ data file."))
             return
 
         if fastq_file.name in self._file_record_counts.keys():
-            self.errors.append(_log(
-                f"{fastq_file.name} has been found multiple times during this "
-                "validation."))
+            self.errors.append(
+                _log(
+                    f"{fastq_file.name} has been found multiple times during this "
+                    "validation."
+                )
+            )
         self._file_record_counts[fastq_file.name] = records_read
 
         match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
@@ -189,47 +200,55 @@ class FASTQValidatorLogic:
                         # Find a file we've validated already that matches this
                         # prefix.
                         extant_files = [
-                            filename for filename, record_count
-                            in self._file_record_counts.items()
-                            if record_count == extant_count and filename.startswith(filename_prefix)
+                            filename
+                            for filename, record_count in self._file_record_counts.items()
+                            if record_count == extant_count
+                            and filename.startswith(filename_prefix)
                         ]
                         # Based on how the dictionaries are created, there should
                         # always be at least one matching filename.
                         assert extant_files
 
-                        self.errors.append(_log(
-                            f"{fastq_file.name} ({records_read} lines) "
-                            f"does not match length of {extant_files[0]} "
-                            f"({extant_count} lines)."))
+                        self.errors.append(
+                            _log(
+                                f"{fastq_file.name} ({records_read} lines) "
+                                f"does not match length of {extant_files[0]} "
+                                f"({extant_count} lines)."
+                            )
+                        )
                 else:
                     self._file_prefix_counts[filename_prefix] = records_read
 
     def validate_fastq_files_in_path(self, paths: List[Path], pool: pool.Pool) -> None:
         data_found_one = []
-        dirs_and_files = {}
+        dirs_and_files = defaultdict(dict)
         for path in paths:
-            dirs_and_files.update(fastq_utils.collect_fastq_files_by_directory(path))
+            dirs_and_files[path] = fastq_utils.collect_fastq_files_by_directory(path)
+            logging.info(f"Added files from {path} to dirs_and_files: {dirs_and_files}")
         with Manager() as manager:
             lock = manager.Lock()
-            for _, file_list in dirs_and_files.items():
-                try:
-                    engine = Engine(self, paths, lock)
-                    data_output = pool.imap_unordered(engine, file_list)
-                except Exception as e:
-                    _log(f'Error {e}')
-                else:
-                    pool.close()
-                    pool.join()
-                    [data_found_one.append(output) for output in data_output if output]
+            for path, rel_path in dirs_and_files.items():
+                for _, file_list in rel_path.items():
+                    try:
+                        logging.info(f"Passing paths {paths} to engine.")
+                        engine = Engine(self, paths, lock)
+                        data_output = pool.imap_unordered(engine, file_list)
+                    except Exception as e:
+                        _log(f"Error {e}")
+                    else:
+                        pool.close()
+                        pool.join()
+                        [data_found_one.append(output) for output in data_output if output]
 
         if len(data_found_one) > 0:
             self.errors = data_found_one
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate FASTQ files.')
-    parser.add_argument('filepaths', type=Path, nargs='+',
-                        help="Files to validate for FASTQ syntax")
+    parser = argparse.ArgumentParser(description="Validate FASTQ files.")
+    parser.add_argument(
+        "filepaths", type=Path, nargs="+", help="Files to validate for FASTQ syntax"
+    )
 
     args = parser.parse_args()
 
@@ -239,5 +258,5 @@ def main():
     validator.validate_fastq_files_in_path(args.filepaths, pool)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
