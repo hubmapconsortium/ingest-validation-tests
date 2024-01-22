@@ -10,22 +10,21 @@ def _log(message: str):
 
 
 class Engine(object):
-    def __call__(self, path_list):
-        for path in path_list:
-            for filename in path.glob('**/*.gz'):
-                excluded = r'.*/*fastq.gz'
-                if re.search(excluded, filename.as_posix()):
-                    return
-                try:
-                    _log(f'Threaded {filename}')
-                    with gzip.open(filename) as g_f:
-                        while True:
-                            buf = g_f.read(1024*1024)
-                            if not buf:
-                                break
-                except Exception as e:
-                    _log(f'{filename} is not a valid gzipped file {e}')
-                    return f'{filename} is not a valid gzipped file'
+    def __call__(self, path):
+        for filename in path.glob('**/*.gz'):
+            excluded = r'.*/*fastq.gz'
+            if re.search(excluded, filename.as_posix()):
+                return
+            try:
+                _log(f'Threaded {filename}')
+                with gzip.open(filename) as g_f:
+                    while True:
+                        buf = g_f.read(1024*1024)
+                        if not buf:
+                            break
+            except Exception as e:
+                _log(f'{filename} is not a valid gzipped file {e}')
+                return f'{filename} is not a valid gzipped file'
 
 
 class GZValidator(Validator):

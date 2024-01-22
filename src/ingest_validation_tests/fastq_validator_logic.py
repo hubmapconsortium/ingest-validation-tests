@@ -1,7 +1,7 @@
 import argparse
 import gzip
 import re
-from multiprocessing import Manager, pool
+from multiprocessing import Manager, Pool, pool
 from os import cpu_count
 from pathlib import Path
 from typing import Callable, List, TextIO
