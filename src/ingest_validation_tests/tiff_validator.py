@@ -1,7 +1,6 @@
 from multiprocessing import Pool
 from os import cpu_count
-from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import tifffile
 from ingest_validation_tools.plugin_validator import Validator
@@ -41,6 +40,7 @@ class TiffValidator(Validator):
         threads = kwargs.get('coreuse', None) or cpu_count() // 4 or 1
         pool = Pool(threads)
         filenames_to_test = []
+        # TODO: this does not exclude OME.TIFF files, should it?
         for glob_expr in ['**/*.tif', '**/*.tiff', '**/*.TIFF', '**/*.TIF']:
             for path in self.paths:
                 for file in path.glob(glob_expr):

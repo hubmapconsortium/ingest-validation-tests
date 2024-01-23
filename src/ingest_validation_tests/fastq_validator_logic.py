@@ -37,7 +37,7 @@ class Engine(object):
         for path in self.paths:
             _log(f"Validating matching fastq files in {path.as_posix()}")
             self.validate_object.validate_fastq_file(path / fastq_file, self.lock)
-            errors.append(next(iter(self.validate_object.errors), None))
+            errors.append(next(iter(self.validate_object.errors)))
         return errors
 
 
@@ -175,11 +175,11 @@ class FASTQValidatorLogic:
                 self._format_error("Unable to open FASTQ data file."))
             return
 
-        if fastq_file.name in self._file_record_counts.keys():
+        if fastq_file in self._file_record_counts.keys():
             self.errors.append(_log(
-                f"{fastq_file.name} has been found multiple times during this "
+                f"{fastq_file} has been found ultiple times during this "
                 "validation."))
-        self._file_record_counts[fastq_file.name] = records_read
+        self._file_record_counts[fastq_file] = records_read
 
         match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
         with lock:
