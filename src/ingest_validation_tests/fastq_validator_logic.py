@@ -3,8 +3,7 @@ import gzip
 import logging
 import re
 from collections import defaultdict
-from multiprocessing import Manager, Pool, pool
-from os import cpu_count
+from multiprocessing import Lock, Manager, Pool
 from pathlib import Path
 from typing import Callable, List, TextIO
 
@@ -207,7 +206,7 @@ class FASTQValidatorLogic:
                 else:
                     self._file_prefix_counts[filename_prefix] = records_read
 
-    def validate_fastq_files_in_path(self, paths: List[Path], pool: pool.Pool) -> None:
+    def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
         data_found_one = []
         dirs_and_files = defaultdict(dict)
         for path in paths:
@@ -219,6 +218,7 @@ class FASTQValidatorLogic:
                 for _, file_list in rel_path.items():
                     try:
                         logging.info(f"Passing paths {paths} to engine.")
+                        pool = Pool(threads)
                         engine = Engine(self, paths, lock)
                         data_output = pool.imap_unordered(engine, file_list)
                     except Exception as e:
@@ -240,7 +240,7 @@ def main():
     args = parser.parse_args()
 
     validator = FASTQValidatorLogic(True)
-    validator.validate_fastq_files_in_path(args.filepaths)
+    validator.validate_fastq_files_in_path(args.filepaths, Lock())
 
 
 if __name__ == '__main__':
