@@ -10,7 +10,8 @@ class FASTQValidator(Validator):
     cost = 15.0
 
     def collect_errors(self, **kwargs) -> List[str]:
-        _log(f'Threading at {self.threads}')
+        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
+        _log(f"Threading at {threads}")
         validator = FASTQValidatorLogic(verbose=True)
-        validator.validate_fastq_files_in_path(self.paths, self.pool)
+        validator.validate_fastq_files_in_path(self.paths, threads)
         return validator.errors
