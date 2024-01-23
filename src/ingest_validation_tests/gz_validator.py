@@ -1,3 +1,5 @@
+from multiprocessing import Pool
+from os import cpu_count
 import re
 from typing import List
 
@@ -33,14 +35,16 @@ class GZValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[str]:
         data_output2 = []
-        _log(f'Threading at {self.threads}')
+        threads = kwargs.get('coreuse', None) or cpu_count() // 4 or 1
+        _log(f'Threading at {threads}')
         try:
+            pool = Pool(threads)
             engine = Engine()
-            data_output = self.pool.imap_unordered(engine, self.paths)
+            data_output = pool.imap_unordered(engine, self.paths)
         except Exception as e:
             _log(f'Error {e}')
         else:
-            self.pool.close()
-            self.pool.join()
+            pool.close()
+            pool.join()
             [data_output2.append(output) for output in data_output if output]
         return data_output2
