@@ -11,6 +11,7 @@ class CodexJsonValidator(Validator):
     cost = 1.0
 
     def collect_errors(self, **kwargs) -> List[str]:
+        del kwargs
         if 'codex' not in self.assay_type.lower():
             return []
 
