@@ -1,5 +1,4 @@
 from typing import List
-from pathlib import Path
 
 import tifffile
 import xmlschema
