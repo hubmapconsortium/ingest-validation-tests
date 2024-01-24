@@ -39,7 +39,7 @@ class TestFASTQValidatorLogic:
         return FASTQValidatorLogic()
 
     def test_fastq_validator_no_files(self, fastq_validator, tmp_path):
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
         # This case should return no errors
         assert fastq_validator.errors == []
 
@@ -65,7 +65,7 @@ class TestFASTQValidatorLogic:
 
     def test_fastq_validator_empty_directory(self, fastq_validator,
                                              tmp_path):
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
         # No files in path means no errors
         assert fastq_validator.errors == []
 
@@ -76,7 +76,7 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, use_gzip) as output:
             output.write(_GOOD_RECORDS)
 
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
         assert not fastq_validator.errors
 
     def test_fastq_validator_bad_file(self, fastq_validator, tmp_path):
@@ -84,7 +84,7 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, False) as output:
             output.write('ABCDEF')
 
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
 
         # This test does not assert specific validations but instead that the
         # overall file failed and that error messages were returned.
@@ -98,7 +98,7 @@ class TestFASTQValidatorLogic:
                                    False) as output:
                 output.write(_GOOD_RECORDS)
 
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
         assert "test.fastq has been found multiple times" in \
                fastq_validator.errors[0]
 
@@ -192,7 +192,7 @@ NACTGACTGA
             with _open_output_file(new_file, False) as output:
                 output.write(_GOOD_RECORDS)
 
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
 
         assert not fastq_validator.errors
 
@@ -208,7 +208,7 @@ NACTGACTGA
             output.write(_GOOD_RECORDS)
             output.write(_GOOD_RECORDS)
 
-        fastq_validator.validate_fastq_files_in_path(tmp_path, 2)
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
 
         # Order of the files being processed is not guaranteed, however these
         # strings ensure that a mismatch was found.
