@@ -58,6 +58,7 @@ class CodexCommonErrorsValidator(Validator):
         rslts = []
         for path in self.paths:
             rslt = []
+            # TODO: this seems to be replicating dir validation? Is this necessary for legacy support?
             try:
                 # is the raw/src_ directory present?
                 prefix = None
@@ -90,8 +91,8 @@ class CodexCommonErrorsValidator(Validator):
                 # is the segmentation.json file on the right side?
                 found = False
                 right_place = False
-                for path in path.glob('*/[Ss]egmentation.json'):
-                    rel_path = path.relative_to(path)
+                for filepath in path.glob('*/[Ss]egmentation.json'):
+                    rel_path = filepath.relative_to(path)
                     found = True
                     if str(rel_path).startswith(('raw', 'src_')):
                         right_place = True
@@ -113,6 +114,7 @@ class CodexCommonErrorsValidator(Validator):
                     if not channelnames_txt_path.is_file():
                         rslt.append('channelnames.txt is missing')
                         raise QuitNowException()
+                # TODO: end questionable portion
 
                 # Parse channelnames.txt into a dataframe
                 try:
@@ -214,8 +216,15 @@ class CodexCommonErrorsValidator(Validator):
                 if failures:
                     rslt += failures
                     raise QuitNowException()
-                rslts.append(rslt)
+                if type(rslt) is list:
+                    rslts.extend(rslt)
+                else:
+                    rslts.append(rslt)
 
             except QuitNowException:
+                if type(rslt) is list:
+                    rslts.extend(rslt)
+                else:
+                    rslts.append(rslt)
                 pass
         return rslts

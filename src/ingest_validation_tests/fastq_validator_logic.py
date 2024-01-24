@@ -27,17 +27,17 @@ def _log(message: str) -> str:
 
 
 class Engine(object):
-    def __init__(self, validate_object, paths: List[Path], lock):
+    def __init__(self, validate_object, path: Path, lock):
         self.validate_object = validate_object
-        self.paths = paths
+        self.path = path
         self.lock = lock
 
     def __call__(self, fastq_file):
         errors = []
-        for path in self.paths:
-            _log(f"Validating matching fastq files in {path.as_posix()}")
-            self.validate_object.validate_fastq_file(path / fastq_file, self.lock)
-            errors.append(next(iter(self.validate_object.errors)))
+        _log(f"Validating matching fastq files in {self.path}")
+        self.validate_object.validate_fastq_file(self.path / fastq_file, self.lock)
+        for err in self.validate_object.errors:
+            errors.append(err)
         return errors
 
 
@@ -174,12 +174,13 @@ class FASTQValidatorLogic:
             self.errors.append(
                 self._format_error("Unable to open FASTQ data file."))
             return
-
-        if fastq_file in self._file_record_counts.keys():
+        # TODO: this locates duplicate filenames across dirs, is that right?
+        # Difficult to log instances because first is not captured.
+        if fastq_file.name in self._file_record_counts.keys():
             self.errors.append(_log(
-                f"{fastq_file} has been found ultiple times during this "
+                f"{fastq_file.name} has been found multiple times during this "
                 "validation."))
-        self._file_record_counts[fastq_file] = records_read
+        self._file_record_counts[fastq_file.name] = records_read
 
         match = self._FASTQ_FILE_PREFIX_REGEX.match(fastq_file.name)
         with lock:
@@ -214,19 +215,20 @@ class FASTQValidatorLogic:
             _log(f"Added files from {path} to dirs_and_files: {dirs_and_files}")
         with Manager() as manager:
             lock = manager.Lock()
-            for path, rel_path in dirs_and_files.items():
-                for _, file_list in rel_path.items():
+            for path, rel_paths in dirs_and_files.items():
+                for rel_path, file_list in rel_paths.items():
+                    fullpath = Path(path / rel_path)
                     try:
-                        logging.info(f"Passing paths {paths} to engine.")
+                        logging.info(f"Passing paths {fullpath} to engine.")
                         pool = Pool(threads)
-                        engine = Engine(self, paths, lock)
+                        engine = Engine(self, fullpath, lock)
                         data_output = pool.imap_unordered(engine, file_list)
                     except Exception as e:
                         _log(f"Error {e}")
                     else:
                         pool.close()
                         pool.join()
-                        [data_found_one.append(output) for output in data_output if output]
+                        [data_found_one.extend(output) for output in data_output if output]
 
         if len(data_found_one) > 0:
             self.errors = data_found_one
@@ -238,9 +240,19 @@ def main():
                         help="Files to validate for FASTQ syntax")
 
     args = parser.parse_args()
+    if isinstance(args.filepaths, List):
+        filepaths = [Path(path) for path in args.filepaths]
+    elif isinstance(args.filepaths, Path):
+        filepaths = [args.filepaths]
+    elif isinstance(args.filepaths, str):
+        filepaths = [Path(args.filepaths)]
+    else:
+        raise Exception(
+            f"Validator init received base_paths arg as type {type(args.filepaths)}"
+        )
 
     validator = FASTQValidatorLogic(True)
-    validator.validate_fastq_files_in_path(args.filepaths, Lock())
+    validator.validate_fastq_files_in_path(filepaths, Lock())
 
 
 if __name__ == '__main__':
