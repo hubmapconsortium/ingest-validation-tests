@@ -58,7 +58,6 @@ class CodexCommonErrorsValidator(Validator):
         rslts = []
         for path in self.paths:
             rslt = []
-            # TODO: this seems to be replicating dir validation? Is this necessary for legacy support?
             try:
                 # is the raw/src_ directory present?
                 prefix = None
@@ -114,7 +113,6 @@ class CodexCommonErrorsValidator(Validator):
                     if not channelnames_txt_path.is_file():
                         rslt.append('channelnames.txt is missing')
                         raise QuitNowException()
-                # TODO: end questionable portion
 
                 # Parse channelnames.txt into a dataframe
                 try:

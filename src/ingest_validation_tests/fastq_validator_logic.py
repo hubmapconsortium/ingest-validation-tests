@@ -168,10 +168,13 @@ class FASTQValidatorLogic:
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
                 records_read = self.validate_fastq_stream(fastq_data)
-            # TODO: Add gzip.BadGzipFile when Python 3.8 is available
+        except gzip.BadGzipFile:
+            self.errors.append(
+                self._format_error(f"Bad gzip file: {fastq_file}."))
+            return
         except IOError:
             self.errors.append(
-                self._format_error("Unable to open FASTQ data file."))
+                self._format_error(f"Unable to open FASTQ data file {fastq_file}."))
             return
         # TODO: this locates duplicate filenames across dirs, is that right?
         # Difficult to log instances because first is not captured.

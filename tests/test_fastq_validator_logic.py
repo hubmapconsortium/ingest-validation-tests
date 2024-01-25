@@ -51,7 +51,7 @@ class TestFASTQValidatorLogic:
             output.write(_GOOD_RECORDS)
 
         fastq_validator.validate_fastq_file(test_file, Lock())
-        assert "Unable to open" in fastq_validator.errors[0]
+        assert "Bad gzip file" in fastq_validator.errors[0]
 
     def test_fastq_validator_unrecognized_file(self, fastq_validator,
                                                tmp_path):
