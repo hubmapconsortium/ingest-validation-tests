@@ -1,6 +1,6 @@
 from multiprocessing import Pool
 from os import cpu_count
-from typing import List
+from typing import List, Optional
 
 import tifffile
 from ingest_validation_tools.plugin_validator import Validator
@@ -21,7 +21,7 @@ def _log(message: str):
     print(message)
 
 
-def _check_tiff_file(path: str) -> str or None:
+def _check_tiff_file(path: str) -> Optional[str]:
     try:
         with tifffile.TiffFile(path) as tfile:
             for page in tfile.pages:
