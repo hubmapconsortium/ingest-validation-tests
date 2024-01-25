@@ -36,16 +36,18 @@ class GZValidator(Validator):
         data_output2 = []
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         _log(f"Threading at {threads}")
+        file_list = []
         for path in self.paths:
             for glob_expr in ["**/*.gz"]:
-                try:
-                    pool = Pool(threads)
-                    engine = Engine()
-                    data_output = pool.imap_unordered(engine, path.glob(glob_expr))
-                except Exception as e:
-                    _log(f"Error {e}")
-                else:
-                    pool.close()
-                    pool.join()
-                    [data_output2.append(output) for output in data_output if output]
+                file_list.extend(path.glob(glob_expr))
+        try:
+            pool = Pool(threads)
+            engine = Engine()
+            data_output = pool.imap_unordered(engine, file_list)
+        except Exception as e:
+            _log(f"Error {e}")
+        else:
+            pool.close()
+            pool.join()
+            [data_output2.append(output) for output in data_output if output]
         return data_output2
