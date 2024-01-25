@@ -27,15 +27,14 @@ def _log(message: str) -> str:
 
 
 class Engine(object):
-    def __init__(self, validate_object, path: Path, lock):
+    def __init__(self, validate_object, lock):
         self.validate_object = validate_object
-        self.path = path
         self.lock = lock
 
     def __call__(self, fastq_file):
         errors = []
-        _log(f"Validating matching fastq files in {self.path}")
-        self.validate_object.validate_fastq_file(self.path / fastq_file, self.lock)
+        _log(f"Validating matching fastq file {fastq_file}")
+        self.validate_object.validate_fastq_file(fastq_file, self.lock)
         for err in self.validate_object.errors:
             errors.append(err)
         return errors
@@ -176,6 +175,7 @@ class FASTQValidatorLogic:
             return
         # TODO: this locates duplicate filenames across dirs, is that right?
         # Difficult to log instances because first is not captured.
+        # ALSO this doesn't work reliably when more threads are running concurrently
         if fastq_file.name in self._file_record_counts.keys():
             self.errors.append(_log(
                 f"{fastq_file.name} has been found multiple times during this "
@@ -213,22 +213,24 @@ class FASTQValidatorLogic:
         for path in paths:
             dirs_and_files[path] = fastq_utils.collect_fastq_files_by_directory(path)
             _log(f"Added files from {path} to dirs_and_files: {dirs_and_files}")
+        file_list = []
         with Manager() as manager:
             lock = manager.Lock()
             for path, rel_paths in dirs_and_files.items():
-                for rel_path, file_list in rel_paths.items():
-                    fullpath = Path(path / rel_path)
-                    try:
-                        logging.info(f"Passing paths {fullpath} to engine.")
-                        pool = Pool(threads)
-                        engine = Engine(self, fullpath, lock)
-                        data_output = pool.imap_unordered(engine, file_list)
-                    except Exception as e:
-                        _log(f"Error {e}")
-                    else:
-                        pool.close()
-                        pool.join()
-                        [data_found_one.extend(output) for output in data_output if output]
+                for rel_path, files in rel_paths.items():
+                    for file in files:
+                        file_list.append(Path(path / rel_path / file))
+            try:
+                logging.info(f"Passing file list for paths {paths} to engine. File list: {file_list}.")
+                pool = Pool(threads)
+                engine = Engine(self, lock)
+                data_output = pool.imap_unordered(engine, file_list)
+            except Exception as e:
+                _log(f"Error {e}")
+            else:
+                pool.close()
+                pool.join()
+                [data_found_one.extend(output) for output in data_output if output]
 
         if len(data_found_one) > 0:
             self.errors = data_found_one
