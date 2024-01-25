@@ -50,7 +50,7 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, False) as output:
             output.write(_GOOD_RECORDS)
 
-        fastq_validator.validate_fastq_file(test_file, Lock())
+        fastq_validator.validate_fastq_file(test_file)
         assert "Bad gzip file" in fastq_validator.errors[0]
 
     def test_fastq_validator_unrecognized_file(self, fastq_validator,
@@ -59,7 +59,7 @@ class TestFASTQValidatorLogic:
         with _open_output_file(test_file, False) as output:
             output.write(_GOOD_RECORDS)
 
-        fastq_validator.validate_fastq_file(test_file, Lock())
+        fastq_validator.validate_fastq_file(test_file)
         assert "Filename does not have proper format" in \
                fastq_validator.errors[0]
 
@@ -105,7 +105,7 @@ class TestFASTQValidatorLogic:
     def test_fastq_validator_io_error(self, fastq_validator, tmp_path):
         fake_path = tmp_path.joinpath('does-not-exist.fastq')
 
-        fastq_validator.validate_fastq_file(fake_path, Lock())
+        fastq_validator.validate_fastq_file(fake_path)
 
         assert "Unable to open" in fastq_validator.errors[0]
 
@@ -178,7 +178,7 @@ NACTGACTGA
         with _open_output_file(new_file, False) as output:
             output.write(test_data)
 
-        fastq_validator.validate_fastq_file(new_file, Lock())
+        fastq_validator.validate_fastq_file(new_file)
         assert "contains 9 characters which does not match line 2's 10" in \
                fastq_validator.errors[0]
 
