@@ -213,7 +213,7 @@ class FASTQValidatorLogic:
             for filename, filepaths in files_per_path.items():
                 if len(filepaths) > 1:
                     self.errors.append(_log(
-                        f"{filename} has been found multiple times during this validation of path {data_path}. Duplicates: {filepaths}."))  # noqa: E501
+                        f"{filename} has been found multiple times during this validation. Locations of duplicates: {filepaths}."))  # noqa: E501
 
     def _find_shared_prefixes(self, lock):
         # This pattern seeks out the string that includes the lane number (since
