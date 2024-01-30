@@ -13,5 +13,5 @@ class FASTQValidator(Validator):
         threads = kwargs.get('coreuse', None) or cpu_count() // 4 or 1
         _log(f'Threading at {threads}')
         validator = FASTQValidatorLogic(verbose=True)
-        validator.validate_fastq_files_in_path(self.path, threads)
+        validator.validate_fastq_files_in_path(self.paths, threads)
         return validator.errors

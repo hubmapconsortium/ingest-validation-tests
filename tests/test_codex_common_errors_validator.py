@@ -40,7 +40,7 @@ def test_codex_common_errors_validator(test_data_fname, msg_starts_list, tmp_pat
     test_data_path = Path(test_data_fname)
     zfile = zipfile.ZipFile(test_data_path)
     zfile.extractall(tmp_path)
-    validator = CodexCommonErrorsValidator(tmp_path / test_data_path.stem,
+    validator = CodexCommonErrorsValidator([Path(tmp_path / test_data_path.stem)],
                                            'CODEX'
                                            )
     errors = validator.collect_errors()[:]
