@@ -180,6 +180,7 @@ class FASTQValidatorLogic:
             _log(f"Added files from {path} to dirs_and_files: {dirs_and_files}")
         file_list = []
         with Manager() as manager:
+            # TODO: re-evaluate dicts/for loops
             lock = manager.Lock()
             for path, rel_paths in dirs_and_files.items():
                 for rel_path, files in rel_paths.items():
@@ -203,6 +204,7 @@ class FASTQValidatorLogic:
             self.errors.extend(data_found_one)
 
     def _find_duplicates(self, dirs_and_files):
+        # TODO: re-evaluate dicts/for loops
         for data_path, sub_dirs in dirs_and_files.items():
             # Creates a dict of filenames to list of full filepaths for each
             # fastq file in a given data_path (dataset dir).

@@ -1,20 +1,20 @@
 language: python
 python:
-  - '3.9'
+  - "3.9"
 cache: pip
 install:
   - pip install -r requirements.txt
   # - pip install -r requirements-dev.txt
- 
+
   - pwd
   - cd ..
   - git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
   - cd ingest-validation-tools
   - pwd
-  - git checkout v0.0.15
+  - git checkout v0.0.17
   # - pip install "setuptools==60.9.0"
   - pip install -r requirements.txt
- 
+
   - cd ../ingest-validation-tests # Not sure if this is required, or if it resets between sections.
 script:
   - ./test.sh
