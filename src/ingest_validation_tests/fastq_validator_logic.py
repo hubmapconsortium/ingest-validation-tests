@@ -6,7 +6,6 @@ from collections import defaultdict
 from multiprocessing import Lock, Manager, Pool
 from pathlib import Path
 from typing import Callable, List, TextIO
-
 import fastq_utils
 
 
