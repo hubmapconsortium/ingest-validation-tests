@@ -12,5 +12,5 @@ jobs:
           python-version: 3.9
       - uses: isort/isort-action@master
         with:
-            configuration: "--profile black"
+            configuration: "--check-only --diff --profile black"
             requirementsFiles: "requirements.txt requirements-test.txt"
