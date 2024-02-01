@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TextIO
 
 import pytest
+
 from src.ingest_validation_tests.fastq_validator_logic import FASTQValidatorLogic
 
 _GOOD_RECORDS = """\
