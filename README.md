@@ -31,7 +31,7 @@ This repository contains plug-in tests for use during validation of submissions.
 - Run `pip install -r requirements-dev.txt`
 - (optional) Integrate black with your editor.
   - [Instructions for black.](https://black.readthedocs.io/en/stable/integrations/editors.html)
-- (optional) Integrate isort with your editor.
+- (optional) Integrate [isort](https://pycqa.github.io/isort/) with your editor.
 
 ### Testing
 
@@ -46,7 +46,7 @@ This repository contains plug-in tests for use during validation of submissions.
   pip install -r ../ingest-validation-tools/requirements-dev.txt
   ```
 
-- If ingest-validation-tools is already set up, add the appropriate ingest-validation-tools path and run
+- If ingest-validation-tools is already set up, add the appropriate ingest-validation-tools path and run:
 
   ```
   pip install -r <path-to-ingest-validation-tools>/requirements.txt
