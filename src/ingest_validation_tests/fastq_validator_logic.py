@@ -122,9 +122,9 @@ class FASTQValidatorLogic:
     def validate_fastq_record(self, line: str, line_number: int) -> List[str]:
         line_index = line_number % 4 + 1
 
-        validator_method: Callable[
-            [FASTQValidatorLogic, str], List[str]
-        ] = self._VALIDATE_FASTQ_LINE_METHODS[line_index]
+        validator_method: Callable[[FASTQValidatorLogic, str], List[str]] = (
+            self._VALIDATE_FASTQ_LINE_METHODS[line_index]
+        )
 
         assert validator_method, f"No validator method defined for record index {line_index}"
 
