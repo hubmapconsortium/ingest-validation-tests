@@ -7,7 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: isort/isort-action@v1
+      - uses: actions/setup-python@v5
         with:
-          configuration: "--profile black"
-          requirements-files: "requirements.txt requirements-dev.txt"
+          python-version: 3.9
+      - uses: isort/isort-action@master
+        with:
+            configuration: "--profile black"
+            requirementsFiles: "requirements.txt requirements-test.txt"
