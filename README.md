@@ -7,6 +7,10 @@ This repository contains plug-in tests for use during validation of submissions.
 ### Branches
 
 - Make new feature branches from `devel`.
+- Before submitting a PR, make sure your code is black and isort compliant. Run the following from the base `ingest-validation-tests` directory:
+  - `black --line-length 99 .` (if you choose not to integrate black with your editor (see Setup section)
+  - `isort .`
+
 - Make PRs to `devel`. (This is the default branch.)
 - The last reviewer to approve a PR should merge it.
 
@@ -22,7 +26,6 @@ source hm-ingest-validation-tests/bin/activate
 - Run `pip install -r requirements-dev.txt`
 - (optional) Integrate black with your editor.
   - [Instructions for black.](https://black.readthedocs.io/en/stable/integrations/editors.html)
-  - If you choose not to integrate black with your editor, run the following from the base `ingest-validation-tests` directory before pushing code to GitHub: `black --line-length 99 .`
 
 ### Testing
 
