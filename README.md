@@ -8,7 +8,8 @@ This repository contains plug-in tests for use during validation of submissions.
 
 - Make new feature branches from `devel`.
 - Before submitting a PR, make sure your code is black and isort compliant. Run the following from the base `ingest-validation-tests` directory:
-  - `black --line-length 99 .` (if you choose not to integrate black with your editor (see Setup section)
+
+  - `black --line-length 99 .` (you can integrate black with your editor to skip this step, see Setup section below)
   - `isort .`
 
 - Make PRs to `devel`. (This is the default branch.)
@@ -31,20 +32,20 @@ source hm-ingest-validation-tests/bin/activate
 
 - If ingest-validation-tools is not already set up:
 
-```
-# Starting from ingest-validation-tests...
-cd ..
-git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
-cd ingest-validation-tests
-pip install -r ../ingest-validation-tools/requirements.txt
-pip install -r ../ingest-validation-tools/requirements-dev.txt
-```
+  ```
+  # Starting from ingest-validation-tests...
+  cd ..
+  git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
+  cd ingest-validation-tests
+  pip install -r ../ingest-validation-tools/requirements.txt
+  pip install -r ../ingest-validation-tools/requirements-dev.txt
+  ```
 
 - If ingest-validation-tools is already set up, add the appropriate ingest-validation-tools path and run
 
-```
-pip install -r <path-to-ingest-validation-tools>/requirements.txt
-pip install -r <path-to-ingest-validation-tools>/requirements-dev.txt
-```
+  ```
+  pip install -r <path-to-ingest-validation-tools>/requirements.txt
+  pip install -r <path-to-ingest-validation-tools>/requirements-dev.txt
+  ```
 
 - Run `test.sh`
