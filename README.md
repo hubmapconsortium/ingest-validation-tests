@@ -7,14 +7,15 @@ This repository contains plug-in tests for use during validation of submissions.
 ### Branches
 
 - Make new feature branches from `devel`.
-- Before submitting a PR, make sure your code is black and isort compliant. Run the following from the base `ingest-validation-tests` directory:
+- Before submitting a PR, make sure your code is black, isort, and flake8 compliant. Run the following from the base `ingest-validation-tests` directory:
 
   ```
   black --line-length 99 .
   isort --profile black --multi-line 3 .
+  flake8
   ```
 
-  (You can integrate black and potentially isort with your editor to skip this step, see Setup section below)
+  (Integrating black and potentially isort/flake8 with your editor may allow you to skip this step, see Setup section below.)
 
 - Make PRs to `devel`. (This is the default branch.)
 - The last reviewer to approve a PR should merge it.
@@ -32,6 +33,7 @@ This repository contains plug-in tests for use during validation of submissions.
 - (optional) Integrate black with your editor.
   - [Instructions for black.](https://black.readthedocs.io/en/stable/integrations/editors.html)
 - (optional) Integrate [isort](https://pycqa.github.io/isort/) with your editor.
+- (optional) Integrate [flake8](https://flake8.pycqa.org/en/latest/index.html) with your editor.
 
 ### Testing
 
