@@ -1,9 +1,9 @@
+import gzip
+import re
 from multiprocessing import Pool
 from os import cpu_count
-import re
 from typing import List
 
-import gzip
 from ingest_validation_tools.plugin_validator import Validator
 
 

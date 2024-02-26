@@ -28,18 +28,12 @@ def _split_cycle_dir_string(cycle_str):
     try:
         cyc_id = int(words[0][len("cyc") :])
     except ValueError:
-        raise AssertionError(
-            f'Directory string "{cycle_str}" cycle number is' " not an integer"
-        )
-    assert words[1].startswith("reg"), (
-        f'Directory string "{cycle_str}" does' ' not include "_reg"'
-    )
+        raise AssertionError(f'Directory string "{cycle_str}" cycle number is' " not an integer")
+    assert words[1].startswith("reg"), f'Directory string "{cycle_str}" does' ' not include "_reg"'
     try:
         reg_id = int(words[1][len("reg") :])
     except ValueError:
-        raise AssertionError(
-            f'Directory string "{cycle_str}" region number is' " not an integer"
-        )
+        raise AssertionError(f'Directory string "{cycle_str}" region number is' " not an integer")
     return cyc_id, reg_id
 
 
@@ -86,9 +80,7 @@ class CodexCommonErrorsValidator(Validator):
                     self._log("FOUND dataset.json; skipping further analysis")
                     raise QuitNowException()
                 elif any_dataset_json_exists:
-                    rslt.append(
-                        "A dataset.json file exists but" " is in the wrong place"
-                    )
+                    rslt.append("A dataset.json file exists but" " is in the wrong place")
 
                 # is the segmentation.json file on the right side?
                 found = False
@@ -102,9 +94,7 @@ class CodexCommonErrorsValidator(Validator):
                     if right_place:
                         pass
                     else:
-                        rslt.append(
-                            "The segmentation.json file is in the wrong subdirectory"
-                        )
+                        rslt.append("The segmentation.json file is in the wrong subdirectory")
                 else:
                     rslt.append("The segmentation.json file is missing or misplaced")
 
@@ -145,8 +135,7 @@ class CodexCommonErrorsValidator(Validator):
                             raise QuitNowException()
                     if len(rpt_df.columns) != 2:
                         rslt.append(
-                            f"Could not parse {report_csv_path}."
-                            " Is it a comma-separated table?"
+                            f"Could not parse {report_csv_path}." " Is it a comma-separated table?"
                         )
                         raise QuitNowException()
                     col_0, col_1 = rpt_df.columns
@@ -209,9 +198,7 @@ class CodexCommonErrorsValidator(Validator):
                 # excluding any HandE channels
                 total_channel_count = len(cn_df)
                 h_and_e_channel_count = len(cn_df[cn_df[0].str.startswith("HandE")])
-                channels_per_cycle = (
-                    total_channel_count - h_and_e_channel_count
-                ) / len(cycles)
+                channels_per_cycle = (total_channel_count - h_and_e_channel_count) / len(cycles)
                 if channels_per_cycle != int(channels_per_cycle):
                     failures.append("The number of channels per cycle is not constant")
                 if failures:

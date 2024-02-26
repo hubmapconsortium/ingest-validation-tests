@@ -85,9 +85,7 @@ class FASTQValidatorLogic:
         self._line_2_length = len(line)
         self._last_line_2_number = self._line_number
 
-        invalid_chars = "".join(
-            c for c in line if c not in self._FASTQ_LINE_2_VALID_CHARS
-        )
+        invalid_chars = "".join(c for c in line if c not in self._FASTQ_LINE_2_VALID_CHARS)
         if invalid_chars:
             return [f"Line contains invalid character(s): {invalid_chars}"]
 
@@ -103,9 +101,7 @@ class FASTQValidatorLogic:
         errors: List[str] = []
         invalid_chars = "".join(c for c in line if not 33 <= ord(c) <= 126)
         if invalid_chars:
-            errors.append(
-                "Line contains invalid quality character(s): " f'"{invalid_chars}"'
-            )
+            errors.append("Line contains invalid quality character(s): " f'"{invalid_chars}"')
 
         if len(line) != self._line_2_length:
             errors.append(
@@ -129,9 +125,7 @@ class FASTQValidatorLogic:
             self._VALIDATE_FASTQ_LINE_METHODS[line_index]
         )
 
-        assert (
-            validator_method
-        ), f"No validator method defined for record index {line_index}"
+        assert validator_method, f"No validator method defined for record index {line_index}"
 
         return validator_method(self, line)
 
@@ -155,9 +149,7 @@ class FASTQValidatorLogic:
 
         if not is_valid_filename(fastq_file.name):
             # If we don't like the filename, don't bother reading the contents.
-            self.errors.append(
-                "Filename does not have proper format " "and will not be processed"
-            )
+            self.errors.append("Filename does not have proper format " "and will not be processed")
             return
 
         self._line_number = 0
@@ -170,9 +162,7 @@ class FASTQValidatorLogic:
             self.errors.append(self._format_error(f"Bad gzip file: {fastq_file}."))
             return
         except IOError:
-            self.errors.append(
-                self._format_error(f"Unable to open FASTQ data file {fastq_file}.")
-            )
+            self.errors.append(self._format_error(f"Unable to open FASTQ data file {fastq_file}."))
             return
         self._file_record_counts[str(fastq_file)] = records_read
 
@@ -272,9 +262,7 @@ def main():
     elif isinstance(args.filepaths, str):
         filepaths = [Path(args.filepaths)]
     else:
-        raise Exception(
-            f"Validator init received base_paths arg as type {type(args.filepaths)}"
-        )
+        raise Exception(f"Validator init received base_paths arg as type {type(args.filepaths)}")
 
     validator = FASTQValidatorLogic(True)
     validator.validate_fastq_files_in_path(filepaths, Lock())

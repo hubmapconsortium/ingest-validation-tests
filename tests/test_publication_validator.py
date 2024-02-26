@@ -1,34 +1,46 @@
-from pathlib import Path
-import zipfile
 import re
+import zipfile
+from pathlib import Path
 
 import pytest
 
-@pytest.mark.parametrize(('test_data_fname', 'msg_re_list'), (
-    ('test_data/publication_tree_good.zip', []),
-    ('test_data/publication_tree_good_complex.zip', []),
-    ('test_data/publication_tree_bad_complex.zip',
-     [
-         'expected data file data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent',
-         'expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent',
-         'expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent',
-     ]),
-    ('test_data/publication_tree_bad_1.zip', ['vignettes not found or not a directory']),
-    ('test_data/publication_tree_bad_2.zip', ['Found a subdirectory in a vignette']),
-    ('test_data/publication_tree_bad_3.zip', ['A vignette has more than one markdown file']),
-    ('test_data/publication_tree_bad_4.zip', ['figure dict does not provide a name']),
-    ('test_data/publication_tree_bad_5.zip', ['figure dict does not reference a file']),
-    ('test_data/publication_tree_bad_6.zip', ['unexpected files in vignette.*']),
-    ('test_data/publication_tree_bad_7.zip', ['expected data file'
-                                              ' data/codeluppi_2018_nature_methods.molecules.h5ad.zarr'
-                                              ' is absent']),
-    ))
+
+@pytest.mark.parametrize(
+    ("test_data_fname", "msg_re_list"),
+    (
+        ("test_data/publication_tree_good.zip", []),
+        ("test_data/publication_tree_good_complex.zip", []),
+        (
+            "test_data/publication_tree_bad_complex.zip",
+            [
+                "expected data file data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent",  # noqa: E501
+                "expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent",  # noqa: E501
+                "expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent",  # noqa: E501
+            ],
+        ),
+        ("test_data/publication_tree_bad_1.zip", ["vignettes not found or not a directory"]),
+        ("test_data/publication_tree_bad_2.zip", ["Found a subdirectory in a vignette"]),
+        ("test_data/publication_tree_bad_3.zip", ["A vignette has more than one markdown file"]),
+        ("test_data/publication_tree_bad_4.zip", ["figure dict does not provide a name"]),
+        ("test_data/publication_tree_bad_5.zip", ["figure dict does not reference a file"]),
+        ("test_data/publication_tree_bad_6.zip", ["unexpected files in vignette.*"]),
+        (
+            "test_data/publication_tree_bad_7.zip",
+            [
+                "expected data file"
+                " data/codeluppi_2018_nature_methods.molecules.h5ad.zarr"
+                " is absent"
+            ],
+        ),
+    ),
+)
 def test_publication_validator(test_data_fname, msg_re_list, tmp_path):
     from publication_validator import PublicationValidator
+
     test_data_path = Path(test_data_fname)
     zfile = zipfile.ZipFile(test_data_path)
     zfile.extractall(tmp_path)
-    validator = PublicationValidator(tmp_path / test_data_path.stem, 'Publication')
+    validator = PublicationValidator(tmp_path / test_data_path.stem, "Publication")
     errors = validator.collect_errors(coreuse=4)[:]
     print(f"errors: {errors}")
     matched_err_str_list = []
