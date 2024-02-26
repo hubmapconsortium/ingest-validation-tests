@@ -17,10 +17,6 @@ def my_log_warning(msg, *args, **kwargs):
 tifffile.tifffile.log_warning = my_log_warning
 
 
-def _log(message: str):
-    print(message)
-
-
 def _check_tiff_file(path: str) -> Optional[str]:
     try:
         with tifffile.TiffFile(path) as tfile:
@@ -28,7 +24,6 @@ def _check_tiff_file(path: str) -> Optional[str]:
                 _ = page.asarray()  # force decompression
         return None
     except Exception as excp:
-        _log(f"{path} is not a valid TIFF file: {excp}")
         return f"{path} is not a valid TIFF file: {excp}"
 
 
