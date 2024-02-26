@@ -45,13 +45,14 @@ class CodexCommonErrorsValidator(Validator):
 
     description = "Test for common problems found in CODEX"
     cost = 1.0
+    required = "codex"
 
     def collect_errors(self, **kwargs) -> List[str]:
         """
         Return the errors found by this validator
         """
         del kwargs
-        if self.assay_type != "CODEX":
+        if self.required not in self.contains and self.assay_type.lower() != self.required:
             return []  # We only test CODEX data
         rslts = []
         for path in self.paths:
