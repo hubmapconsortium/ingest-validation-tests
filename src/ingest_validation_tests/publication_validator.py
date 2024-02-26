@@ -21,7 +21,7 @@ class PublicationValidator(Validator):
     cost = 1.0
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
-    required = "publications"
+    required = "publication"
 
     def collect_errors(self, **kwargs) -> List[str]:
         """
