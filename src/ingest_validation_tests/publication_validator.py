@@ -21,13 +21,14 @@ class PublicationValidator(Validator):
     cost = 1.0
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
+    required = "publication"
 
     def collect_errors(self, **kwargs) -> List[str]:
         """
         Return the errors found by this validator
         """
         del kwargs
-        if self.assay_type != "Publication":
+        if self.required not in self.contains and self.assay_type.lower() != self.required:
             return []  # We only test Publication data
         rslt = []
         for path in self.paths:
