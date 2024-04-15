@@ -170,7 +170,9 @@ class FASTQValidatorLogic:
         except EOFError:
             self.errors.append(self._format_error(f"EOF in FASTQ data file {fastq_file}."))
         except Exception as e:
-            self.errors.append(self._format_error(f"Unexpected error: {e} on data file {fastq_file}."))
+            self.errors.append(
+                self._format_error(f"Unexpected error: {e} on data file {fastq_file}.")
+            )
         self._file_record_counts[str(fastq_file)] = records_read
 
     def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
