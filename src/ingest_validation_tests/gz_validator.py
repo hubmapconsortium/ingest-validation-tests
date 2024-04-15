@@ -46,6 +46,9 @@ class GZValidator(Validator):
             data_output = pool.imap_unordered(engine, file_list)
         except Exception as e:
             _log(f"Error {e}")
+            pool.close()
+            pool.join()
+            data_output2.extend(f"Error: {e}")
         else:
             pool.close()
             pool.join()
