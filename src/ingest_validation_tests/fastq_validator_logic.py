@@ -167,6 +167,10 @@ class FASTQValidatorLogic:
         except IOError:
             self.errors.append(self._format_error(f"Unable to open FASTQ data file {fastq_file}."))
             return
+        except EOFError:
+            self.errors.append(self._format_error(f"EOF in FASTQ data file {fastq_file}."))
+        except Exception as e:
+            self.errors.append(self._format_error(f"Unexpected error: {e} on data file {fastq_file}."))
         self._file_record_counts[str(fastq_file)] = records_read
 
     def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
@@ -192,6 +196,9 @@ class FASTQValidatorLogic:
                 data_output = pool.imap_unordered(engine, file_list)
             except Exception as e:
                 _log(f"Error {e}")
+                pool.close()
+                pool.join()
+                data_found_one.append(f"Error {e}")
             else:
                 pool.close()
                 pool.join()
