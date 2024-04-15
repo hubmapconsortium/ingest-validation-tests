@@ -222,7 +222,8 @@ class FASTQValidatorLogic:
                 if len(filepaths) > 1:
                     self.errors.append(
                         _log(
-                            f"{filename} has been found multiple times during this validation. Locations of duplicates: {filepaths}."  # noqa: E501
+                            f"{filename} has been found multiple times during this validation. "
+                            f"Locations of duplicates: {filepaths}."  # noqa: E501
                         )
                     )
 
