@@ -9,3 +9,4 @@ pytest==8.0.0
 python-frontmatter>=1.0.0
 tifffile==2020.10.1
 xmlschema>=1.6
+semantic-version>=2.10
