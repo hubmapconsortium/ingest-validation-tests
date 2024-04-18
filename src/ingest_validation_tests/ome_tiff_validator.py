@@ -20,7 +20,7 @@ def _check_ome_tiff_file(file: str):
 class OmeTiffValidator(Validator):
     description = "Recursively test all ome-tiff files for validity"
     cost = 1.0
-    version = "1.0.0"
+    version = "1.0"
 
     def collect_errors(self, **kwargs) -> List[str]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1

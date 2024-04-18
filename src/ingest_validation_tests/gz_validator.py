@@ -31,7 +31,7 @@ class Engine(object):
 class GZValidator(Validator):
     description = "Recursively checking gzipped files for damage using multiprocessing pools"
     cost = 5.0
-    version = "1.0.0"
+    version = "1.0"
 
     def collect_errors(self, **kwargs) -> List[str]:
         data_output2 = []

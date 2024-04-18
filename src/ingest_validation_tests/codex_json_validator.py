@@ -9,7 +9,7 @@ from jsonschema import validate
 class CodexJsonValidator(Validator):
     description = "Check CODEX JSON against schema"
     cost = 1.0
-    version = "1.0.0"
+    version = "1.0"
     required = "codex"
 
     def collect_errors(self, **kwargs) -> List[str]:
