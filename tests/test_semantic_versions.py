@@ -2,7 +2,6 @@ import re
 from pathlib import Path
 
 import semantic_version
-
 from ingest_validation_tools.plugin_validator import validation_class_iter
 
 FALLBACK_REGEX = r"^\d+\.\d+$"
