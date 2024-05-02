@@ -35,6 +35,7 @@ def _check_tiff_file(path: str) -> Optional[str]:
 class TiffValidator(Validator):
     description = "Recursively test all tiff files that are not ome.tiffs for validity"
     cost = 1.0
+    version = "1.0"
 
     def collect_errors(self, **kwargs) -> List[str]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1

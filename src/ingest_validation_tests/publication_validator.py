@@ -19,6 +19,7 @@ class PublicationValidator(Validator):
 
     description = "Test for common problems found in publications"
     cost = 1.0
+    version = "1.0"
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
     required = "publication"
