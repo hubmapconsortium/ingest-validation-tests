@@ -18,7 +18,7 @@ def test_plugin_semantic_versions():
         validator = cls(['.'], 'someassay', plugin_dir, [])
         try:
             ver = semantic_version.Version(cls.version)
-        except ValueError as excp:
+        except ValueError:
             if not fb_regex.match(cls.version):
                 assert False, (f"The plugin {cls.__name__} has version string"
                                f" {cls.version}, which is not a valid semantic"
