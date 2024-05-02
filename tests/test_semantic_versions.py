@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 
-import pytest  #noqa: F401
 import semantic_version
 
 from ingest_validation_tools.plugin_validator import validation_class_iter
