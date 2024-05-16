@@ -12,7 +12,7 @@ import pytest
             "test_data/good_codex_akoya_directory_v1_with_dataset_json_fails.zip",
             [".*is not of type 'object'.*"],
         ),
-        ("test_data/good_codex_akoya_directory_v1_with_dataset_json_passes.zip", []),
+        ("test_data/good_codex_akoya_directory_v1_with_dataset_json_passes.zip", [None]),
     ),
 )
 def test_codex_json_validator(test_data_fname, msg_re_list, tmp_path):
@@ -25,4 +25,5 @@ def test_codex_json_validator(test_data_fname, msg_re_list, tmp_path):
     errors = validator.collect_errors()[:]
     assert len(msg_re_list) == len(errors)
     for err_str, expected_re in zip(errors, msg_re_list):
-        assert re.match(expected_re, err_str, flags=re.MULTILINE)
+        assert ((err_str is None and expected_re is None)
+                or re.match(expected_re, err_str, flags=re.MULTILINE))
