@@ -35,8 +35,15 @@ class OmeTiffValidator(Validator):
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
-        return list(
+
+        rslt_list = list(
             rslt
             for rslt in pool.imap_unordered(_check_ome_tiff_file, filenames_to_test)
             if rslt is not None
         )
+        if rslt_list:
+            return rslt_list
+        elif filenames_to_test:
+            return [None]
+        else:
+            return []

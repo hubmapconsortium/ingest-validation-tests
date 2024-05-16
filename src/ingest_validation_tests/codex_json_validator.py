@@ -21,12 +21,20 @@ class CodexJsonValidator(Validator):
         schema = json.loads(schema_path.read_text())
 
         rslt = []
+        files_tested = 0
         for glob_expr in ["**/dataset.json"]:
             for path in self.paths:
                 for file in path.glob(glob_expr):
+                    files_tested += 1
                     instance = json.loads(file.read_text())
                     try:
                         validate(instance=instance, schema=schema)
                     except Exception as e:
                         rslt.append(f"{file}: {e}")
-        return rslt
+        print(f"DONE <{rslt}> {files_tested}")
+        if rslt:
+            return rslt
+        elif files_tested:
+            return [None]
+        else:
+            return []

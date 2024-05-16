@@ -55,6 +55,7 @@ class FASTQValidatorLogic:
 
     def __init__(self, verbose=False):
         self.errors: List[str] = []
+        self.files_were_found = False
         self._file_record_counts = Manager().dict()
         self._file_prefix_counts = Manager().dict()
         self._filename = ""
@@ -189,6 +190,8 @@ class FASTQValidatorLogic:
                 for rel_path, files in rel_paths.items():
                     for file in files:
                         file_list.append(Path(path / rel_path / file))
+            if file_list:
+                self.files_were_found = True
             try:
                 logging.info(
                     f"Passing file list for paths {paths} to engine. File list: {file_list}."

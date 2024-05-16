@@ -73,7 +73,12 @@ class PublicationValidator(Validator):
             except AssertionError as excp:
                 rslt.append(str(excp))
 
-        return rslt
+        if rslt:
+            return rslt
+        elif self.paths:
+            return [None]
+        else:
+            return []
 
     def url_search_iter(self, root):
         if isinstance(root, list):

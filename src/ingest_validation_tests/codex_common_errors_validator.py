@@ -217,4 +217,9 @@ class CodexCommonErrorsValidator(Validator):
                 else:
                     rslts.append(rslt)
                 pass
-        return rslts
+        if rslts:
+            return rslts
+        elif self.paths:
+            return [None]
+        else:
+            return []

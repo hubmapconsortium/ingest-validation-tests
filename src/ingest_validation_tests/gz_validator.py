@@ -54,4 +54,9 @@ class GZValidator(Validator):
             pool.close()
             pool.join()
             [data_output2.append(output) for output in data_output if output]
-        return data_output2
+        if data_output2:
+            return data_output2
+        elif file_list:
+            return [None]
+        else:
+            return []

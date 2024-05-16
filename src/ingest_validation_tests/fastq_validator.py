@@ -15,4 +15,9 @@ class FASTQValidator(Validator):
         _log(f"Threading at {threads}")
         validator = FASTQValidatorLogic(verbose=True)
         validator.validate_fastq_files_in_path(self.paths, threads)
-        return validator.errors
+        if validator.errors:
+            return validator.errors
+        elif validator.files_were_found:
+            return [None]
+        else:
+            return []
