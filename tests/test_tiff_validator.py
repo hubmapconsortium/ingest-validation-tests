@@ -17,7 +17,7 @@ import pytest
                 ".*notatiff.TIFF is not a valid TIFF file",
                 ".*notatiff.TIF is not a valid TIFF file",
             ],
-            "codex"
+            "codex",
         ),
         ("test_data/fake_snrnaseq_tree_good.zip", [], "snRNAseq"),
     ),
@@ -34,7 +34,7 @@ def test_tiff_validator(test_data_fname, msg_re_list, assay_type, tmp_path):
     matched_err_str_list = []
     for err_str in errors:
         for re_str in msg_re_list:
-            if ((re_str is None and err_str is None) or (re.match(re_str, err_str))):
+            if (re_str is None and err_str is None) or (re.match(re_str, err_str)):
                 msg_re_list.remove(re_str)
                 matched_err_str_list.append(err_str)
                 break

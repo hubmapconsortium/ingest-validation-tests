@@ -11,7 +11,7 @@ import pytest
         (
             "test_data/fake_codex_tree_1.zip",
             ["The segmentation.json file is in", "Unexpected error reading"],
-            "CODEX"
+            "CODEX",
         ),
         ("test_data/fake_codex_tree_2.zip", ["The raw/src_ subdirectory is missing?"], "CODEX"),
         ("test_data/fake_codex_tree_3.zip", ["channelnames.txt is missing"], "CODEX"),
@@ -24,7 +24,7 @@ import pytest
                 "channelnames.txt does not match channelnames_report.txt"
                 " on line 6: Empty vs Blank",
             ],
-            "CODEX"
+            "CODEX",
         ),
         ("test_data/fake_codex_tree_6.zip", ["Could not parse "], "CODEX"),
         ("test_data/fake_codex_tree_7.zip", [None], "CODEX"),
@@ -35,22 +35,22 @@ import pytest
                 "Cycle numbers are not contiguous",
                 "The number of channels per cycle is not constant",
             ],
-            "CODEX"
+            "CODEX",
         ),
         (
             "test_data/fake_codex_tree_10.zip",
             ['Directory string "cyc0a3_reg001_211119_040351"' " cycle number is not an integer"],
-            "CODEX"
+            "CODEX",
         ),
         (
             "test_data/fake_codex_tree_11.zip",
             ['Directory string "cyc003_reg0a1_211119_040351"' " region number is not an integer"],
-            "CODEX"
+            "CODEX",
         ),
         (
             "test_data/fake_codex_tree_12.zip",
             ['Directory string "cyc002_rig001_211119_040351"' ' does not include "_reg"'],
-            "CODEX"
+            "CODEX",
         ),
         ("test_data/fake_codex_tree_13.zip", ["Cycle numbering does not start at 1"], "CODEX"),
         ("test_data/fake_codex_tree_14.zip", ["Region numbering does not start at 1"], "CODEX"),
@@ -60,7 +60,7 @@ import pytest
                 "Not all cycle/region pairs are present",
                 "The number of channels per cycle is not constant",
             ],
-            "CODEX"
+            "CODEX",
         ),
         ("test_data/fake_codex_tree_16.zip", [None], "CODEX"),
         (
@@ -69,9 +69,13 @@ import pytest
                 "A dataset.json file exists but is in the wrong place",
                 "Region numbering does not start at 1",
             ],
-            "CODEX"
+            "CODEX",
         ),
-        ("test_data/fake_codex_tree_18.zip", ["The number of channels per cycle is not constant"], "CODEX"),
+        (
+            "test_data/fake_codex_tree_18.zip",
+            ["The number of channels per cycle is not constant"],
+            "CODEX",
+        ),
         ("test_data/fake_codex_tree_19.zip", [None], "CODEX"),
         ("test_data/fake_snrnaseq_tree_good.zip", [], "snRNAseq"),
     ),
@@ -90,5 +94,4 @@ def test_codex_common_errors_validator(test_data_fname, msg_starts_list, assay_t
     print("ERRORS ABOVE")
     assert len(msg_starts_list) == len(errors)
     for err_str, expected_str in zip(errors, msg_starts_list):
-        assert ((err_str is None and expected_str is None)
-                or (err_str.startswith(expected_str)))
+        assert (err_str is None and expected_str is None) or (err_str.startswith(expected_str))
