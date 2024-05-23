@@ -18,9 +18,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flake8 black isort
+        uses: py-actions/py-dependency-install@v3
+        with:
+          path: "requirements-dev.py"
+        # run: |
+        #   python -m pip install --upgrade pip
+        #   pip install flake8 black isort
       - name: Flake8 Lint
         run: |
           flake8 --ignore=E501,W503,E203 .
