@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from ingest_validation_tools.plugin_validator import Validator
 from jsonschema import validate
@@ -12,7 +12,7 @@ class CodexJsonValidator(Validator):
     version = "1.0"
     required = "codex"
 
-    def collect_errors(self, **kwargs) -> List[str]:
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         del kwargs
         if self.required not in self.contains and self.assay_type.lower() != self.required:
             return []  # We only test CODEX data

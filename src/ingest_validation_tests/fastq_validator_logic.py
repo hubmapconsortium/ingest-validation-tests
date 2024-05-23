@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from multiprocessing import Lock, Manager, Pool
 from pathlib import Path
-from typing import Callable, List, TextIO
+from typing import Callable, List, Optional, TextIO
 
 import fastq_utils
 
@@ -54,7 +54,7 @@ class FASTQValidatorLogic:
     _FASTQ_LINE_2_VALID_CHARS = "ACGNT"
 
     def __init__(self, verbose=False):
-        self.errors: List[str] = []
+        self.errors: List[Optional[str]] = []
         self.files_were_found = False
         self._file_record_counts = Manager().dict()
         self._file_prefix_counts = Manager().dict()

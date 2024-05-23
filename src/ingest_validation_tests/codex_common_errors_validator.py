@@ -2,7 +2,7 @@
 Test for some common errors in the directory and file structure of CODEX datasets.
 """
 
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 from ingest_validation_tools.plugin_validator import Validator
@@ -48,7 +48,7 @@ class CodexCommonErrorsValidator(Validator):
     version = "1.0"
     required = "codex"
 
-    def collect_errors(self, **kwargs) -> List[str]:
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         """
         Return the errors found by this validator
         """
