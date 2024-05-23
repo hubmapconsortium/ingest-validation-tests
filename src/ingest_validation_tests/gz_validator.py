@@ -2,7 +2,7 @@ import gzip
 import re
 from multiprocessing import Pool
 from os import cpu_count
-from typing import List
+from typing import List, Optional
 
 from ingest_validation_tools.plugin_validator import Validator
 
@@ -33,7 +33,7 @@ class GZValidator(Validator):
     cost = 5.0
     version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[str]:
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         data_output2 = []
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         _log(f"Threading at {threads}")
@@ -54,4 +54,9 @@ class GZValidator(Validator):
             pool.close()
             pool.join()
             [data_output2.append(output) for output in data_output if output]
-        return data_output2
+        if data_output2:
+            return data_output2
+        elif file_list:
+            return [None]
+        else:
+            return []
