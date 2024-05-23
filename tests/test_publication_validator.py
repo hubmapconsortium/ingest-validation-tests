@@ -49,8 +49,7 @@ def test_publication_validator(test_data_fname, msg_re_list, assay_type, tmp_pat
     matched_err_str_list = []
     for err_str in errors:
         for re_str in msg_re_list:
-            if ((err_str is None and re_str is None)
-                or re.match(re_str, err_str)):
+            if ((err_str is None and re_str is None) or re.match(re_str, err_str)):
                 msg_re_list.remove(re_str)
                 matched_err_str_list.append(err_str)
                 break
