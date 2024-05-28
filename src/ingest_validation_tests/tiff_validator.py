@@ -35,8 +35,9 @@ def _check_tiff_file(path: str) -> Optional[str]:
 class TiffValidator(Validator):
     description = "Recursively test all tiff files that are not ome.tiffs for validity"
     cost = 1.0
+    version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[str]:
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         pool = Pool(threads)
         filenames_to_test = []
@@ -44,8 +45,14 @@ class TiffValidator(Validator):
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
-        return list(
+        rslt_list: List[Optional[str]] = list(
             rslt
             for rslt in pool.imap_unordered(_check_tiff_file, filenames_to_test)
             if rslt is not None
         )
+        if rslt_list:
+            return rslt_list
+        elif filenames_to_test:
+            return [None]
+        else:
+            return []

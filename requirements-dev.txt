@@ -1,4 +1,4 @@
-black==23.12.1
+black==24.1.1
 flake8==7.0.0
 git+https://github.com/hubmapconsortium/fastq-utils.git@v0.2.5#egg=hubmap-fastq-utils
 imagecodecs>=2023.3.16
@@ -9,3 +9,4 @@ pytest==8.0.0
 python-frontmatter>=1.0.0
 tifffile==2020.10.1
 xmlschema>=1.6
+semantic-version>=2.10

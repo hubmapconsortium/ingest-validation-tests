@@ -5,7 +5,7 @@ Test for some common errors in the directory and file structure of publications.
 import json
 import re
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import frontmatter
 from ingest_validation_tools.plugin_validator import Validator
@@ -19,11 +19,12 @@ class PublicationValidator(Validator):
 
     description = "Test for common problems found in publications"
     cost = 1.0
+    version = "1.0"
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
     required = "publication"
 
-    def collect_errors(self, **kwargs) -> List[str]:
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         """
         Return the errors found by this validator
         """
@@ -72,7 +73,12 @@ class PublicationValidator(Validator):
             except AssertionError as excp:
                 rslt.append(str(excp))
 
-        return rslt
+        if rslt:
+            return rslt
+        elif self.paths:
+            return [None]
+        else:
+            return []
 
     def url_search_iter(self, root):
         if isinstance(root, list):
