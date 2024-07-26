@@ -123,9 +123,9 @@ class FASTQValidatorLogic:
     def validate_fastq_record(self, line: str, line_number: int) -> List[str]:
         line_index = line_number % 4 + 1
 
-        validator_method: Callable[[FASTQValidatorLogic, str], List[str]] = (
-            self._VALIDATE_FASTQ_LINE_METHODS[line_index]
-        )
+        validator_method: Callable[
+            [FASTQValidatorLogic, str], List[str]
+        ] = self._VALIDATE_FASTQ_LINE_METHODS[line_index]
 
         assert validator_method, f"No validator method defined for record index {line_index}"
 
@@ -170,10 +170,12 @@ class FASTQValidatorLogic:
             return
         except EOFError:
             self.errors.append(self._format_error(f"EOF in FASTQ data file {fastq_file}."))
+            return
         except Exception as e:
             self.errors.append(
                 self._format_error(f"Unexpected error: {e} on data file {fastq_file}.")
             )
+            return
         self._file_record_counts[str(fastq_file)] = records_read
 
     def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
@@ -181,7 +183,9 @@ class FASTQValidatorLogic:
         dirs_and_files = defaultdict(dict)
         for path in paths:
             dirs_and_files[path] = fastq_utils.collect_fastq_files_by_directory(path)
-            _log(f"Added files from {path} to dirs_and_files: {dirs_and_files}")
+            _log(
+                f"FASTQValidatorLogic: Added files from {path} to dirs_and_files: {dirs_and_files}"
+            )
         file_list = []
         with Manager() as manager:
             # TODO: re-evaluate dicts/for loops
