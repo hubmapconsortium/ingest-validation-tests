@@ -39,6 +39,7 @@ class TiffValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
+        _log(f"Threading at TiffValidator with {threads}")
         pool = Pool(threads)
         filenames_to_test = []
         for glob_expr in ["**/*.tif", "**/*.tiff", "**/*.TIFF", "**/*.TIF"]:
