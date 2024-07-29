@@ -45,11 +45,17 @@ class TiffValidator(Validator):
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
-        rslt_list: List[Optional[str]] = list(
-            rslt
-            for rslt in pool.imap_unordered(_check_tiff_file, filenames_to_test)
-            if rslt is not None
-        )
+        try:
+            rslt_list: List[Optional[str]] = list(
+                rslt
+                for rslt in pool.imap_unordered(_check_tiff_file, filenames_to_test)
+                if rslt is not None
+            )
+        except Exception as e:
+            _log(f"Error {e}")
+            rslt_list = [f"Error {e}"]
+        pool.close()
+        pool.join()
         if rslt_list:
             return rslt_list
         elif filenames_to_test:
