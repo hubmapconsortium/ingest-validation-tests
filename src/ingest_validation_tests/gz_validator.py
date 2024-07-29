@@ -36,7 +36,7 @@ class GZValidator(Validator):
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         data_output2 = []
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        _log(f"Threading at {threads}")
+        _log(f"Threading at GZValidator with {threads}")
         file_list = []
         for path in self.paths:
             for glob_expr in ["**/*.gz"]:

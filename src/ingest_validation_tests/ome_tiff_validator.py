@@ -7,6 +7,10 @@ import xmlschema
 from ingest_validation_tools.plugin_validator import Validator
 
 
+def _log(message: str):
+    print(message)
+
+
 def _check_ome_tiff_file(file: str) -> Optional[str]:
     try:
         with tifffile.TiffFile(file) as tf:
@@ -25,6 +29,7 @@ class OmeTiffValidator(Validator):
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         pool = Pool(threads)
+        _log(f"Threading at OmeTiffValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
             "**/*.ome.tif",
