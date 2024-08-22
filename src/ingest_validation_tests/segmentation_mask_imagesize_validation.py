@@ -65,7 +65,7 @@ class ImageSizeValidator(Validator):
                     "**/*.OME.TIFF",
                     "**/*.OME.TIF",
                 ]:
-                    for file in Path(GetParentData(row["parent_sample_id"],
+                    for file in Path(GetParentData(row["parent_dataset_id"],
                                                    self.globus_token,
                                                    self.app_context).get_path()).glob(glob_expr):
                         parent_filenames_to_test.append(file)
