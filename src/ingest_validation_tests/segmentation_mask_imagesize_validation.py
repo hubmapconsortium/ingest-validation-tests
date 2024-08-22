@@ -1,8 +1,8 @@
+from pathlib import Path
+from typing import List, Optional
+
 import tifffile
 import xmlschema
-
-from typing import List, Optional
-from pathlib import Path
 from ingest_validation_tools.plugin_validator import Validator
 from utils import GetParentData
 
