@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import List, Optional
 
-from ingest_validation_tools.plugin_validator import Validator
 import tifffile
 import xmlschema
 
+from ingest_validation_tools.plugin_validator import Validator
 from utils import GetParentData
 
 
