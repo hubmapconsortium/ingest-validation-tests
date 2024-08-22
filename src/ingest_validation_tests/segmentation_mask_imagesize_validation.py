@@ -13,17 +13,19 @@ def get_ometiff_size(file) -> Optional[str, dict]:
         tf = tifffile.TiffFile(file)
         xml_document = xmlschema.XmlDocument(tf.ome_metadata)
         if xml_document.schema and not xml_document.schema.is_valid(xml_document):
-            return f"{file} is not a valid OME.TIFF file"            
+            return f"{file} is not a valid OME.TIFF file"
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
     xml_image_data = xml_document.schema.to_dict(xml_document).get("Image")[0].get("Pixels")
     try:
-        rst = {'X': xml_image_data.get('@PhysicalSizeX'),
-               'XUnits': xml_image_data.get('@PhysicalSizeXUnits'),
-               'Y': xml_image_data.get('@PhysicalSizeY'),
-               'YUnits': xml_image_data.get('@PhysicalSizeYUnits'),
-               'Z': xml_image_data.get('@PhysicalSizeZ'),
-               'ZUnits': xml_image_data.get('@PhysicalSizeZUnits')}
+        rst = {
+            "X": xml_image_data.get("@PhysicalSizeX"),
+            "XUnits": xml_image_data.get("@PhysicalSizeXUnits"),
+            "Y": xml_image_data.get("@PhysicalSizeY"),
+            "YUnits": xml_image_data.get("@PhysicalSizeYUnits"),
+            "Z": xml_image_data.get("@PhysicalSizeZ"),
+            "ZUnits": xml_image_data.get("@PhysicalSizeZUnits"),
+        }
         return rst
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
@@ -38,7 +40,7 @@ class ImageSizeValidator(Validator):
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         del kwargs
         if self.required not in self.contains and self.assay_type.lower() != self.required:
-            return []  # We only test CODEX data
+            return []  # We only test Segmentation Masks
         files_tested = None
         output = []
         filenames_to_test = []
@@ -65,14 +67,18 @@ class ImageSizeValidator(Validator):
                     "**/*.OME.TIFF",
                     "**/*.OME.TIF",
                 ]:
-                    for file in Path(GetParentData(row["parent_dataset_id"],
-                                                   self.globus_token,
-                                                   self.app_context).get_path()).glob(glob_expr):
+                    for file in Path(
+                        GetParentData(
+                            row["parent_dataset_id"], self.globus_token, self.app_context
+                        ).get_path()
+                    ).glob(glob_expr):
                         parent_filenames_to_test.append(file)
                 assert len(parent_filenames_to_test) != 1, "Too many or too few files Base Images"
                 segmentation_mask_size = get_ometiff_size(filenames_to_test[0])
                 base_image_size = get_ometiff_size(parent_filenames_to_test[0])
-                assert segmentation_mask_size == base_image_size, "Files and base image size do not match"
+                assert (
+                    segmentation_mask_size == base_image_size
+                ), "Files and base image size do not match"
 
         except AssertionError as exep:
             output.append(str(exep))

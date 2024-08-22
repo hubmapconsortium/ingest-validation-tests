@@ -22,7 +22,12 @@ class GetParentData:
     def get_path(self) -> str:
         self.__get_uuid()
         if self.uuid is None:
-            url = self.app_context.get("ingest_url") + "datasets/" + self.uuid + "/file-system-abs-path"
+            url = (
+                self.app_context.get("ingest_url")
+                + "datasets/"
+                + self.uuid
+                + "/file-system-abs-path"
+            )
             headers = self.app_context.get("request_headers", {})
             try:
                 response = requests.get(url, headers=headers)
