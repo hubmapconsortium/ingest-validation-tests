@@ -36,11 +36,11 @@ class ImageSizeValidator(Validator):
     version = "1.0"
     required = "segmentation_mask"
     files_to_find = [
-                    "**/*.ome.tif",
-                    "**/*.ome.tiff",
-                    "**/*.OME.TIFF",
-                    "**/*.OME.TIF",
-                ]
+        "**/*.ome.tif",
+        "**/*.ome.tiff",
+        "**/*.OME.TIFF",
+        "**/*.OME.TIF",
+    ]
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         del kwargs
