@@ -21,7 +21,7 @@ class GetParentData:
 
     def get_path(self) -> str:
         self.__get_uuid()
-        if self.uuid is None:
+        if self.uuid is not None:
             url = (
                 self.app_context.get("ingest_url")
                 + "datasets/"
