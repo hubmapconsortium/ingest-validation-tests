@@ -10,7 +10,7 @@ class GetParentData:
     def __get_uuid(self) -> None:
         url = self.app_context.get("uuid_url") + self.hubmap_id
         headers = self.app_context.get("request_headers", {})
-        headers({"Authorization": "Bearer " + self.token})
+        headers.update({"Authorization": "Bearer " + self.token})
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()

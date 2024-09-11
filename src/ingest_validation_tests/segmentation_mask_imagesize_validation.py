@@ -4,6 +4,7 @@ from typing import List, Optional, Union
 import tifffile
 import xmlschema
 from ingest_validation_tools.plugin_validator import Validator
+
 from ingest_validation_tests.utils import GetParentData
 
 
@@ -44,6 +45,7 @@ class ImageSizeValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         del kwargs
+        print("Validating Image/SegMask sizes")
         if self.required not in self.contains and self.assay_type.lower() != self.required:
             return []  # We only test Segmentation Masks
         files_tested = None
@@ -62,7 +64,7 @@ class ImageSizeValidator(Validator):
 
                     for file in Path(
                         GetParentData(
-                            row["parent_dataset_id"], self.globus_token, self.app_context
+                            row["parent_dataset_id"], self.token, self.app_context
                         ).get_path()
                     ).glob(glob_expr):
                         parent_filenames_to_test.append(file)
