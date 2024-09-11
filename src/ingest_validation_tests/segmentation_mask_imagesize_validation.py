@@ -5,7 +5,7 @@ import tifffile
 import xmlschema
 from ingest_validation_tools.plugin_validator import Validator
 
-from ingest_validation_tests.utils import GetParentData
+from tests_utils import GetParentData
 
 
 def get_ometiff_size(file) -> Union[str, dict]:
@@ -37,10 +37,10 @@ class ImageSizeValidator(Validator):
     version = "1.0"
     required = "segmentation mask"
     files_to_find = [
-        "**/*.ome.tif",
-        "**/*.ome.tiff",
-        "**/*.OME.TIFF",
-        "**/*.OME.TIF",
+        "**/segmentation_masks/*.ome.tif",
+        "**/segmentation_masks/*.ome.tiff",
+        "**/segmentation_masks/*.OME.TIFF",
+        "**/segmentation_masks/*.OME.TIF",
     ]
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
