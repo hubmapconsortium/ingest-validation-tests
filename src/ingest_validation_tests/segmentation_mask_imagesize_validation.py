@@ -4,7 +4,6 @@ from typing import List, Optional, Union
 import tifffile
 import xmlschema
 from ingest_validation_tools.plugin_validator import Validator
-
 from tests_utils import GetParentData
 
 
