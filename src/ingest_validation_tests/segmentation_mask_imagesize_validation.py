@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import tifffile
 import xmlschema
 from ingest_validation_tools.plugin_validator import Validator
-from utils import GetParentData
+from ingest_validation_tests.utils import GetParentData
 
 
 def get_ometiff_size(file) -> Union[str, dict]:
@@ -34,7 +34,7 @@ class ImageSizeValidator(Validator):
     description = "Check dataset and parent image size so they can be matched in the visualization"
     cost = 1.0
     version = "1.0"
-    required = "segmentation_mask"
+    required = "segmentation mask"
     files_to_find = [
         "**/*.ome.tif",
         "**/*.ome.tiff",
