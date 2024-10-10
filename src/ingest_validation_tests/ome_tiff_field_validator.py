@@ -79,13 +79,22 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
         expanded_props = {}
         for term_dct in image_props:
             expanded_props.update(expand_terms(term_dct))
-        # print("EXPANDED PROPS FOLLOWS")
+        # print(f"EXPANDED PROPS FOR {file} FOLLOWS")
         # pprint(expanded_props)
         # print("EXPANDED PROPS ABOVE; TESTS FOLLOW")
         # pprint(tests)
         # print("TESTS ABOVE")
+        error_l = []
         for key in tests:
-            check_one_prop(key, expanded_props, tests[key])
+            try:
+                check_one_prop(key, expanded_props, tests[key])
+            except AssertionError as excp:
+                error_l.append(str(excp))
+        # print("ERROR LIST FOLLOWS")
+        # pprint(error_l)
+        # print("ERROR LIST ABOVE")
+        if error_l:
+            return f"{file} is not a valid OME.TIFF file: {'; '.join(error_l)}"
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
 
