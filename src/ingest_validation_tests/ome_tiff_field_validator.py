@@ -9,6 +9,7 @@ from pprint import pprint
 
 import tifffile
 import xmlschema
+from jsonschema import validate
 from ingest_validation_tools.plugin_validator import Validator
 
 
@@ -107,7 +108,15 @@ class OmeTiffFieldValidator(Validator):
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         cfg_path = Path(__file__).parent / "ome_tiff_fields.json"
         cfg_list = json.loads(cfg_path.read_text())
-        # TODO: need a jsonschema test of cfg_list here
+        cfg_schema_path = Path(__file__).parent / "ome_tiff_fields_schema.json"
+        schema = json.loads(cfg_schema_path.read_text())
+        try:
+            pprint(cfg_list)
+            pprint(schema)
+            validate(cfg_list, schema)
+        except Exception as excp:
+            raise RuntimeError(f"Configuration error: {cfg_path}"
+                               f" does not satisfy schema {cfg_schema_path}")
         all_tests = {}
         for test_set in cfg_list:
             if re.fullmatch(test_set["re"], self.assay_type):
