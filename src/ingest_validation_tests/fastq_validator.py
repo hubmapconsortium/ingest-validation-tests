@@ -1,4 +1,3 @@
-from os import cpu_count
 from typing import List, Optional
 
 from fastq_validator_logic import FASTQValidatorLogic, _log
@@ -11,10 +10,10 @@ class FASTQValidator(Validator):
     version = "1.0"
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
-        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        _log(f"Threading at FastQValidator with {threads}")
+        del kwargs
+        _log(f"Threading at FastQValidator with {self.thread_count}")
         validator = FASTQValidatorLogic(verbose=True)
-        validator.validate_fastq_files_in_path(self.paths, threads)
+        validator.validate_fastq_files_in_path(self.paths, self.thread_count)
         if validator.errors:
             return validator.errors
         elif validator.files_were_found:
