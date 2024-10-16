@@ -202,3 +202,94 @@ NACTGACTGA
         assert "(4 lines)" in fastq_validator.errors[0]
         assert "does not match" in fastq_validator.errors[0]
         assert "(8 lines)" in fastq_validator.errors[0]
+
+    def test_fastq_comparison_good(self, fastq_validator, tmp_path):
+        filenames = [
+            "3252_ftL_RNA_T1_S31_L003_R1_001.fastq",
+            "3252_ftL_RNA_T1_S31_L003_R2_001.fastq",
+            "3252_ftL_RNA_T1_S31_L003_R1_002.fastq",
+            "3252_ftL_RNA_T1_S31_L003_R2_002.fastq",
+        ]
+        for filename in filenames:
+            new_file = tmp_path.joinpath(filename)
+            with _open_output_file(new_file, False) as output:
+                output.write(_GOOD_RECORDS)
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+
+        assert not fastq_validator.errors
+
+    # def test_fastq_comparison_bad_extra_R(self, fastq_validator, tmp_path):
+    #     filenames = [
+    #         "3252_ftL_RNA_T1_S31_L003_R1_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R2_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R1_002.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R2_002.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R3_001.fastq",
+    #     ]
+    #     for filename in filenames:
+    #         new_file = tmp_path.joinpath(filename)
+    #         with _open_output_file(new_file, False) as output:
+    #             output.write(_GOOD_RECORDS)
+    #
+    #     fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+    #     assert "IndexError: list index out of range" in fastq_validator.errors[0]
+
+    # def test_fastq_comparison_bad_unpaired_R(self, fastq_validator, tmp_path):
+    #     filenames = [
+    #         "3252_ftL_RNA_T1_S31_L003_R1_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R2_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R1_002.fastq",
+    #     ]
+    #     for filename in filenames:
+    #         new_file = tmp_path.joinpath(filename)
+    #         with _open_output_file(new_file, False) as output:
+    #             output.write(_GOOD_RECORDS)
+    #
+    #     fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+    #
+    #     assert fastq_validator.errors
+    #
+    # def test_fastq_comparison_bad_mixed_I_and_R(self, fastq_validator, tmp_path):
+    #     filenames = [
+    #         "3252_ftL_RNA_T1_S31_L003_R1_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R2_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_I1_002.fastq",
+    #     ]
+    #     for filename in filenames:
+    #         new_file = tmp_path.joinpath(filename)
+    #         with _open_output_file(new_file, False) as output:
+    #             output.write(_GOOD_RECORDS)
+    #
+    #     fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+    #
+    #     assert fastq_validator.errors
+    #
+    # def test_fastq_comparison_bad_extra_unmatched_fastq(self, fastq_validator, tmp_path):
+    #     filenames = [
+    #         "3252_ftL_RNA_T1_S31_L003_R1_001.fastq",
+    #         "3252_ftL_RNA_T1_S31_L003_R2_001.fastq",
+    #         "bad_ftL_RNA_T1_S31_L003_R1_001.fastq",
+    #     ]
+    #     for filename in filenames:
+    #         new_file = tmp_path.joinpath(filename)
+    #         with _open_output_file(new_file, False) as output:
+    #             output.write(_GOOD_RECORDS)
+    #
+    #     fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+    #
+    #     assert fastq_validator.errors
+
+    def test_fastq_comparison_bad_unequal_line_counts(self, fastq_validator, tmp_path):
+        good_file = "3252_ftL_RNA_T1_S31_L003_R1_001.fastq"
+        bad_file = "3252_ftL_RNA_T1_S31_L003_R2_001.fastq"
+        new_good_file = tmp_path.joinpath(good_file)
+        with _open_output_file(new_good_file, False) as output:
+            output.write(_GOOD_RECORDS)
+        new_bad_file = tmp_path.joinpath(bad_file)
+        with _open_output_file(new_bad_file, False) as output:
+            output.write("bad")
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+
+        assert fastq_validator.errors
