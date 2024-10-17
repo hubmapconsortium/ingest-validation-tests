@@ -1,0 +1,56 @@
+[
+  {
+    "re": "C.*EX",
+    "fields": {
+      "Pixels_DimensionOrder": {
+	"dtype": "categorical",
+	"allowed_values": ["XYZCT", "XYZTC", "XYCTZ", "XYCZT", "XYTCZ", "XYTZC"]
+      },
+      "Pixels_Type": {
+	"dtype": "categorical",
+	"allowed_values": ["bit", "complex", "double", "double-complex", "float",
+			   "int8", "int12", "int14", "int16", "int32", "uint8",
+			   "uint12", "uint14", "uint16", "uint32", "Other"]
+      },
+      "Pixels_SizeX": {
+	"dtype": "integer"
+      },
+      "Pixels_SizeY": {
+	"dtype": "integer"
+      },
+      "Pixels_SizeZ": {
+	"dtype": "integer"
+      },
+      "Pixels_SizeC": {
+	"dtype": "integer"
+      },
+      "Pixels_SizeT": {
+	"dtype": "integer"
+      },
+      "Pixels_PhysicalSizeX": {
+	"dtype": "float",
+	"msg": "dtype should be float"
+      },
+      "Pixels_PhysicalSizeXUnit": {
+	"dtype": "categorical",
+	"allowed_values": ["µm"]
+      },
+      "Pixels_PhysicalSizeY": {
+	"dtype": "float",
+	"msg": "dtype should be float"
+      },
+      "Pixels_PhysicalSizeYUnit": {
+	"dtype": "categorical",
+	"allowed_values": ["µm"]
+      },
+      "Pixels_PhysicalSizeZ": {
+	"dtype": "float",
+	"msg": "dtype should be float"
+      },
+      "Pixels_PhysicalSizeZUnit": {
+	"dtype": "categorical",
+	"allowed_values": ["µm"]
+      }
+    }
+  }
+]

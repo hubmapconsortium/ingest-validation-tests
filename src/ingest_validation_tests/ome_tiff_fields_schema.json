@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "$id": "http://schemata.hubmapconsortium.org/ome_tiff_fields_schema_schema.json",
+  "title": "ome-tiff fields schema",
+  "description": "schema for the definitions file of required ome-tiff fields",
+  "allOf":[{"$ref": "#/definitions/file_info"}],
+  "definitions": {
+    "file_info_record": {
+      "type": "object",
+      "properties": {
+	"re": {
+	  "type": "string",
+	  "description": "regular expression for assay types"
+	},
+	"fields": {
+	  "type": "object",
+	  "additionalProperties": {
+	    "oneOf": [
+	      {
+		"type": "object",
+		"properties": {
+		  "dtype": {"enum": ["integer", "float"]}
+		},
+		"required": ["dtype"]
+	      },
+	      {
+		"type": "object",
+		"properties": {
+		  "dtype": {"enum": ["categorical"]},
+		  "allowed_values": {
+		    "type": "array",
+		    "items": {"type": "string"}
+		  }
+		},
+		"required": ["dtype", "allowed_values"]
+	      }
+	    ]
+	  }
+	}
+      }
+    },
+    "file_info": {
+      "type":  "array",
+      "items": {"$ref": "#/definitions/file_info_record"}
+    }
+  }
+}
