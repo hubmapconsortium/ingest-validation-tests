@@ -33,11 +33,11 @@ def test_ome_tiff_field_validator(test_data_fname, msg_re_list, assay_type, tmp_
     assert len(msg_re_list) == len(errors)
     unmatched_errors = []
     for err_str in errors:
-        msg_re_list_dup = list(msg_re_list) # to avoid editing during iteration
+        msg_re_list_dup = list(msg_re_list)  # to avoid editing during iteration
         match = False
         for re_str in msg_re_list_dup:
             if ((err_str is None and re_str is None)
-                or re.match(re_str, err_str, flags=re.MULTILINE)):
+                    or re.match(re_str, err_str, flags=re.MULTILINE)):
                 msg_re_list.remove(re_str)
                 match = True
                 break
