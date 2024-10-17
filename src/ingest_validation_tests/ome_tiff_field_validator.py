@@ -1,14 +1,15 @@
 import json
 import re
-from pathlib import Path
+from functools import partial
 from multiprocessing import Pool
 from os import cpu_count
+from pathlib import Path
 from typing import List, Optional
-from functools import partial
+
 import tifffile
 import xmlschema
-from jsonschema import validate
 from ingest_validation_tools.plugin_validator import Validator
+from jsonschema import validate
 
 
 def _log(message: str):
