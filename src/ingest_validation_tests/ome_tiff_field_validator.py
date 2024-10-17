@@ -5,8 +5,6 @@ from multiprocessing import Pool
 from os import cpu_count
 from typing import List, Optional
 from functools import partial
-from pprint import pprint
-
 import tifffile
 import xmlschema
 from jsonschema import validate
@@ -46,7 +44,6 @@ def expand_terms(dct: dict, prefix: str = "") -> dict:
 
 
 def check_one_prop(key: str, all_prop_dct: dict, this_test: dict) -> None:
-    # print(f"CHECK ONE PROP: {key} {all_prop_dct}")
     test_type = this_test["dtype"]
     if test_type == "trap":
         # This test is useful when you want to scan lots of ome-tiff files for an
@@ -81,20 +78,12 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
         expanded_props = {}
         for term_dct in image_props:
             expanded_props.update(expand_terms(term_dct))
-        # print(f"EXPANDED PROPS FOR {file} FOLLOWS")
-        # pprint(expanded_props)
-        # print("EXPANDED PROPS ABOVE; TESTS FOLLOW")
-        # pprint(tests)
-        # print("TESTS ABOVE")
         error_l = []
         for key in tests:
             try:
                 check_one_prop(key, expanded_props, tests[key])
             except AssertionError as excp:
                 error_l.append(str(excp))
-        # print("ERROR LIST FOLLOWS")
-        # pprint(error_l)
-        # print("ERROR LIST ABOVE")
         if error_l:
             return f"{file} is not a valid OME.TIFF file: {'; '.join(error_l)}"
     except Exception as excp:
@@ -112,8 +101,6 @@ class OmeTiffFieldValidator(Validator):
         cfg_schema_path = Path(__file__).parent / "ome_tiff_fields_schema.json"
         schema = json.loads(cfg_schema_path.read_text())
         try:
-            pprint(cfg_list)
-            pprint(schema)
             validate(cfg_list, schema)
         except Exception:
             raise RuntimeError(
