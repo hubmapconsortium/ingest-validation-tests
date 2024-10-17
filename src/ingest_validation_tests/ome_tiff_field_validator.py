@@ -17,7 +17,7 @@ def _log(message: str):
     print(message)
 
 
-def expand_terms(dct: dict, prefix: str="") -> dict:
+def expand_terms(dct: dict, prefix: str = "") -> dict:
     """
     Convert a dict of of XML info as provided by xmlschema to the
     form used in the dictionary of expected fields
@@ -58,19 +58,20 @@ def check_one_prop(key: str, all_prop_dct: dict, this_test: dict) -> None:
     elif test_type == "categorical":
         allowed_vals = this_test["allowed_values"]
         assert key in all_prop_dct, f"{key} is required but missing"
-        assert all_prop_dct[key] in allowed_vals, (f"{key} = {all_prop_dct[key]}"
-                                                   f" not one of {allowed_vals}")
+        assert all_prop_dct[key] in allowed_vals, (
+            f"{key} = {all_prop_dct[key]}" f" not one of {allowed_vals}"
+        )
     elif test_type == "integer":
         assert key in all_prop_dct, f"{key} is required but missing"
-        assert isinstance(all_prop_dct[key], int), (f"{key} = {all_prop_dct[key]}"
-                                                    f" is not an int")
+        assert isinstance(all_prop_dct[key], int), f"{key} = {all_prop_dct[key]}" f" is not an int"
     elif test_type == "float":
         assert key in all_prop_dct, f"{key} is required but missing"
-        assert isinstance(all_prop_dct[key], float), (f"{key} = {all_prop_dct[key]}"
-                                                      f" is not a float")
+        assert isinstance(all_prop_dct[key], float), (
+            f"{key} = {all_prop_dct[key]}" f" is not a float"
+        )
     else:
         raise NotImplementedError(f"Unimplemented dtype {test_type} for ome-tiff field")
-            
+
 
 def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
     try:
@@ -99,7 +100,7 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
 
-    
+
 class OmeTiffFieldValidator(Validator):
     description = "Recursively test all ome-tiff files for an assay-specific list of fields"
     cost = 1.0
@@ -115,14 +116,15 @@ class OmeTiffFieldValidator(Validator):
             pprint(schema)
             validate(cfg_list, schema)
         except Exception as excp:
-            raise RuntimeError(f"Configuration error: {cfg_path}"
-                               f" does not satisfy schema {cfg_schema_path}")
+            raise RuntimeError(
+                f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
+            )
         all_tests = {}
         for test_set in cfg_list:
             if re.fullmatch(test_set["re"], self.assay_type):
                 all_tests.update(test_set["fields"])
 
-        #threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
+        # threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         threads = 1
         pool = Pool(threads)
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
@@ -139,9 +141,9 @@ class OmeTiffFieldValidator(Validator):
 
         rslt_list: List[Optional[str]] = list(
             rslt
-            for rslt in pool.imap_unordered(partial(_check_ome_tiff_file,
-                                                    tests = all_tests),
-                                            filenames_to_test)
+            for rslt in pool.imap_unordered(
+                partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
+            )
             if rslt is not None
         )
         if rslt_list:
