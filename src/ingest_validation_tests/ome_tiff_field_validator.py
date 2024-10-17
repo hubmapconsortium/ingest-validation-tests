@@ -32,7 +32,7 @@ def expand_terms(dct: dict, prefix: str = "") -> dict:
         else:
             child_dct = {}
             if isinstance(val, list):
-                assert len(val) == 1, f"Expected only one element in list of dicts"
+                assert len(val) == 1, "Expected only one element in list of dicts"
                 child_dct.update(expand_terms(val[0], expanded_prefix + key))
             elif isinstance(val, dict):
                 child_dct.update(expand_terms(val, expanded_prefix + key))
@@ -115,7 +115,7 @@ class OmeTiffFieldValidator(Validator):
             pprint(cfg_list)
             pprint(schema)
             validate(cfg_list, schema)
-        except Exception as excp:
+        except Exception:
             raise RuntimeError(
                 f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
             )
@@ -124,8 +124,7 @@ class OmeTiffFieldValidator(Validator):
             if re.fullmatch(test_set["re"], self.assay_type):
                 all_tests.update(test_set["fields"])
 
-        # threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        threads = 1
+        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         pool = Pool(threads)
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
         filenames_to_test = []
