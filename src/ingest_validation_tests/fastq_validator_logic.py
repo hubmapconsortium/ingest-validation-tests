@@ -20,10 +20,18 @@ def is_valid_filename(filename: str) -> bool:
 
 
 def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
+    """
+    PREFIX (?P<prefix>.*(?:L\\d+)(?=[_](?:(?P<read_type>(?:R|read)(?=[123])|I(?=[12])))))
+        - (?P<prefix> | named capture group "prefix"
+        - .*(?:L\\d+) | match anything before pattern L# (where # represents 1 or more digits)
+        - (?=[_](?:(?P<read_type>(?:R|read)(?=[123])|I(?=[12])))) | only capture above match if followed by the sequence _[R1,R2,R3,read1,read2,read3,I1,I2]
+
+    """
     if not bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename)):
         return
+    # looking for fastq filenames matching pattern <prefix>_<lane>_[I1,I2,R1,R2,R3]_<set>
     pattern = re.compile(
-        r"(?P<prefix>.*(?=[_](?:(?P<read_type>R|.read|I)\d)))(?:_(?P=read_type)\d_)(?P<set>\d+)"
+        r"(?P<prefix>.*(?:L\d+)(?=[_](?:(?P<read_type>(?:R|read)(?=[123]_)|I(?=[12]_)))))"
     )
     groups = pattern.match(filename)
     if groups and all(x in groups.groupdict().keys() for x in ["prefix", "read_type", "set"]):
@@ -140,6 +148,8 @@ class FASTQValidatorLogic:
                 groups[potential_match].append(file)
             else:
                 self._ungrouped_files.append(file)
+        for group in groups.values():
+            group.sort()
         return groups
 
     _VALIDATE_FASTQ_LINE_METHODS = {
@@ -269,7 +279,7 @@ class FASTQValidatorLogic:
             for pattern, paths in groups.items():
                 comparison = {}
                 for path in paths:
-                    comparison[path] = self._file_record_counts.get(str(path))
+                    comparison[str(path)] = self._file_record_counts.get(str(path))
                 if not (len(set(comparison.values())) == 1):
                     self.errors.append(
                         f"Counts do not match among files matching pattern {pattern.prefix}_{pattern.read_type}#_{pattern.set_num}: {comparison}"
