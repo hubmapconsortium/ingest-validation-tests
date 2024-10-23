@@ -2,7 +2,6 @@ import gzip
 from pathlib import Path, PosixPath
 from typing import TextIO
 
-import fastq_utils
 import pytest
 
 from src.ingest_validation_tests.fastq_validator_logic import (
