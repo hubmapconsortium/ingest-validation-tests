@@ -21,17 +21,22 @@ def is_valid_filename(filename: str) -> bool:
 
 def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     """
-    PREFIX (?P<prefix>.*(?:L\\d+)(?=[_](?:(?P<read_type>(?:R|read)(?=[123])|I(?=[12])))))
+    PREFIX (?P<prefix>.*(?:L\\d+)
         - (?P<prefix> | named capture group "prefix"
         - .*(?:L\\d+) | match anything before pattern L# (where # represents 1 or more digits)
-        - (?=[_](?:(?P<read_type>(?:R|read)(?=[123])|I(?=[12])))) | only capture above match if followed by the sequence _[R1,R2,R3,read1,read2,read3,I1,I2]
-
+        - only capture if read_type found
+    READ_TYPE
+        - (?=_ | assert that the character "_" is present at the beginning of this next group
+        - (?:(?P<read_type>R|read(?=[123])|I(?=[12]))) | only capture above match if followed by the sequence _[R1,R2,R3,read1,read2,read3,I1,I2]; capture R/I/read as read_type
+    SET_NUM
+        - (?:\\d_ | ensure presence of "#_" before group, ignore characters
+        - (?P<set_num>\\d+) | capture group set_num of 1 or more digits
     """
     if not bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename)):
         return
     # looking for fastq filenames matching pattern <prefix>_<lane>_[I1,I2,R1,R2,R3]_<set_num>
     pattern = re.compile(
-        r"(?P<prefix>.*(?:L\d+)(?=[_](?:(?P<read_type>(?:R|read)(?=[123])|I(?=[12]))(?:\d?_)(?P<set_num>\d+))))"
+        r"(?P<prefix>.*(?:L\d+)(?=_(?P<read_type>R|read(?=[123])|I(?=[12]))(?:\d_(?P<set_num>\d+))))"
     )
     groups = pattern.match(filename)
     if groups and all(x in groups.groupdict().keys() for x in ["prefix", "read_type", "set_num"]):
@@ -253,9 +258,9 @@ class FASTQValidatorLogic:
                 pool.close()
                 pool.join()
                 groups = self._make_groups()
+                self._find_counts(groups, lock)
                 if self._ungrouped_files:
                     _log(f"Ungrouped files, counts not checked: {self._ungrouped_files}")
-                self._find_counts(groups, lock)
 
     def _find_duplicates(self) -> None:
         """
@@ -277,6 +282,12 @@ class FASTQValidatorLogic:
     def _find_counts(self, groups: dict[filename_pattern, list[Path]], lock):
         with lock:
             for pattern, paths in groups.items():
+                if len(paths) == 1:
+                    # This would happen if there was a file that matched the prefix_read_set pattern
+                    # but did not have a counterpart for comparison; this probably should not happen but
+                    # is currently only logged and does not throw an exception
+                    self._ungrouped_files.append(paths[0])
+                    continue
                 comparison = {}
                 for path in paths:
                     comparison[str(path)] = self._file_record_counts.get(str(path))
