@@ -29,14 +29,14 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     """
     if not bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename)):
         return
-    # looking for fastq filenames matching pattern <prefix>_<lane>_[I1,I2,R1,R2,R3]_<set>
+    # looking for fastq filenames matching pattern <prefix>_<lane>_[I1,I2,R1,R2,R3]_<set_num>
     pattern = re.compile(
-        r"(?P<prefix>.*(?:L\d+)(?=[_](?:(?P<read_type>(?:R|read)(?=[123]_)|I(?=[12]_)))))"
+        r"(?P<prefix>.*(?:L\d+)(?=[_](?:(?P<read_type>(?:R|read)(?=[123])|I(?=[12]))(?:\d?_)(?P<set_num>\d+))))"
     )
     groups = pattern.match(filename)
-    if groups and all(x in groups.groupdict().keys() for x in ["prefix", "read_type", "set"]):
+    if groups and all(x in groups.groupdict().keys() for x in ["prefix", "read_type", "set_num"]):
         return filename_pattern(
-            groups.group("prefix"), groups.group("read_type"), groups.group("set")
+            groups.group("prefix"), groups.group("read_type"), groups.group("set_num")
         )
 
 
