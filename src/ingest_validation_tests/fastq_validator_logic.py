@@ -240,7 +240,8 @@ class FASTQValidatorLogic:
                 self.file_list.extend(files)
                 _log(f"FASTQValidatorLogic: Added files from {path} to file_list: {files}")
         self.files_were_found = bool(self.file_list)
-        self._find_duplicates()
+        if dupes := self._find_duplicates():
+            [self.errors.append(dupe) for dupe in dupes if dupe not in self.errors]
         _log(f"File list: {self.file_list}")
         with Manager() as manager:
             lock = manager.Lock()
@@ -252,7 +253,6 @@ class FASTQValidatorLogic:
                 logging.info(self._printable_filenames(self.file_list))
                 engine = Engine(self)
                 data_output = pool.imap_unordered(engine, self.file_list)
-                [self.errors.extend(output) for output in data_output if output]
             except Exception as e:
                 pool.close()
                 pool.join()
@@ -261,27 +261,35 @@ class FASTQValidatorLogic:
             else:
                 pool.close()
                 pool.join()
+                compiled = set([errors for error_list in data_output for errors in error_list])
+                [
+                    self.errors.append(output)
+                    for output in compiled
+                    if output and output not in self.errors
+                ]
                 groups = self._make_groups()
                 self._find_counts(groups, lock)
                 if self._ungrouped_files:
                     _log(f"Ungrouped files, counts not checked: {self._ungrouped_files}")
 
-    def _find_duplicates(self) -> None:
+    def _find_duplicates(self) -> list[str]:
         """
         Transforms data from {path: [filepaths]} to {filepath.name: [paths]}
         to ensure that each filename only appears once in an upload
         """
         files_per_path = defaultdict(list)
+        errors = []
         for filepath in self.file_list:
             files_per_path[filepath.name].append(filepath.parents[0])
         for filename, filepaths in files_per_path.items():
             if len(filepaths) > 1:
-                self.errors.append(
+                errors.append(
                     _log(
                         f"{filename} has been found multiple times during this validation. "
                         f"Locations of duplicates: {str(filepaths)}."
                     )
                 )
+        return errors
 
     def _find_counts(self, groups: dict[filename_pattern, list[Path]], lock):
         with lock:
