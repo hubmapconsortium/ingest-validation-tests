@@ -272,6 +272,7 @@ NACTGACTGA
             "20147_Healthy_PA_S1_L001_R1_001.fastq",
             "20147_Healthy_PA_S1_L001_R2_001.fastq",
             "20147_Healthy_PA_S1_L001_R1_002.fastq",
+            "test_not_grouped_but_valid",
         ]
         bad_files = [
             "20147_Healthy_PA_S1_L001_R3_001.fastq",
@@ -291,7 +292,7 @@ NACTGACTGA
         assert "20147_Healthy_PA_S1_L001_R3_001.fastq" in fastq_validator.errors[1]
 
     def test_filename_valid_and_fastq_valid_but_not_grouped(self, fastq_validator, tmp_path):
-        # good_filenames[0:6] are valid but would not be grouped for comparison
+        # good_filenames[0:6] are valid in pipeline processing but would not be grouped for comparison
         good_filenames = [
             "B001A001_1.fastq",  # no lane, read_type, or set
             "B001A001_R1.fq",  # no lane or set
@@ -332,3 +333,15 @@ NACTGACTGA
                 prefix=f"{tmp_path}/Undetermined_S0_L001", read_type="R", set_num="001"
             ),
         ]
+        assert (
+            fastq_validator._ungrouped_files.sort()
+            == [
+                "B001A001_1.fastq",  # no lane, read_type, or set
+                "B001A001_R1.fq",  # no lane or set
+                "B001A001_I1.fastq.gz",  # no lane or set
+                "H4L1-4_S64_R1_001.fastq.gz",  # no lane
+                "H4L1-4_S64_L001_001.fastq.gz",  # no read_type
+                "H4L1-4_S64_L001_R1.fastq.gz",  # no set
+                "L001_H4L1-4_S64_R1_001.fastq.gz",  # out of order
+            ].sort()
+        )
