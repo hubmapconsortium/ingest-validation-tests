@@ -1,4 +1,5 @@
 import gzip
+from operator import attrgetter
 from pathlib import Path, PosixPath
 from typing import TextIO
 
@@ -324,14 +325,25 @@ NACTGACTGA
             for file in fastq_validator.file_list
             if get_prefix_read_type_and_set(str(file)) is not None
         ]
-        assert valid_filename_patterns == [
-            filename_pattern(prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"),
-            filename_pattern(prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"),
-            filename_pattern(prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="I", set_num="001"),
-            filename_pattern(
-                prefix=f"{tmp_path}/Undetermined_S0_L001", read_type="R", set_num="001"
-            ),
-        ]
+        assert sorted(
+            valid_filename_patterns, key=attrgetter("prefix", "read_type", "set_num")
+        ) == sorted(
+            [
+                filename_pattern(
+                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"
+                ),
+                filename_pattern(
+                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"
+                ),
+                filename_pattern(
+                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="I", set_num="001"
+                ),
+                filename_pattern(
+                    prefix=f"{tmp_path}/Undetermined_S0_L001", read_type="R", set_num="001"
+                ),
+            ],
+            key=attrgetter("prefix", "read_type", "set_num"),
+        )
         assert (
             fastq_validator._ungrouped_files.sort()
             == [
