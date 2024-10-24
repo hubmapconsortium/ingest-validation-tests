@@ -21,23 +21,25 @@ def is_valid_filename(filename: str) -> bool:
 
 def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     """
-    Regex explanation:
+    Looking for fastq filenames matching pattern:
+    <prefix>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>
+    e.g. arbitrary_string_L001_R1_001.fastq
+
+    Regex documentation:
         PREFIX
             - (?P<prefix> | named capture group "prefix"
-            - .*(?:L\\d+) | match anything before pattern L# (where # represents 1 or more digits)
-            - only capture if read_type and set_num found
+            - .*(?:L\\d+) | match anything before and including pattern L# (where # represents 1 or more digits)
+            - only capture prefix if read_type and set_num found
         READ_TYPE
             - (?=_ | assert that the character "_" is present at the beginning of this next group
-            - (?:(?P<read_type>R|read(?=[123])|I(?=[12]))) | only capture above match if followed by the sequence _[R1,R2,R3,read1,read2,read3,I1,I2]; capture R/I/read as read_type
+            - (?:(?P<read_type>R|read(?=[123])|I(?=[12]))) | only capture above match if followed by the
+               sequence _[R1,R2,R3,read1,read2,read3,I1,I2]; capture R/I/read as read_type, discarding digit
         SET_NUM
             - (?:\\d_ | ensure presence of "#_" before group, ignore characters
             - (?P<set_num>\\d+) | capture group set_num of 1 or more digits
                Note: if set_num needs to be optional, could change this portion to (?:\\d_?(?P<set_num>\\d+)|)
     """
     if not bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename)):
-        # looking for fastq filenames matching pattern
-        # <prefix>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>
-        # e.g. arbitrary_string_L001_R1_001.fastq
         return
     pattern = re.compile(
         r"(?P<prefix>.*(?:L\d+)(?=_(?P<read_type>R|read(?=[123])|I(?=[12]))(?:\d_(?P<set_num>\d+))))"
@@ -149,18 +151,6 @@ class FASTQValidatorLogic:
             )
         return errors
 
-    def _make_groups(self) -> dict[filename_pattern, list[Path]]:
-        groups = defaultdict(list)
-        for file in self.file_list:
-            potential_match = get_prefix_read_type_and_set(file.name)
-            if potential_match:
-                groups[potential_match].append(file)
-            else:
-                self._ungrouped_files.append(file)
-        for group in groups.values():
-            group.sort()
-        return groups
-
     _VALIDATE_FASTQ_LINE_METHODS = {
         1: _validate_fastq_line_1,
         2: _validate_fastq_line_2,
@@ -240,9 +230,7 @@ class FASTQValidatorLogic:
                 self.file_list.extend(files)
                 _log(f"FASTQValidatorLogic: Added files from {path} to file_list: {files}")
         self.files_were_found = bool(self.file_list)
-        if dupes := self._find_duplicates():
-            [self.errors.append(dupe) for dupe in dupes if dupe not in self.errors]
-        _log(f"File list: {self.file_list}")
+        data_found_one = []
         with Manager() as manager:
             lock = manager.Lock()
             pool = Pool(threads)
@@ -250,9 +238,10 @@ class FASTQValidatorLogic:
                 logging.info(
                     f"Passing file list for paths {self._printable_filenames(paths, newlines=False)} to engine. File list:"
                 )
-                logging.info(self._printable_filenames(self.file_list))
+                logging.info(self._printable_filenames(self.file_list, newlines=True))
                 engine = Engine(self)
                 data_output = pool.imap_unordered(engine, self.file_list)
+                [data_found_one.extend(output) for output in data_output if output]
             except Exception as e:
                 pool.close()
                 pool.join()
@@ -261,35 +250,42 @@ class FASTQValidatorLogic:
             else:
                 pool.close()
                 pool.join()
-                compiled = set([errors for error_list in data_output for errors in error_list])
-                [
-                    self.errors.append(output)
-                    for output in compiled
-                    if output and output not in self.errors
-                ]
+                self._find_duplicates()
                 groups = self._make_groups()
                 self._find_counts(groups, lock)
                 if self._ungrouped_files:
                     _log(f"Ungrouped files, counts not checked: {self._ungrouped_files}")
+        if len(data_found_one) > 0:
+            self.errors.extend(data_found_one)
 
-    def _find_duplicates(self) -> list[str]:
+    def _make_groups(self) -> dict[filename_pattern, list[Path]]:
+        groups = defaultdict(list)
+        for file in self.file_list:
+            potential_match = get_prefix_read_type_and_set(file.name)
+            if potential_match:
+                groups[potential_match].append(file)
+            else:
+                self._ungrouped_files.append(file)
+        for group in groups.values():
+            group.sort()
+        return groups
+
+    def _find_duplicates(self):
         """
         Transforms data from {path: [filepaths]} to {filepath.name: [paths]}
         to ensure that each filename only appears once in an upload
         """
         files_per_path = defaultdict(list)
-        errors = []
         for filepath in self.file_list:
             files_per_path[filepath.name].append(filepath.parents[0])
         for filename, filepaths in files_per_path.items():
             if len(filepaths) > 1:
-                errors.append(
+                self.errors.append(
                     _log(
                         f"{filename} has been found multiple times during this validation. "
                         f"Locations of duplicates: {str(filepaths)}."
                     )
                 )
-        return errors
 
     def _find_counts(self, groups: dict[filename_pattern, list[Path]], lock):
         with lock:
