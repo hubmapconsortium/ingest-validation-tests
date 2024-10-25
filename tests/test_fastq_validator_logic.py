@@ -1,10 +1,15 @@
 import gzip
-from pathlib import Path
+from operator import attrgetter
+from pathlib import Path, PosixPath
 from typing import TextIO
 
 import pytest
 
-from src.ingest_validation_tests.fastq_validator_logic import FASTQValidatorLogic
+from src.ingest_validation_tests.fastq_validator_logic import (
+    FASTQValidatorLogic,
+    filename_pattern,
+    get_prefix_read_type_and_set,
+)
 
 _GOOD_RECORDS = """\
 @A12345:123:A12BCDEFG:1:1234:1000:1234 1:N:0:NACTGACTGA+CTGACTGACT
@@ -197,8 +202,157 @@ NACTGACTGA
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
 
-        # Order of the files being processed is not guaranteed, however these
-        # strings ensure that a mismatch was found.
-        assert "(4 lines)" in fastq_validator.errors[0]
-        assert "does not match" in fastq_validator.errors[0]
-        assert "(8 lines)" in fastq_validator.errors[0]
+        # Non-matching records only stored in errors, need to do ugly string match
+        assert "Counts do not match" in fastq_validator.errors[0]
+        assert (
+            "SREQ-1_1-ACTGACTGAC-TGACTGACTG_S1_L001_I1_001.fastq': 4" in fastq_validator.errors[0]
+        )
+        assert (
+            "SREQ-1_1-ACTGACTGAC-TGACTGACTG_S1_L001_I2_001.fastq': 8" in fastq_validator.errors[0]
+        )
+
+    def test_fastq_comparison_good(self, fastq_validator, tmp_path):
+        filenames = [
+            "3252_ftL_RNA_T1_S31_L003_R1_001.fastq",
+            "3252_ftL_RNA_T1_S31_L003_R2_001.fastq",
+            "3252_ftL_RNA_T1_S31_L003_R1_002.fastq",
+            "3252_ftL_RNA_T1_S31_L003_R2_002.fastq",
+        ]
+        for filename in filenames:
+            new_file = tmp_path.joinpath(filename)
+            with _open_output_file(new_file, False) as output:
+                output.write(_GOOD_RECORDS)
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+
+        assert not fastq_validator.errors
+
+    def test_fastq_comparison_bad_unequal_line_counts(self, fastq_validator, tmp_path):
+        good_file = "3252_ftL_RNA_T1_S31_L003_R1_001.fastq"
+        bad_file = "3252_ftL_RNA_T1_S31_L003_R2_001.fastq"
+        new_good_file = tmp_path.joinpath(good_file)
+        with _open_output_file(new_good_file, False) as output:
+            output.write(_GOOD_RECORDS)
+        new_bad_file = tmp_path.joinpath(bad_file)
+        with _open_output_file(new_bad_file, False) as output:
+            output.write("bad")
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+
+        assert fastq_validator.errors
+
+    def test_fastq_groups_good(self, fastq_validator, tmp_path):
+        files = [
+            "20147_Healthy_PA_S1_L001_R1_001.fastq",
+            "20147_Healthy_PA_S1_L001_R2_001.fastq",
+            "20147_Healthy_PA_S1_L001_R3_001.fastq",
+            "20147_Healthy_PA_S1_L001_R1_002.fastq",
+            "20147_Healthy_PA_S1_L001_R2_002.fastq",
+        ]
+        for file in files:
+            with _open_output_file(tmp_path.joinpath(file), False) as output:
+                output.write(_GOOD_RECORDS)
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+        assert fastq_validator._make_groups() == {
+            filename_pattern(prefix="20147_Healthy_PA_S1_L001", read_type="R", set_num="001"): [
+                PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_001.fastq")),
+                PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_001.fastq")),
+                PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R3_001.fastq")),
+            ],
+            filename_pattern(prefix="20147_Healthy_PA_S1_L001", read_type="R", set_num="002"): [
+                PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_002.fastq")),
+                PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_002.fastq")),
+            ],
+        }
+        assert not fastq_validator.errors
+
+    def test_fastq_groups_bad(self, fastq_validator, tmp_path):
+        good_files = [
+            "20147_Healthy_PA_S1_L001_R1_001.fastq",
+            "20147_Healthy_PA_S1_L001_R2_001.fastq",
+            "20147_Healthy_PA_S1_L001_R1_002.fastq",
+            "test_not_grouped_but_valid",
+        ]
+        bad_files = [
+            "20147_Healthy_PA_S1_L001_R3_001.fastq",
+            "20147_Healthy_PA_S1_L001_R2_002.fastq",
+        ]
+        for file in good_files:
+            with _open_output_file(tmp_path.joinpath(file), False) as output:
+                output.write(_GOOD_RECORDS)
+        for file in bad_files:
+            with _open_output_file(tmp_path.joinpath(file), False) as output:
+                output.write("@bad")
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+        assert "Counts do not match" in fastq_validator.errors[0]
+        assert "20147_Healthy_PA_S1_L001_R2_002.fastq" in fastq_validator.errors[0]
+        assert "Counts do not match" in fastq_validator.errors[1]
+        assert "20147_Healthy_PA_S1_L001_R3_001.fastq" in fastq_validator.errors[1]
+
+    def test_filename_valid_and_fastq_valid_but_not_grouped(self, fastq_validator, tmp_path):
+        # good_filenames[0:6] are valid in pipeline processing but would not be grouped for comparison
+        good_filenames = [
+            "B001A001_1.fastq",  # no lane, read_type, or set
+            "B001A001_R1.fq",  # no lane or set
+            "B001A001_I1.fastq.gz",  # no lane or set
+            "H4L1-4_S64_R1_001.fastq.gz",  # no lane
+            "H4L1-4_S64_L001_001.fastq.gz",  # no read_type
+            "H4L1-4_S64_L001_R1.fastq.gz",  # no set
+            "L001_H4L1-4_S64_R1_001.fastq.gz",  # out of order
+            "H4L1-4_S64_L001_R1_001.fastq.gz",
+            "H4L1-4_S64_L001_R2_001.fastq.gz",
+            "H4L1-4_S64_L001_I1_001.fastq.gz",
+            "Undetermined_S0_L001_R1_001.W105_Small_bowel_ileum.trimmed.fastq.gz",  # annotated but otherwise fits pattern
+        ]
+        for file in good_filenames:
+            use_gzip = bool("gz" in file)
+            with _open_output_file(tmp_path.joinpath(file), use_gzip) as output:
+                output.write(_GOOD_RECORDS)
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+        # All files in good_filenames should be in file_list
+        assert {
+            PosixPath(tmp_path.joinpath(file)) in fastq_validator.file_list
+            for file in good_filenames
+        } == {True}
+        # No errors should be found in any of those files
+        assert not fastq_validator.errors
+        # Only some files from good_filenames will match criteria for grouping
+        valid_filename_patterns = [
+            get_prefix_read_type_and_set(str(file))
+            for file in fastq_validator.file_list
+            if get_prefix_read_type_and_set(str(file)) is not None
+        ]
+        assert sorted(
+            valid_filename_patterns, key=attrgetter("prefix", "read_type", "set_num")
+        ) == sorted(
+            [
+                filename_pattern(
+                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"
+                ),
+                filename_pattern(
+                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"
+                ),
+                filename_pattern(
+                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="I", set_num="001"
+                ),
+                filename_pattern(
+                    prefix=f"{tmp_path}/Undetermined_S0_L001", read_type="R", set_num="001"
+                ),
+            ],
+            key=attrgetter("prefix", "read_type", "set_num"),
+        )
+        assert (
+            fastq_validator._ungrouped_files.sort()
+            == [
+                "B001A001_1.fastq",  # no lane, read_type, or set
+                "B001A001_R1.fq",  # no lane or set
+                "B001A001_I1.fastq.gz",  # no lane or set
+                "H4L1-4_S64_R1_001.fastq.gz",  # no lane
+                "H4L1-4_S64_L001_001.fastq.gz",  # no read_type
+                "H4L1-4_S64_L001_R1.fastq.gz",  # no set
+                "L001_H4L1-4_S64_R1_001.fastq.gz",  # out of order
+            ].sort()
+        )
