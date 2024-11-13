@@ -3,6 +3,7 @@ import gzip
 import logging
 import re
 from collections import defaultdict, namedtuple
+from itertools import chain
 from multiprocessing import Manager, Pool
 from multiprocessing.managers import ListProxy
 from os import cpu_count
@@ -94,7 +95,7 @@ class FASTQValidatorLogic:
     def __init__(self, verbose=False):
         self.errors: List[Optional[str]] = []
         self.files_were_found = False
-        self.file_list = Manager().list()
+        self.files_by_path = Manager().dict()
         self._file_record_counts = Manager().dict()
         self._ungrouped_files = Manager().list()
         self._filename = ""
@@ -218,29 +219,35 @@ class FASTQValidatorLogic:
 
     def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
         """
-        - Builds a list of filepaths; checks for duplicate filenames in upload.
+        - Builds a list of filepaths.
         - [parallel] Opens, validates, and gets line count of each file in list, and then
         populates self._file_record_counts as {filepath: record_count}.
-        - If successful, groups files with matching prefix/read_type/set_num values.
-        - Compares record_counts across grouped files, logs any that don't match or are ungrouped.
+        - If successful:
+            - Groups files with matching prefix/read_type/set_num values.
+            - Compares record_counts across grouped files, logs any that don't match or are ungrouped.
+            - Checks for duplicate filenames in each top-level path.
         """
         for path in paths:
             fastq_utils_output = fastq_utils.collect_fastq_files_by_directory(path)
+            file_list = []
             for files in fastq_utils_output.values():
-                self.file_list.extend(files)
+                file_list.extend(files)
                 _log(f"FASTQValidatorLogic: Added files from {path} to file_list: {files}")
-        self.files_were_found = bool(self.file_list)
+            if file_list:
+                self.files_by_path[path] = file_list
+        self.files_were_found = bool(self.files_by_path)
         data_found_one = []
         with Manager() as manager:
             lock = manager.Lock()
             pool = Pool(threads)
             try:
+                full_file_list = list(chain.from_iterable(self.files_by_path.values()))
                 logging.info(
                     f"Passing file list for paths {self._printable_filenames(paths, newlines=False)} to engine. File list:"
                 )
-                logging.info(self._printable_filenames(self.file_list, newlines=True))
+                logging.info(self._printable_filenames(full_file_list, newlines=True))
                 engine = Engine(self)
-                data_output = pool.imap_unordered(engine, self.file_list)
+                data_output = pool.imap_unordered(engine, full_file_list)
                 [data_found_one.extend(output) for output in data_output if output]
             except Exception as e:
                 pool.close()
@@ -250,17 +257,18 @@ class FASTQValidatorLogic:
             else:
                 pool.close()
                 pool.join()
-                self._find_duplicates()
-                groups = self._make_groups()
-                self._find_counts(groups, lock)
+                for path, files in self.files_by_path.items():
+                    self._find_duplicates(files)
+                    groups = self._make_groups(files)
+                    self._find_counts(groups, lock)
                 if self._ungrouped_files:
                     _log(f"Ungrouped files, counts not checked: {self._ungrouped_files}")
         if len(data_found_one) > 0:
             self.errors.extend(data_found_one)
 
-    def _make_groups(self) -> dict[filename_pattern, list[Path]]:
+    def _make_groups(self, files: List[Path]) -> dict[filename_pattern, list[Path]]:
         groups = defaultdict(list)
-        for file in self.file_list:
+        for file in files:
             potential_match = get_prefix_read_type_and_set(file.name)
             if potential_match:
                 groups[potential_match].append(file)
@@ -270,15 +278,14 @@ class FASTQValidatorLogic:
             group.sort()
         return groups
 
-    def _find_duplicates(self):
+    def _find_duplicates(self, files: List[Path]):
         """
-        Transforms data from {path: [filepaths]} to {filepath.name: [paths]}
-        to ensure that each filename only appears once in an upload
+        Ensures that each filename only appears once in a given path.
         """
-        files_per_path = defaultdict(list)
-        for filepath in self.file_list:
-            files_per_path[filepath.name].append(filepath.parents[0])
-        for filename, filepaths in files_per_path.items():
+        paths_and_files = defaultdict(list)
+        for filepath in files:
+            paths_and_files[filepath.name].append(filepath.parents[0])
+        for filename, filepaths in paths_and_files.items():
             if len(filepaths) > 1:
                 self.errors.append(
                     _log(
