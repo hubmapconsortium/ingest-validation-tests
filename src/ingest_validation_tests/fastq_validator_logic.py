@@ -219,13 +219,13 @@ class FASTQValidatorLogic:
 
     def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
         """
-        - Builds a list of filepaths.
+        - Builds a dict of {data_path: [filepaths]}.
         - [parallel] Opens, validates, and gets line count of each file in list, and then
         populates self._file_record_counts as {filepath: record_count}.
-        - If successful:
+        - If successful, loops through each data_path in the `paths` parameter.
+            - Checks for duplicate filenames inside that data_path.
             - Groups files with matching prefix/read_type/set_num values.
             - Compares record_counts across grouped files, logs any that don't match or are ungrouped.
-            - Checks for duplicate filenames in each top-level path.
         """
         for path in paths:
             fastq_utils_output = fastq_utils.collect_fastq_files_by_directory(path)
@@ -241,6 +241,7 @@ class FASTQValidatorLogic:
             lock = manager.Lock()
             pool = Pool(threads)
             try:
+                # Combine all paths' file lists to parallelize processing more efficiently.
                 full_file_list = list(chain.from_iterable(self.files_by_path.values()))
                 logging.info(
                     f"Passing file list for paths {self._printable_filenames(paths, newlines=False)} to engine. File list:"
@@ -258,6 +259,8 @@ class FASTQValidatorLogic:
                 pool.close()
                 pool.join()
                 for path, files in self.files_by_path.items():
+                    # Only want to make groups, check line counts, and check for duplicates
+                    # within a given data_path.
                     self._find_duplicates(files)
                     groups = self._make_groups(files)
                     self._find_counts(groups, lock)
