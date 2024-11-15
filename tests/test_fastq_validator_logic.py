@@ -243,18 +243,18 @@ NACTGACTGA
 
     def test_fastq_groups_good(self, fastq_validator, tmp_path):
         files = [
-            "20147_Healthy_PA_S1_L001_R1_001.fastq",
-            "20147_Healthy_PA_S1_L001_R2_001.fastq",
-            "20147_Healthy_PA_S1_L001_R3_001.fastq",
-            "20147_Healthy_PA_S1_L001_R1_002.fastq",
-            "20147_Healthy_PA_S1_L001_R2_002.fastq",
+            PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_001.fastq")),
+            PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_001.fastq")),
+            PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R3_001.fastq")),
+            PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_002.fastq")),
+            PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_002.fastq")),
         ]
         for file in files:
             with _open_output_file(tmp_path.joinpath(file), False) as output:
                 output.write(_GOOD_RECORDS)
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
-        assert fastq_validator._make_groups() == {
+        assert fastq_validator._make_groups(files) == {
             filename_pattern(prefix="20147_Healthy_PA_S1_L001", read_type="R", set_num="001"): [
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_001.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_001.fastq")),
@@ -312,9 +312,9 @@ NACTGACTGA
                 output.write(_GOOD_RECORDS)
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
-        # All files in good_filenames should be in file_list
+        # All files in good_filenames should be in files_by_path
         assert {
-            PosixPath(tmp_path.joinpath(file)) in fastq_validator.file_list
+            PosixPath(tmp_path.joinpath(file)) in fastq_validator.files_by_path[tmp_path]
             for file in good_filenames
         } == {True}
         # No errors should be found in any of those files
@@ -322,7 +322,7 @@ NACTGACTGA
         # Only some files from good_filenames will match criteria for grouping
         valid_filename_patterns = [
             get_prefix_read_type_and_set(str(file))
-            for file in fastq_validator.file_list
+            for file in fastq_validator.files_by_path[tmp_path]
             if get_prefix_read_type_and_set(str(file)) is not None
         ]
         assert sorted(
@@ -356,3 +356,22 @@ NACTGACTGA
                 "L001_H4L1-4_S64_R1_001.fastq.gz",  # out of order
             ].sort()
         )
+
+    def test_duplicate_filenames_in_different_top_level_paths_pass(
+        self, fastq_validator, tmp_path
+    ):
+        good_files = [
+            "data_dir_1/20147_Healthy_PA_S1_L001_R1_001.fastq",
+            "data_dir_1/20147_Healthy_PA_S1_L001_R2_001.fastq",
+            "data_dir_2/20147_Healthy_PA_S1_L001_R1_001.fastq",
+            "data_dir_2/20147_Healthy_PA_S1_L001_R2_001.fastq",
+        ]
+        tmp_path.joinpath("data_dir_1").mkdir()
+        tmp_path.joinpath("data_dir_2").mkdir()
+        for file in good_files:
+            with _open_output_file(tmp_path.joinpath(file), False) as output:
+                output.write(_GOOD_RECORDS)
+        fastq_validator.validate_fastq_files_in_path(
+            [tmp_path.joinpath("data_dir_1"), tmp_path.joinpath("data_dir_2")], 2
+        )
+        assert not fastq_validator.errors
