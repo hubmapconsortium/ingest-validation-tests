@@ -1,7 +1,8 @@
 import json
 import re
-from functools import partial
-from multiprocessing import Pool
+
+# from functools import partial
+# from multiprocessing import Pool
 from os import cpu_count
 from pathlib import Path
 from typing import List, Optional
@@ -113,7 +114,7 @@ class OmeTiffFieldValidator(Validator):
                 all_tests.update(test_set["fields"])
 
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        pool = Pool(threads)
+        # pool = Pool(threads)
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
@@ -126,16 +127,23 @@ class OmeTiffFieldValidator(Validator):
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
 
-        rslt_list: List[Optional[str]] = list(
-            rslt
-            for rslt in pool.imap_unordered(
-                partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
+        # TODO: turn back on when issues with XML parsing are resolved
+        # still collecting files so we know if this plugin *should* have run
+
+        # rslt_list: List[Optional[str]] = list(
+        #     rslt
+        #     for rslt in pool.imap_unordered(
+        #         partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
+        #     )
+        #     if rslt is not None
+        # )
+        # if rslt_list:
+        #     return rslt_list
+        # elif filenames_to_test:
+        if filenames_to_test:
+            _log(
+                f"Found files to test but skipping ome-tiff field validation. Files: {filenames_to_test}"
             )
-            if rslt is not None
-        )
-        if rslt_list:
-            return rslt_list
-        elif filenames_to_test:
             return [None]
         else:
             return []
