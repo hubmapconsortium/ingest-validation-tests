@@ -57,13 +57,17 @@ def check_one_prop(key: str, all_prop_dct: dict, this_test: dict) -> None:
     elif test_type == "categorical":
         allowed_vals = this_test["allowed_values"]
         assert key in all_prop_dct, f"{key} is required but missing"
-        assert all_prop_dct[key] in allowed_vals, f"{key} = {all_prop_dct[key]}" f" not one of {allowed_vals}"
+        assert all_prop_dct[key] in allowed_vals, (
+            f"{key} = {all_prop_dct[key]}" f" not one of {allowed_vals}"
+        )
     elif test_type == "integer":
         assert key in all_prop_dct, f"{key} is required but missing"
         assert isinstance(all_prop_dct[key], int), f"{key} = {all_prop_dct[key]}" f" is not an int"
     elif test_type == "float":
         assert key in all_prop_dct, f"{key} is required but missing"
-        assert isinstance(all_prop_dct[key], float), f"{key} = {all_prop_dct[key]}" f" is not a float"
+        assert isinstance(all_prop_dct[key], float), (
+            f"{key} = {all_prop_dct[key]}" f" is not a float"
+        )
     else:
         raise NotImplementedError(f"Unimplemented dtype {test_type} for ome-tiff field")
 
@@ -101,7 +105,9 @@ class OmeTiffFieldValidator(Validator):
         try:
             validate(cfg_list, schema)
         except Exception:
-            raise RuntimeError(f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}")
+            raise RuntimeError(
+                f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
+            )
         all_tests = {}
         for test_set in cfg_list:
             if re.fullmatch(test_set["re"], self.assay_type):
@@ -135,7 +141,9 @@ class OmeTiffFieldValidator(Validator):
         #     return rslt_list
         # elif filenames_to_test:
         if filenames_to_test:
-            _log(f"Found files to test but skipping ome-tiff field validation. Files: {filenames_to_test}")
+            _log(
+                f"Found files to test but skipping ome-tiff field validation. Files: {filenames_to_test}"
+            )
             return [None]
         else:
             return []
