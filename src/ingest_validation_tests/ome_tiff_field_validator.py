@@ -130,13 +130,19 @@ class OmeTiffFieldValidator(Validator):
         # TODO: turn back on when issues with XML parsing are resolved
         # still collecting files so we know if this plugin *should* have run
 
-        rslt_list: List[Optional[str]] = list(
-            rslt
-            for rslt in pool.imap_unordered(
-                partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
-            )
-            if rslt is not None
-        )
+        rslt_list = []
+        for fname in filenames_to_test:
+            rslt = _check_ome_tiff_file(fname, tests=all_tests)
+            if rslt is not None:
+                from pprint import pprint
+                pprint(rslt)
+                rslt_list.append(rslt)
+#         rslt_list: List[Optional[str]] = list(
+#            for rslt in pool.imap_unordered(
+#                partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
+#            )
+#            if rslt is not None
+#         )
         if rslt_list:
             return rslt_list
         elif filenames_to_test:
