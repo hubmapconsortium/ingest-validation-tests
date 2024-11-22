@@ -286,10 +286,11 @@ NACTGACTGA
                 output.write("@bad")
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
-        assert "Counts do not match" in fastq_validator.errors[0]
-        assert "20147_Healthy_PA_S1_L001_R2_002.fastq" in fastq_validator.errors[0]
-        assert "Counts do not match" in fastq_validator.errors[1]
-        assert "20147_Healthy_PA_S1_L001_R3_001.fastq" in fastq_validator.errors[1]
+        sorted_errors = sorted(fastq_validator.errors)
+        assert "Counts do not match" in sorted_errors[0]
+        assert "20147_Healthy_PA_S1_L001_R3_001.fastq" in sorted_errors[0]
+        assert "Counts do not match" in sorted_errors[1]
+        assert "20147_Healthy_PA_S1_L001_R2_002.fastq" in sorted_errors[1]
 
     def test_filename_valid_and_fastq_valid_but_not_grouped(self, fastq_validator, tmp_path):
         # good_filenames[0:6] are valid in pipeline processing but would not be grouped for comparison
