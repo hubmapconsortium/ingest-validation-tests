@@ -35,8 +35,8 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     May also include: arbitrary text, set_num
 
     Regex documentation:
-        BEFORE_READ (?P<before_read>.*_L\\d{3}_.*(...))
-            - named capture group `before_read` must include pattern L###_
+        BEFORE_READ (?P<before_read>.*_L\\d+_.*(...))
+            - named capture group `before_read` must include pattern L<one or more digits>_
               before the READ subpattern defined below, can contain
               arbitrary other characters
         READ (?=(?P<entire_read>(?P<read>R|I)\\d(?=_|\\.)))
@@ -49,7 +49,7 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
               after `entire_read`
         NOTE
             - If named groups are needed for prefix/lane, replace before_read with:
-                (?P<before_read>(?P<prefix>.*(?=(?P<lane>L\\d{3})_)).*
+                (?P<before_read>(?P<prefix>.*(?=(?P<lane>L\\d+)_)).*
             - If we need set number, lane, etc., consider switching to a series
               of regex patterns
     """
@@ -57,7 +57,7 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
         return
 
     pattern = re.compile(
-        r"(?P<before_read>.*L\d{3}_.*(?=(?P<entire_read>(?P<read>R|I)\d(?=_|\.))))(?=(?P=entire_read)(?P<after_read>.+))"
+        r"(?P<before_read>.*L\d+_.*(?=(?P<entire_read>(?P<read>R|I)\d(?=_|\.))))(?=(?P=entire_read)(?P<after_read>.+))"
     )
     groups = pattern.match(filename)
     if groups:
