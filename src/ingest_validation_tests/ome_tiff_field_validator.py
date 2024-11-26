@@ -30,18 +30,20 @@ def expand_terms(dct: dict, prefix: str = "") -> dict:
         elif key == "$" and isinstance(val, str):  # special case?
             rslt[expanded_prefix + key] = val
         else:
-            child_dct = {}
+            child_dct_l = []
             if isinstance(val, list):
-                assert len(val) == 1, f"Expected only one element in list of dicts: {val}"
-                child_dct.update(expand_terms(val[0], expanded_prefix + key))
+                for elt in val:
+                    child_dct_l.append(expand_terms(elt, expanded_prefix + key))
             elif isinstance(val, dict):
-                child_dct.update(expand_terms(val, expanded_prefix + key))
+                child_dct_l.append(expand_terms(val, expanded_prefix + key))
             elif val is None:
-                child_dct[expanded_prefix + key] = None
+                child_dct_l.append({expanded_prefix + key : None})
             else:
                 raise ValueError(f"list or dict expected; got {type(val)} {val}")
-            for key, val in child_dct.items():
-                rslt[key] = val
+            for child_dct in child_dct_l:
+                for key, val in child_dct.items():
+                    print(f"HERE {key} {val}")
+                    rslt[key] = val
     return rslt
 
 
@@ -80,6 +82,8 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
         expanded_props = {}
         for term_dct in image_props:
             expanded_props.update(expand_terms(term_dct))
+        from pprint import pprint
+        pprint(expanded_props)
         error_l = []
         for key in tests:
             try:
