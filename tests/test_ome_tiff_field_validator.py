@@ -19,13 +19,16 @@ import pytest
         ),
         ("test_data/codex_tree_ometiff_good.zip", [], "CODEX"),
         ("test_data/fake_snrnaseq_tree_good.zip", [], "snRNAseq"),
-        ("test_data/complex_small_ome_tiff.zip",
-         [
-             ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not"
-             " a valid OME.TIFF file: Pixels_PhysicalSizeX is required but missing;"
-             " Pixels_PhysicalSizeY is required but missing;"
-             " Pixels_PhysicalSizeZ is required but missing"
-         ], "PAS"),
+        (
+            "test_data/complex_small_ome_tiff.zip",
+            [
+                ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not"
+                " a valid OME.TIFF file: Pixels_PhysicalSizeX is required but missing;"
+                " Pixels_PhysicalSizeY is required but missing;"
+                " Pixels_PhysicalSizeZ is required but missing"
+            ],
+            "PAS",
+        ),
     ),
 )
 def test_ome_tiff_field_validator(test_data_fname, msg_re_list, assay_type, tmp_path):

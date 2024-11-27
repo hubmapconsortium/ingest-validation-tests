@@ -60,9 +60,7 @@ def check_one_prop(key: str, all_prop_list: list, this_test: dict) -> None:
         allowed_vals = this_test["allowed_values"]
         assert key in all_prop_keys, f"{key} is required but missing"
         for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
-            assert val in allowed_vals, (
-                f"{key} == {val} is not one of {allowed_vals}"
-            )
+            assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
     elif test_type == "integer":
         assert key in all_prop_keys, f"{key} is required but missing"
         for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
