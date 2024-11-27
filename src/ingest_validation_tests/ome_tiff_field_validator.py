@@ -52,8 +52,8 @@ def check_one_prop(key: str, all_prop_list: list, this_test: dict) -> None:
     if test_type == "trap":
         # This test is useful when you want to scan lots of ome-tiff files for an
         # example of a new field type
-        if key in all_prop_dct:
-            raise RuntimeError(f"TRAP: {key} -> {all_prop_dct[key]} vs {this_test}")
+        if key in all_prop_keys:
+            raise RuntimeError(f"TRAP: {key} in {all_prop_keys} vs {this_test}")
         else:
             pass
     elif test_type == "categorical":
@@ -79,7 +79,7 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
     try:
         with tifffile.TiffFile(file) as tf:
             xml_document = xmlschema.XmlDocument(tf.ome_metadata)
-    except Exception as excp:
+    except Exception:
         return f"{file} is not a valid OME.TIFF file: Failed to read OME XML"
 
     try:
@@ -138,7 +138,7 @@ class OmeTiffFieldValidator(Validator):
                     filenames_to_test.append(file)
 
         rslt_list: List[Optional[str]] = list(
-            rslt    
+            rslt
             for rslt in pool.imap_unordered(
                 partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
             )
