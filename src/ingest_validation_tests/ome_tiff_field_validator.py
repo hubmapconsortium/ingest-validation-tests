@@ -1,6 +1,5 @@
 import json
 import re
-
 from functools import partial
 from multiprocessing import Pool
 from os import cpu_count
