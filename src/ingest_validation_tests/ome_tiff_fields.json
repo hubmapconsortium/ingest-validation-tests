@@ -1,6 +1,6 @@
 [
   {
-    "re": "C.*EX",
+    "re": ".*",
     "fields": {
       "Pixels_DimensionOrder": {
 	"dtype": "categorical",
