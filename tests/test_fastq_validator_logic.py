@@ -255,12 +255,16 @@ NACTGACTGA
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
         assert fastq_validator._make_groups(files) == {
-            filename_pattern(prefix="20147_Healthy_PA_S1_L001", read_type="R", set_num="001"): [
+            filename_pattern(
+                before_read="20147_Healthy_PA_S1_L001_", read="R", after_read="_001.fastq"
+            ): [
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_001.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_001.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R3_001.fastq")),
             ],
-            filename_pattern(prefix="20147_Healthy_PA_S1_L001", read_type="R", set_num="002"): [
+            filename_pattern(
+                before_read="20147_Healthy_PA_S1_L001_", read="R", after_read="_002.fastq"
+            ): [
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_002.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_002.fastq")),
             ],
@@ -286,25 +290,26 @@ NACTGACTGA
                 output.write("@bad")
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
-        assert "Counts do not match" in fastq_validator.errors[0]
-        assert "20147_Healthy_PA_S1_L001_R2_002.fastq" in fastq_validator.errors[0]
-        assert "Counts do not match" in fastq_validator.errors[1]
-        assert "20147_Healthy_PA_S1_L001_R3_001.fastq" in fastq_validator.errors[1]
+        sorted_errors = sorted(fastq_validator.errors)
+        assert "Counts do not match" in sorted_errors[0]
+        assert "20147_Healthy_PA_S1_L001_R3_001.fastq" in sorted_errors[0]
+        assert "Counts do not match" in sorted_errors[1]
+        assert "20147_Healthy_PA_S1_L001_R2_002.fastq" in sorted_errors[1]
 
     def test_filename_valid_and_fastq_valid_but_not_grouped(self, fastq_validator, tmp_path):
-        # good_filenames[0:6] are valid in pipeline processing but would not be grouped for comparison
+        # good_filenames[0:5] are valid in pipeline processing but would not be grouped for comparison
         good_filenames = [
             "B001A001_1.fastq",  # no lane, read_type, or set
             "B001A001_R1.fq",  # no lane or set
             "B001A001_I1.fastq.gz",  # no lane or set
             "H4L1-4_S64_R1_001.fastq.gz",  # no lane
             "H4L1-4_S64_L001_001.fastq.gz",  # no read_type
-            "H4L1-4_S64_L001_R1.fastq.gz",  # no set
-            "L001_H4L1-4_S64_R1_001.fastq.gz",  # out of order
-            "H4L1-4_S64_L001_R1_001.fastq.gz",
-            "H4L1-4_S64_L001_R2_001.fastq.gz",
-            "H4L1-4_S64_L001_I1_001.fastq.gz",
-            "Undetermined_S0_L001_R1_001.W105_Small_bowel_ileum.trimmed.fastq.gz",  # annotated but otherwise fits pattern
+            "H4L1-4_S64_L001_R1.fastq.gz",  # will try to group; no set
+            "L001_H4L1-4_S64_R1_001.fastq.gz",  # will try to group; out of order but has required elements
+            "H4L1-4_S64_L001_R1_001.fastq.gz",  # will try to group; will be compared
+            "H4L1-4_S64_L001_R2_001.fastq.gz",  # will try to group; will be compared
+            "H4L1-4_S64_L001_I1_001.fastq.gz",  # will try to group; read type `I`
+            "Undetermined_S0_L001_R1_001.W105_Small_bowel_ileum.trimmed.fastq.gz",  # will try to group; annotated but otherwise fits pattern
         ]
         for file in good_filenames:
             use_gzip = bool("gz" in file)
@@ -326,23 +331,39 @@ NACTGACTGA
             if get_prefix_read_type_and_set(str(file)) is not None
         ]
         assert sorted(
-            valid_filename_patterns, key=attrgetter("prefix", "read_type", "set_num")
+            valid_filename_patterns, key=attrgetter("before_read", "read", "after_read")
         ) == sorted(
             [
                 filename_pattern(
-                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"
+                    before_read=f"{tmp_path}/H4L1-4_S64_L001_", read="R", after_read=".fastq.gz"
                 ),
                 filename_pattern(
-                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="R", set_num="001"
+                    before_read=f"{tmp_path}/L001_H4L1-4_S64_",
+                    read="R",
+                    after_read="_001.fastq.gz",
                 ),
                 filename_pattern(
-                    prefix=f"{tmp_path}/H4L1-4_S64_L001", read_type="I", set_num="001"
+                    before_read=f"{tmp_path}/H4L1-4_S64_L001_",
+                    read="R",
+                    after_read="_001.fastq.gz",
                 ),
                 filename_pattern(
-                    prefix=f"{tmp_path}/Undetermined_S0_L001", read_type="R", set_num="001"
+                    before_read=f"{tmp_path}/H4L1-4_S64_L001_",
+                    read="R",
+                    after_read="_001.fastq.gz",
+                ),
+                filename_pattern(
+                    before_read=f"{tmp_path}/H4L1-4_S64_L001_",
+                    read="I",
+                    after_read="_001.fastq.gz",
+                ),
+                filename_pattern(
+                    before_read=f"{tmp_path}/Undetermined_S0_L001_",
+                    read="R",
+                    after_read="_001.W105_Small_bowel_ileum.trimmed.fastq.gz",
                 ),
             ],
-            key=attrgetter("prefix", "read_type", "set_num"),
+            key=attrgetter("before_read", "read", "after_read"),
         )
         assert (
             fastq_validator._ungrouped_files.sort()
