@@ -1,8 +1,7 @@
 import json
 import re
-
-# from functools import partial
-# from multiprocessing import Pool
+from functools import partial
+from multiprocessing import Pool
 from os import cpu_count
 from pathlib import Path
 from typing import List, Optional
@@ -17,57 +16,58 @@ def _log(message: str):
     print(message)
 
 
-def expand_terms(dct: dict, prefix: str = "") -> dict:
+def expand_terms(dct: dict, prefix: str = "") -> list:
     """
     Convert a dict of of XML info as provided by xmlschema to the
     form used in the dictionary of expected fields
     """
-    rslt = {}
+    rslt = []
     expanded_prefix = prefix + "_" if prefix else ""
     for key, val in dct.items():
         if key.startswith("@"):  # terminal element
-            rslt[expanded_prefix + key[1:]] = val
+            rslt.append((expanded_prefix + key[1:], val))
         elif key == "$" and isinstance(val, str):  # special case?
-            rslt[expanded_prefix + key] = val
+            rslt.append((expanded_prefix + key, val))
         else:
-            child_dct = {}
+            child_list_list = []
             if isinstance(val, list):
-                assert len(val) == 1, "Expected only one element in list of dicts"
-                child_dct.update(expand_terms(val[0], expanded_prefix + key))
+                for elt in val:
+                    child_list_list.append(expand_terms(elt, expanded_prefix + key))
             elif isinstance(val, dict):
-                child_dct.update(expand_terms(val, expanded_prefix + key))
+                child_list_list.append(expand_terms(val, expanded_prefix + key))
             elif val is None:
-                child_dct[expanded_prefix + key] = None
+                child_list_list.append([(expanded_prefix + key, None)])
             else:
                 raise ValueError(f"list or dict expected; got {type(val)} {val}")
-            for key, val in child_dct.items():
-                rslt[key] = val
+            for child_list in child_list_list:
+                for key, val in child_list:
+                    rslt.append((key, val))
     return rslt
 
 
-def check_one_prop(key: str, all_prop_dct: dict, this_test: dict) -> None:
+def check_one_prop(key: str, all_prop_list: list, this_test: dict) -> None:
+    all_prop_keys = set(key for key, val in all_prop_list)
     test_type = this_test["dtype"]
     if test_type == "trap":
         # This test is useful when you want to scan lots of ome-tiff files for an
         # example of a new field type
-        if key in all_prop_dct:
-            raise RuntimeError(f"TRAP: {key} -> {all_prop_dct[key]} vs {this_test}")
+        if key in all_prop_keys:
+            raise RuntimeError(f"TRAP: {key} in {all_prop_keys} vs {this_test}")
         else:
             pass
     elif test_type == "categorical":
         allowed_vals = this_test["allowed_values"]
-        assert key in all_prop_dct, f"{key} is required but missing"
-        assert all_prop_dct[key] in allowed_vals, (
-            f"{key} = {all_prop_dct[key]}" f" not one of {allowed_vals}"
-        )
+        assert key in all_prop_keys, f"{key} is required but missing"
+        for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
+            assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
     elif test_type == "integer":
-        assert key in all_prop_dct, f"{key} is required but missing"
-        assert isinstance(all_prop_dct[key], int), f"{key} = {all_prop_dct[key]}" f" is not an int"
+        assert key in all_prop_keys, f"{key} is required but missing"
+        for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
+            assert isinstance(val, int), f"{key} = {val} is not an int"
     elif test_type == "float":
-        assert key in all_prop_dct, f"{key} is required but missing"
-        assert isinstance(all_prop_dct[key], float), (
-            f"{key} = {all_prop_dct[key]}" f" is not a float"
-        )
+        assert key in all_prop_keys, f"{key} is required but missing"
+        for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
+            assert isinstance(val, float), f"{key} = {val} is not a float"
     else:
         raise NotImplementedError(f"Unimplemented dtype {test_type} for ome-tiff field")
 
@@ -76,10 +76,14 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
     try:
         with tifffile.TiffFile(file) as tf:
             xml_document = xmlschema.XmlDocument(tf.ome_metadata)
+    except Exception:
+        return f"{file} is not a valid OME.TIFF file: Failed to read OME XML"
+
+    try:
         image_props = xmlschema.to_dict(xml_document)["Image"]
-        expanded_props = {}
+        expanded_props = []
         for term_dct in image_props:
-            expanded_props.update(expand_terms(term_dct))
+            expanded_props.extend(expand_terms(term_dct))
         error_l = []
         for key in tests:
             try:
@@ -113,8 +117,11 @@ class OmeTiffFieldValidator(Validator):
             if re.fullmatch(test_set["re"], self.assay_type):
                 all_tests.update(test_set["fields"])
 
+        if not all_tests:
+            return []  # nothing to test for this assay
+
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        # pool = Pool(threads)
+        pool = Pool(threads)
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
@@ -127,23 +134,16 @@ class OmeTiffFieldValidator(Validator):
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
 
-        # TODO: turn back on when issues with XML parsing are resolved
-        # still collecting files so we know if this plugin *should* have run
-
-        # rslt_list: List[Optional[str]] = list(
-        #     rslt
-        #     for rslt in pool.imap_unordered(
-        #         partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
-        #     )
-        #     if rslt is not None
-        # )
-        # if rslt_list:
-        #     return rslt_list
-        # elif filenames_to_test:
-        if filenames_to_test:
-            _log(
-                f"Found files to test but skipping ome-tiff field validation. Files: {filenames_to_test}"
+        rslt_list: List[Optional[str]] = list(
+            rslt
+            for rslt in pool.imap_unordered(
+                partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
             )
+            if rslt is not None
+        )
+        if rslt_list:
+            return rslt_list
+        elif filenames_to_test:
             return [None]
         else:
             return []
