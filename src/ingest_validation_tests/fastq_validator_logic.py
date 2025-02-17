@@ -199,7 +199,6 @@ class FASTQValidatorLogic:
     def validate_fastq_stream(self, fastq_data: TextIO) -> int:
         # Returns the number of records read from fastq_data.
         line_count = 0
-
         line: str
         for line_count, line in enumerate(fastq_data):
             self._line_number = line_count + 1
@@ -227,6 +226,8 @@ class FASTQValidatorLogic:
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
                 records_read = self.validate_fastq_stream(fastq_data)
+                if records_read == 1:
+                    self.errors.append(self._format_error(f"Fastq file {fastq_file} is empty."))
         except gzip.BadGzipFile:
             self.errors.append(self._format_error(f"Bad gzip file: {fastq_file}."))
             return
