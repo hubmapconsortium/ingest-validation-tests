@@ -44,8 +44,9 @@ class SegmentationMaskValidator(Validator):
     def xlsx_files_list(self) -> list[Path]:
         # Could make file finding smarter or just find files in derived/segmentation_masks path?
         # pattern from dir-schema: derived\/segmentation_masks\/[^\/]+-objects\.xlsx$
+        # Requires lowercase; can use glob case_sensitive arg when upgraded to Python 3.12
         xlsx_files = []
-        suffix = "*.[xX][lL][sS][xX]"
+        suffix = "*-objects.xlsx"
         for path in self.paths:
             for file in path.glob(suffix):
                 xlsx_files.append(file)

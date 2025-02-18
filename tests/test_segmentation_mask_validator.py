@@ -29,7 +29,7 @@ import requests
             False,
             b'{"message":"Bad Excel file","cause":"Missing a separator row.","statusInfo":"400 Bad Request","fixSuggestion":"Please add a new blank row between the schema table and the data table to separate."}',
             [
-                "Error while checking file seg_mask_bad-options because of error 'Bad Excel file'. Cause: Missing a separator row. Suggestion: Please add a new blank row between the schema table and the data table to separate."
+                "Error while checking file seg_mask_bad-objects because of error 'Bad Excel file'. Cause: Missing a separator row. Suggestion: Please add a new blank row between the schema table and the data table to separate."
             ],
             "segmentation-mask",
         ),
