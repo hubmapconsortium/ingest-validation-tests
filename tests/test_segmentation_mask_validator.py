@@ -15,14 +15,14 @@ import requests
             True,
             b'{"status":"PASSED","reporting":[]}',
             [None],
-            "segmentation-mask",
+            "Segmentation Mask",
         ),
         (
             "test_data/seg_mask_empty.zip",
             False,
             "",
             ["No object by feature .XLSX files found."],
-            "segmentation-mask",
+            "Segmentation Mask",
         ),
         (
             "test_data/seg_mask_bad.zip",
@@ -31,7 +31,7 @@ import requests
             [
                 "Error while checking file seg_mask_bad-objects because of error 'Bad Excel file'. Cause: Missing a separator row. Suggestion: Please add a new blank row between the schema table and the data table to separate."
             ],
-            "segmentation-mask",
+            "Segmentation Mask",
         ),
         (
             "test_data/seg_mask_bad.zip",
