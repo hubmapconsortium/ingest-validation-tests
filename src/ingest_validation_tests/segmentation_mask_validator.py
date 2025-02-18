@@ -18,7 +18,7 @@ class SegmentationMaskValidator(Validator):
     description = "Test Object by Feature table(s)"
     cost = 1.0
     version = "1.0"
-    required = "segmentation-mask"
+    required = ["segmentation-mask", "segmentation mask"]
 
     def collect_errors(self, **kwargs) -> list[Optional[Union[str, None]]]:
         """
@@ -30,8 +30,16 @@ class SegmentationMaskValidator(Validator):
             list[]: plugin not relevant to this dataset type, don't report plugin run
         """
         del kwargs
-        if self.required not in self.contains and self.assay_type.lower() != self.required:
+        print("Checking relevance of SegmentationMaskValidator...")
+        required_type = False
+        for dataset_type in self.required:
+            if dataset_type not in self.contains and self.assay_type.lower() != dataset_type:
+                continue
+            else:
+                required_type = True
+        if not required_type:
             return []  # We only test segmentation-mask data
+        print("Running SegmentationMaskValidator...")
         if not self.xlsx_files_list:
             return ["No object by feature .XLSX files found."]
         rslt_list = [self.validate_file(file_path) for file_path in self.xlsx_files_list]
