@@ -33,7 +33,13 @@ import requests
             ],
             "segmentation-mask",
         ),
-        ("test_data/seg_mask_good.zip", None, "", [], "snRNAseq"),
+        (
+            "test_data/seg_mask_bad.zip",
+            None,
+            "",
+            [],
+            "snRNAseq",
+        ),
     ),
 )
 def test_segmentation_mask_validator(
