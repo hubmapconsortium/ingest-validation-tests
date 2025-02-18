@@ -18,7 +18,7 @@ class SegmentationMaskValidator(Validator):
     description = "Test Object by Feature table(s)"
     cost = 1.0
     version = "1.0"
-    required = ["segmentation-mask", "segmentation mask"]
+    required = ["segmentation mask"]
 
     def collect_errors(self, **kwargs) -> list[Optional[Union[str, None]]]:
         """
@@ -38,7 +38,7 @@ class SegmentationMaskValidator(Validator):
             else:
                 required_type = True
         if not required_type:
-            return []  # We only test segmentation-mask data
+            return []  # We only test segmentation mask data
         print("Running SegmentationMaskValidator...")
         if not self.xlsx_files_list:
             return ["No object by feature .XLSX files found."]
