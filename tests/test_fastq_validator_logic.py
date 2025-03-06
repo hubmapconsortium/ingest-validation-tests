@@ -250,7 +250,7 @@ NACTGACTGA
             PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_002.fastq")),
         ]
         for file in files:
-            with _open_output_file(tmp_path.joinpath(file), False) as output:
+            with _open_output_file(file, False) as output:
                 output.write(_GOOD_RECORDS)
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
