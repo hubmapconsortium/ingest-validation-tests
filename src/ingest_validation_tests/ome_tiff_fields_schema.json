@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "http://schemata.hubmapconsortium.org/ome_tiff_fields_schema_schema.json",
   "title": "ome-tiff fields schema",
   "description": "schema for the definitions file of required ome-tiff fields",

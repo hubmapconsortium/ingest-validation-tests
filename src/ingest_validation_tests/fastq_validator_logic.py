@@ -13,43 +13,69 @@ from typing import Callable, List, Optional, TextIO, Union
 import fastq_utils
 from typing_extensions import Self
 
-filename_pattern = namedtuple("filename_pattern", ["prefix", "read_type", "set_num"])
+filename_pattern = namedtuple("filename_pattern", ["before_read", "read", "after_read"])
 
 
 def is_valid_filename(filename: str) -> bool:
     return bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename))
 
 
+def get_filename(pattern: filename_pattern) -> str:
+    return f"{pattern.before_read}{pattern.read}#{pattern.after_read}"
+
+
 def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     """
-    Looking for fastq filenames matching pattern:
-    <prefix>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>
-    e.g. arbitrary_string_L001_R1_001.fastq
+    Looking for fastq filenames with a particular format to compare record counts.
+
+    Expected pattern:
+        - <arbitrary_text>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>.<fastq,fastq.gz,fq>
+        - e.g. arbitrary_string_L001_R1_001.fastq
+    Minimum required elements: lane (must occur before read), read
+    May also include: arbitrary text, set_num
 
     Regex documentation:
-        PREFIX
-            - (?P<prefix> | named capture group "prefix"
-            - .*(?:L\\d+) | match anything before and including pattern L# (where # represents 1 or more digits)
-            - only capture prefix if read_type and set_num found
-        READ_TYPE
-            - (?=_ | assert that the character "_" is present at the beginning of this next group
-            - (?:(?P<read_type>R|read(?=[123])|I(?=[12]))) | only capture above match if followed by the
-               sequence _[R1,R2,R3,read1,read2,read3,I1,I2]; capture R/I/read as read_type, discarding digit
-        SET_NUM
-            - (?:\\d_ | ensure presence of "#_" before group, ignore characters
-            - (?P<set_num>\\d+) | capture group set_num of 1 or more digits
-               Note: if set_num needs to be optional, could change this portion to (?:\\d_?(?P<set_num>\\d+)|)
+        BEFORE_READ (?P<before_read>.*_L\\d+_.*(...))
+            - named capture group `before_read` must include pattern L<one or more digits>_
+              before the READ subpattern defined below, can contain
+              arbitrary other characters
+        READ (?=(?P<entire_read>(?P<read>R|I)\\d(?=_|\\.)))
+            - subpattern of BEFORE_READ that ensures the presence
+              of the `entire_read` pattern (_<R,I>#<_,.>) and captures the
+              `read` type (R or I)
+        AFTER_READ (?=(?P=entire_read)(?P<after_read>.+))
+            - ensures the presence of the `entire_read` pattern before
+              named capture group `after_read`, which captures everything
+              after `entire_read`
+        NOTE
+            - If named groups are needed for prefix/lane, replace before_read with:
+                (?P<before_read>(?P<prefix>.*(?=(?P<lane>L\\d+)_)).*
+            - If we need set number, lane, etc., consider switching to a series
+              of regex patterns
     """
     if not bool(fastq_utils.FASTQ_PATTERN.fullmatch(filename)):
         return
+
     pattern = re.compile(
-        r"(?P<prefix>.*(?:L\d+)(?=_(?P<read_type>R|read(?=[123])|I(?=[12]))(?:\d_(?P<set_num>\d+))))"
+        r"(?P<before_read>.*L\d+_.*(?=(?P<entire_read>(?P<read>R|I)\d(?=_|\.))))(?=(?P=entire_read)(?P<after_read>.+))"
     )
     groups = pattern.match(filename)
-    if groups and all(x in groups.groupdict().keys() for x in ["prefix", "read_type", "set_num"]):
+    if groups:
         return filename_pattern(
-            groups.group("prefix"), groups.group("read_type"), groups.group("set_num")
+            groups.group("before_read"), groups.group("read"), groups.group("after_read")
         )
+
+
+def printable_filenames(files: Union[list, ListProxy, Path, str], newlines: bool = True):
+    if type(files) is list or type(files) is ListProxy:
+        file_list = [str(file) for file in files]
+        if newlines:
+            return "\n".join(file_list)
+        return file_list
+    elif type(files) is Path:
+        return str(files)
+    elif type(files) is str:
+        return files
 
 
 def _open_fastq_file(file: Path) -> TextIO:
@@ -173,7 +199,6 @@ class FASTQValidatorLogic:
     def validate_fastq_stream(self, fastq_data: TextIO) -> int:
         # Returns the number of records read from fastq_data.
         line_count = 0
-
         line: str
         for line_count, line in enumerate(fastq_data):
             self._line_number = line_count + 1
@@ -201,21 +226,20 @@ class FASTQValidatorLogic:
         try:
             with _open_fastq_file(fastq_file) as fastq_data:
                 records_read = self.validate_fastq_stream(fastq_data)
+                if records_read == 0:
+                    self.errors.append(self._format_error(f"Fastq file {fastq_file} is empty."))
+                    return
+            self._file_record_counts[str(fastq_file)] = records_read
         except gzip.BadGzipFile:
             self.errors.append(self._format_error(f"Bad gzip file: {fastq_file}."))
-            return
         except IOError:
             self.errors.append(self._format_error(f"Unable to open FASTQ data file {fastq_file}."))
-            return
         except EOFError:
             self.errors.append(self._format_error(f"EOF in FASTQ data file {fastq_file}."))
-            return
         except Exception as e:
             self.errors.append(
                 self._format_error(f"Unexpected error: {e} on data file {fastq_file}.")
             )
-            return
-        self._file_record_counts[str(fastq_file)] = records_read
 
     def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
         """
@@ -244,9 +268,9 @@ class FASTQValidatorLogic:
                 # Combine all paths' file lists to parallelize processing more efficiently.
                 full_file_list = list(chain.from_iterable(self.files_by_path.values()))
                 logging.info(
-                    f"Passing file list for paths {self._printable_filenames(paths, newlines=False)} to engine. File list:"
+                    f"Passing file list for paths {printable_filenames(paths, newlines=False)} to engine. File list:"
                 )
-                logging.info(self._printable_filenames(full_file_list, newlines=True))
+                logging.info(printable_filenames(full_file_list, newlines=True))
                 engine = Engine(self)
                 data_output = pool.imap_unordered(engine, full_file_list)
                 [data_found_one.extend(output) for output in data_output if output]
@@ -311,25 +335,12 @@ class FASTQValidatorLogic:
                     comparison[str(path)] = self._file_record_counts.get(str(path))
                 if not (len(set(comparison.values())) == 1):
                     self.errors.append(
-                        f"Counts do not match among files matching pattern {pattern.prefix}_{pattern.read_type}#_{pattern.set_num}: {comparison}"
+                        f"Counts do not match among files matching pattern {get_filename(pattern)}: {comparison}"
                     )
                 else:
                     _log(
-                        f"PASSED: Record count comparison for files matching pattern {pattern.prefix}_{pattern.read_type}#_{pattern.set_num}: {comparison}"
+                        f"PASSED: Record count comparison for files matching pattern {get_filename(pattern)}: {comparison}"
                     )
-
-    def _printable_filenames(
-        self, files: Union[list, ListProxy, Path, str], newlines: bool = True
-    ):
-        if type(files) is list or type(files) is ListProxy:
-            file_list = [str(file) for file in files]
-            if newlines:
-                return "\n".join(file_list)
-            return file_list
-        elif type(files) is Path:
-            return str(files)
-        elif type(files) is str:
-            return files
 
 
 def main():
