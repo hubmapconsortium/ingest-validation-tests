@@ -12,6 +12,8 @@ class FASTQValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
+        # pending change to IVT:
+        # threads = self.get_threads
         _log(f"Threading at FastQValidator with {threads}")
         validator = FASTQValidatorLogic(verbose=True)
         validator.validate_fastq_files_in_path(self.paths, threads)

@@ -1,7 +1,7 @@
 git+https://github.com/hubmapconsortium/fastq-utils.git@v0.2.5#egg=hubmap-fastq-utils
-imagecodecs>=2023.3.16
-jsonschema==4.4.0
-pandas>=1.2.0
+imagecodecs==2024.6.1
+jsonschema==4.23.0
+pandas==2.2.3
 python-frontmatter>=1.1.0
-tifffile==2020.10.1
-xmlschema>=1.6
+tifffile==2024.8.30
+xmlschema==3.4.5

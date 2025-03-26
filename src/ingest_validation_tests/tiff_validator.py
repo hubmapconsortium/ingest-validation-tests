@@ -1,3 +1,4 @@
+import logging
 from multiprocessing import Pool
 from os import cpu_count
 from typing import List, Optional
@@ -5,16 +6,11 @@ from typing import List, Optional
 import tifffile
 from ingest_validation_tools.plugin_validator import Validator
 
-# monkey patch tifffile to raise an exception every time a warning
-# is logged
-original_log_warning = tifffile.tifffile.log_warning
 
-
-def my_log_warning(msg, *args, **kwargs):
-    raise RuntimeError(f"{msg.format(*args, **kwargs)}")
-
-
-tifffile.tifffile.log_warning = my_log_warning
+def filter(record):
+    if record.levelno >= logging.WARNING:
+        raise ValueError(record)
+    return True
 
 
 def _log(message: str):
@@ -22,10 +18,12 @@ def _log(message: str):
 
 
 def _check_tiff_file(path: str) -> Optional[str]:
+    tifffile.logger().addFilter(filter)
     try:
         with tifffile.TiffFile(path) as tfile:
             for page in tfile.pages:
                 _ = page.asarray()  # force decompression
+        tifffile.logger().removeFilter(filter)
         return None
     except Exception as excp:
         _log(f"{path} is not a valid TIFF file: {excp}")
