@@ -65,7 +65,8 @@ def check_one_prop(key: str, all_prop_list: list, this_test: dict) -> None:
         for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
             assert isinstance(val, int), f"{key} = {val} is not an int"
     elif test_type == "float":
-        assert key in all_prop_keys, f"{key} is required but missing"
+        if not this_test.get("optional"):
+            assert key in all_prop_keys, f"{key} is required but missing"
         for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
             assert isinstance(val, float), f"{key} = {val} is not a float"
     else:

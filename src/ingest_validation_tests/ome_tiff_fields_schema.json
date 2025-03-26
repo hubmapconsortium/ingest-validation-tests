@@ -19,7 +19,8 @@
 	      {
 		"type": "object",
 		"properties": {
-		  "dtype": {"enum": ["integer", "float"]}
+		  "dtype": {"enum": ["integer", "float"]},
+          "optional": {"type": "boolean"}
 		},
 		"required": ["dtype"]
 	      },

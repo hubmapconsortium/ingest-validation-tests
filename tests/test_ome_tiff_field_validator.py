@@ -24,8 +24,7 @@ import pytest
             [
                 ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not"
                 " a valid OME.TIFF file: Pixels_PhysicalSizeX is required but missing;"
-                " Pixels_PhysicalSizeY is required but missing;"
-                " Pixels_PhysicalSizeZ is required but missing"
+                " Pixels_PhysicalSizeY is required but missing"
             ],
             "PAS",
         ),

@@ -45,7 +45,8 @@
       },
       "Pixels_PhysicalSizeZ": {
 	"dtype": "float",
-	"msg": "dtype should be float"
+	"msg": "dtype should be float",
+    "optional": true
       },
       "Pixels_PhysicalSizeZUnit": {
 	"dtype": "categorical",
