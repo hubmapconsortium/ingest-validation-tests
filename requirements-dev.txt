@@ -1,5 +1,5 @@
--r https://raw.githubusercontent.com/hubmapconsortium/ingest-validation-tools/116f82568ac8f610bfd12f156e0bfc8ddd0a3105/requirements.in
--r https://raw.githubusercontent.com/hubmapconsortium/ingest-validation-tools/116f82568ac8f610bfd12f156e0bfc8ddd0a3105/requirements-dev.in
+#-r https://raw.githubusercontent.com/hubmapconsortium/ingest-validation-tools/116f82568ac8f610bfd12f156e0bfc8ddd0a3105/requirements.in
+#-r https://raw.githubusercontent.com/hubmapconsortium/ingest-validation-tools/116f82568ac8f610bfd12f156e0bfc8ddd0a3105/requirements-dev.in
 black==25.1.0
 flake8==7.1.0
 isort==6.0.1
