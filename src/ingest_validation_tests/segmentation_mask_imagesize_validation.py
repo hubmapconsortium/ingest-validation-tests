@@ -51,6 +51,7 @@ class ImageSizeValidator(Validator):
         output = []
         filenames_to_test = []
         parent_filenames_to_test = []
+        print(f"ROWS: {list(self.metadata_tsv.rows)}")
         try:
             for row in self.metadata_tsv.rows:
                 data_path = Path(row["data_path"])
@@ -66,6 +67,7 @@ class ImageSizeValidator(Validator):
                             row["parent_dataset_id"], self.token, self.app_context
                         ).get_path()
                     ).glob(glob_expr):
+                        print(f"FILE {file}")
                         parent_filenames_to_test.append(file)
 
                 assert len(filenames_to_test) == 1, "Too many or too few files Mask"
