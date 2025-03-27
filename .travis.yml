@@ -9,14 +9,12 @@ install:
   - python --version
   - pip install -r requirements.txt
   - pip install -r requirements-dev.txt
-
   - pwd
   - cd ..
   - git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
   - cd ingest-validation-tools
   - pwd
   - git checkout $(git describe --tags $(git rev-list --tags --max-count=1)) # check out latest tagged release
-  - pip install -r requirements.txt
-  - cd ../ingest-validation-tests # Not sure if this is required, or if it resets between sections.
+  - pip install -r requirements.txt # install dependencies from ingest-validation-tools
 script:
   - ./test.sh
