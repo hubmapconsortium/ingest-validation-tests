@@ -1,7 +1,9 @@
+dist: jammy
 language: python
-python:
-  - "3.9"
-  - "3.11"
+matrix:
+  include:
+    - python: 3.9
+    - python: 3.11
 cache: pip
 install:
   - python --version
