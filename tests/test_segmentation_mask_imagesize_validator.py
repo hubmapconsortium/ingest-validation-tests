@@ -1,11 +1,10 @@
 import re
 import zipfile
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd  # to parse metadata.tsv
-
 import pytest
 
 
