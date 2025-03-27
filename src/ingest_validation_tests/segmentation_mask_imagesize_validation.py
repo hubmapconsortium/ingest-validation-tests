@@ -19,11 +19,14 @@ def get_ometiff_size(file) -> Union[str, dict]:
     try:
         rst = {
             "X": xml_image_data.get("@PhysicalSizeX"),
-            "XUnits": xml_image_data.get("@PhysicalSizeXUnits"),
+            "XUnits": xml_image_data.get("@PhysicalSizeXUnit"),
+            "XPix": xml_image_data.get("@SizeX"),
             "Y": xml_image_data.get("@PhysicalSizeY"),
-            "YUnits": xml_image_data.get("@PhysicalSizeYUnits"),
+            "YUnits": xml_image_data.get("@PhysicalSizeYUnit"),
+            "YPix": xml_image_data.get("@SizeY"),
             "Z": xml_image_data.get("@PhysicalSizeZ"),
-            "ZUnits": xml_image_data.get("@PhysicalSizeZUnits"),
+            "ZUnits": xml_image_data.get("@PhysicalSizeZUnit"),
+            "ZPix": xml_image_data.get("@SizeZ"),
         }
         return rst
     except Exception as excp:
@@ -41,6 +44,12 @@ class ImageSizeValidator(Validator):
         "**/segmentation_masks/*.OME.TIFF",
         "**/segmentation_masks/*.OME.TIF",
     ]
+    parent_files_to_find = [
+        "**/*.ome.tif",
+        "**/*.ome.tiff",
+        "**/*.OME.TIFF",
+        "**/*.OME.TIF",
+    ]
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         del kwargs
@@ -51,7 +60,6 @@ class ImageSizeValidator(Validator):
         output = []
         filenames_to_test = []
         parent_filenames_to_test = []
-        print(f"ROWS: {list(self.metadata_tsv.rows)}")
         try:
             for row in self.metadata_tsv.rows:
                 data_path = Path(row["data_path"])
@@ -62,12 +70,12 @@ class ImageSizeValidator(Validator):
                     for file in data_path.glob(glob_expr):
                         filenames_to_test.append(file)
 
+                for glob_expr in self.parent_files_to_find:
                     for file in Path(
                         GetParentData(
                             row["parent_dataset_id"], self.token, self.app_context
                         ).get_path()
                     ).glob(glob_expr):
-                        print(f"FILE {file}")
                         parent_filenames_to_test.append(file)
 
                 assert len(filenames_to_test) == 1, "Too many or too few files Mask"
