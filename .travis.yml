@@ -12,7 +12,8 @@ install:
   - cd ingest-validation-tools
   - pwd
   # - git checkout $(git describe --tags $(git rev-list --tags --max-count=1)) # check out latest tagged release
-  - git checkout main
+  - git checkout main  # changes to IVT just need to be on main, not necessarily in a release
   - pip install -r requirements.txt # install dependencies from ingest-validation-tools
+  - cd ../ingest-validation-tests
 script:
   - ./test.sh
