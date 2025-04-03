@@ -45,7 +45,7 @@ def test_ome_tiff_field_validator(test_data_fname, msg_re_list, assay_type, tmp_
         msg_re_list_dup = list(msg_re_list)  # to avoid editing during iteration
         match = False
         for re_str in msg_re_list_dup:
-            if (err_str is None and re_str is None) or re.match(
+            if (err_str is None and re_str is None) or re.fullmatch(
                 re_str, err_str, flags=re.MULTILINE
             ):
                 msg_re_list.remove(re_str)
