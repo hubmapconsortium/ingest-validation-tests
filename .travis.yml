@@ -11,10 +11,9 @@ install:
   - git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
   - cd ingest-validation-tools
   - pwd
-  - git checkout v0.0.17
-  # - pip install "setuptools==60.9.0"
-  - pip install -r requirements.txt
-
-  - cd ../ingest-validation-tests # Not sure if this is required, or if it resets between sections.
+  # - git checkout $(git describe --tags $(git rev-list --tags --max-count=1)) # check out latest tagged release
+  - git checkout main  # changes to IVT just need to be on main, not necessarily in a release
+  - pip install -r requirements.txt # install dependencies from ingest-validation-tools
+  - cd ../ingest-validation-tests
 script:
   - ./test.sh
