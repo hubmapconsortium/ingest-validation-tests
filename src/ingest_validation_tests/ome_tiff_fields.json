@@ -84,14 +84,14 @@
       "Pixels_PhysicalSizeZ": {
         "dtype": "float",
         "msg": "dtype should be float",
-        "required_field": true
+        "required_field": false
       },
       "Pixels_PhysicalSizeZUnit": {
         "dtype": "categorical",
         "allowed_values": [
           "µm"
         ],
-        "required_field": true
+        "required_field": false
       }
     }
   }

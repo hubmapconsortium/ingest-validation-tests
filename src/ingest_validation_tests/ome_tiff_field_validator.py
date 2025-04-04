@@ -16,35 +16,37 @@ def _log(message: str):
     print(message)
 
 
-def expand_terms(dct: dict, prefix: str = "") -> dict:
+def expand_terms(dct: dict, prefix: str = "") -> list:
     """
-    Convert a dict of XML info as provided by xmlschema to the
+    Convert a dict of of XML info as provided by xmlschema to the
     form used in the dictionary of expected fields
     """
-    rslt = {}
+    rslt = []
     expanded_prefix = prefix + "_" if prefix else ""
     for key, val in dct.items():
         if key.startswith("@"):  # terminal element
-            rslt[expanded_prefix + key[1:]] = val
+            rslt.append((expanded_prefix + key[1:], val))
         elif key == "$" and isinstance(val, str):  # special case?
-            rslt[expanded_prefix + key] = val
+            rslt.append((expanded_prefix + key, val))
         else:
-            child_items = {}
+            child_list_list = []
             if isinstance(val, list):
                 for elt in val:
-                    child_items.update(expand_terms(elt, expanded_prefix + key))
+                    child_list_list.append(expand_terms(elt, expanded_prefix + key))
             elif isinstance(val, dict):
-                child_items.update(expand_terms(val, expanded_prefix + key))
+                child_list_list.append(expand_terms(val, expanded_prefix + key))
             elif val is None:
-                child_items.update([(expanded_prefix + key, None)])
+                child_list_list.append([(expanded_prefix + key, None)])
             else:
                 raise ValueError(f"list or dict expected; got {type(val)} {val}")
-            rslt.update(child_items)
+            for child_list in child_list_list:
+                for key, val in child_list:
+                    rslt.append((key, val))
     return rslt
 
 
-def check_one_prop(key: str, all_image_props: dict, this_test: dict) -> None:
-    all_image_prop_keys = list(all_image_props)
+def check_one_prop(key: str, all_image_props: list, this_test: dict) -> None:
+    all_image_prop_keys = set(key for key, _ in all_image_props)
     test_type = this_test["dtype"]
     test_type_map = {"integer": int, "float": float, "categorical": str}
     if test_type == "trap":
@@ -53,9 +55,9 @@ def check_one_prop(key: str, all_image_props: dict, this_test: dict) -> None:
         if key in all_image_prop_keys:
             raise RuntimeError(f"TRAP: {key} in {all_image_prop_keys} vs {this_test}")
     elif test_type in ["categorical", "integer", "float"]:
-        if this_test.get("required"):
+        if this_test.get("required_field"):
             assert key in all_image_prop_keys, f"{key} is required but missing"
-        for val in [thisval for thiskey, thisval in all_image_props.items() if thiskey == key]:
+        for val in [thisval for thiskey, thisval in all_image_props if thiskey == key]:
             if allowed_vals := this_test.get("allowed_values"):
                 assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
             else:
@@ -75,9 +77,9 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
 
     try:
         image_props = xmlschema.to_dict(xml_document)["Image"]
-        expanded_image_props = {}
+        expanded_image_props = []
         for term_dct in image_props:
-            expanded_image_props.update(expand_terms(term_dct))
+            expanded_image_props.extend(expand_terms(term_dct))
         error_l = []
         for key in tests:
             try:
@@ -95,19 +97,22 @@ class OmeTiffFieldValidator(Validator):
     cost = 1.0
     version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         cfg_path = Path(__file__).parent / "ome_tiff_fields.json"
-        cfg_list = json.loads(cfg_path.read_text())
+        self.cfg_list = json.loads(cfg_path.read_text())
         cfg_schema_path = Path(__file__).parent / "ome_tiff_fields_schema.json"
-        schema = json.loads(cfg_schema_path.read_text())
+        self.schema = json.loads(cfg_schema_path.read_text())
         try:
-            validate(cfg_list, schema)
+            validate(self.cfg_list, self.schema)
         except Exception:
             raise RuntimeError(
                 f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
             )
+
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         all_tests = {}
-        for test_set in cfg_list:
+        for test_set in self.cfg_list:
             if re.fullmatch(test_set["re"], self.assay_type):
                 all_tests.update(test_set["fields"])
 
