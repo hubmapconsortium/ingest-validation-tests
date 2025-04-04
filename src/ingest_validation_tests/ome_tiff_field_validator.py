@@ -45,29 +45,22 @@ def expand_terms(dct: dict, prefix: str = "") -> list:
     return rslt
 
 
-def check_one_prop(key: str, all_prop_list: list, this_test: dict) -> None:
-    all_prop_keys = set(key for key, val in all_prop_list)
+def check_one_prop(key: str, all_image_props: list, this_test: dict) -> None:
+    all_image_prop_keys = set(key for key, _ in all_image_props)
     test_type = this_test["dtype"]
+    test_type_map = {"integer": int, "float": float, "categorical": str}
     if test_type == "trap":
         # This test is useful when you want to scan lots of ome-tiff files for an
         # example of a new field type
-        if key in all_prop_keys:
-            raise RuntimeError(f"TRAP: {key} in {all_prop_keys} vs {this_test}")
-        else:
-            pass
-    elif test_type == "categorical":
-        allowed_vals = this_test["allowed_values"]
-        assert key in all_prop_keys, f"{key} is required but missing"
-        for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
-            assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
-    elif test_type == "integer":
-        assert key in all_prop_keys, f"{key} is required but missing"
-        for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
-            assert isinstance(val, int), f"{key} = {val} is not an int"
-    elif test_type == "float":
-        assert key in all_prop_keys, f"{key} is required but missing"
-        for val in [thisval for thiskey, thisval in all_prop_list if thiskey == key]:
-            assert isinstance(val, float), f"{key} = {val} is not a float"
+        if key in all_image_prop_keys:
+            raise RuntimeError(f"TRAP: {key} in {all_image_prop_keys} vs {this_test}")
+    elif test_type in ["categorical", "integer", "float"]:
+        if this_test.get("required_field"):
+            assert key in all_image_prop_keys, f"{key} is required but missing"
+        for val in [thisval for thiskey, thisval in all_image_props if thiskey == key]:
+            if allowed_vals := this_test.get("allowed_values"):
+                assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
+            assert isinstance(val, test_type_map[test_type]), f"{key} = {val} is not a {test_type}"
     else:
         raise NotImplementedError(f"Unimplemented dtype {test_type} for ome-tiff field")
 
@@ -81,13 +74,13 @@ def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
 
     try:
         image_props = xmlschema.to_dict(xml_document)["Image"]
-        expanded_props = []
+        expanded_image_props = []
         for term_dct in image_props:
-            expanded_props.extend(expand_terms(term_dct))
+            expanded_image_props.extend(expand_terms(term_dct))
         error_l = []
         for key in tests:
             try:
-                check_one_prop(key, expanded_props, tests[key])
+                check_one_prop(key, expanded_image_props, tests[key])
             except AssertionError as excp:
                 error_l.append(str(excp))
         if error_l:
@@ -101,19 +94,22 @@ class OmeTiffFieldValidator(Validator):
     cost = 1.0
     version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         cfg_path = Path(__file__).parent / "ome_tiff_fields.json"
-        cfg_list = json.loads(cfg_path.read_text())
+        self.cfg_list = json.loads(cfg_path.read_text())
         cfg_schema_path = Path(__file__).parent / "ome_tiff_fields_schema.json"
-        schema = json.loads(cfg_schema_path.read_text())
+        self.schema = json.loads(cfg_schema_path.read_text())
         try:
-            validate(cfg_list, schema)
+            validate(self.cfg_list, self.schema)
         except Exception:
             raise RuntimeError(
                 f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
             )
+
+    def collect_errors(self, **kwargs) -> List[Optional[str]]:
         all_tests = {}
-        for test_set in cfg_list:
+        for test_set in self.cfg_list:
             if re.fullmatch(test_set["re"], self.assay_type):
                 all_tests.update(test_set["fields"])
 
