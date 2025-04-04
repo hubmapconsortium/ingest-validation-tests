@@ -60,10 +60,7 @@ def check_one_prop(key: str, all_image_props: list, this_test: dict) -> None:
         for val in [thisval for thiskey, thisval in all_image_props if thiskey == key]:
             if allowed_vals := this_test.get("allowed_values"):
                 assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
-            else:
-                assert isinstance(
-                    val, test_type_map[test_type]
-                ), f"{key} = {val} is not a {test_type}"
+            assert isinstance(val, test_type_map[test_type]), f"{key} = {val} is not a {test_type}"
     else:
         raise NotImplementedError(f"Unimplemented dtype {test_type} for ome-tiff field")
 
