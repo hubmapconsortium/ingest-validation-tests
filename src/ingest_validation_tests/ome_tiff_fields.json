@@ -1,55 +1,97 @@
 [
   {
+    "name": "default_shared_requirements",
     "re": ".*",
     "fields": {
       "Pixels_DimensionOrder": {
-	"dtype": "categorical",
-	"allowed_values": ["XYZCT", "XYZTC", "XYCTZ", "XYCZT", "XYTCZ", "XYTZC"]
+        "dtype": "categorical",
+        "allowed_values": [
+          "XYZCT",
+          "XYZTC",
+          "XYCTZ",
+          "XYCZT",
+          "XYTCZ",
+          "XYTZC"
+        ],
+        "required_field": true
       },
       "Pixels_Type": {
-	"dtype": "categorical",
-	"allowed_values": ["bit", "complex", "double", "double-complex", "float",
-			   "int8", "int12", "int14", "int16", "int32", "uint8",
-			   "uint12", "uint14", "uint16", "uint32", "Other"]
+        "dtype": "categorical",
+        "allowed_values": [
+          "bit",
+          "complex",
+          "double",
+          "double-complex",
+          "float",
+          "int8",
+          "int12",
+          "int14",
+          "int16",
+          "int32",
+          "uint8",
+          "uint12",
+          "uint14",
+          "uint16",
+          "uint32",
+          "Other"
+        ],
+        "required_field": true
       },
       "Pixels_SizeX": {
-	"dtype": "integer"
+        "dtype": "integer",
+        "required_field": true
       },
       "Pixels_SizeY": {
-	"dtype": "integer"
+        "dtype": "integer",
+        "required_field": true
       },
       "Pixels_SizeZ": {
-	"dtype": "integer"
+        "dtype": "integer",
+        "required_field": true
       },
       "Pixels_SizeC": {
-	"dtype": "integer"
+        "dtype": "integer",
+        "required_field": true
       },
       "Pixels_SizeT": {
-	"dtype": "integer"
+        "dtype": "integer",
+        "required_field": true
       },
       "Pixels_PhysicalSizeX": {
-	"dtype": "float",
-	"msg": "dtype should be float"
+        "dtype": "float",
+        "msg": "dtype should be float",
+        "required_field": true
       },
       "Pixels_PhysicalSizeXUnit": {
-	"dtype": "categorical",
-	"allowed_values": ["µm"]
+        "dtype": "categorical",
+        "allowed_values": [
+          "µm"
+        ],
+        "required_field": true
       },
       "Pixels_PhysicalSizeY": {
-	"dtype": "float",
-	"msg": "dtype should be float"
+        "dtype": "float",
+        "msg": "dtype should be float",
+        "required_field": true
       },
       "Pixels_PhysicalSizeYUnit": {
-	"dtype": "categorical",
-	"allowed_values": ["µm"]
+        "dtype": "categorical",
+        "allowed_values": [
+          "µm"
+        ],
+        "required_field": true
       },
       "Pixels_PhysicalSizeZ": {
-	"dtype": "float",
-	"msg": "dtype should be float"
+        "dtype": "float",
+        "msg": "dtype should be float",
+        "required_field": false
       },
       "Pixels_PhysicalSizeZUnit": {
-	"dtype": "categorical",
-	"allowed_values": ["µm"]
+        "dtype": "categorical",
+        "allowed_values": [
+          "µm"
+        ],
+        "required_field": false
       }
     }
   }
