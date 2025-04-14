@@ -449,7 +449,7 @@
           <xsd:documentation>The units of the physical size of a pixel - default:microns[µm].</xsd:documentation>
         </xsd:annotation>
       </xsd:attribute>
-      <xsd:attribute name="PhysicalSizeZ" use="optional" type="PositiveFloat">
+      <xsd:attribute name="PhysicalSizeZ" use="required" type="PositiveFloat">
         <xsd:annotation>
           <xsd:documentation>Physical size of a pixel. Units are set by PhysicalSizeZUnit.</xsd:documentation>
         </xsd:annotation>

@@ -1,10 +1,10 @@
+import itertools
 import re
 from functools import partial
 from multiprocessing import Pool
 from os import cpu_count
 from pathlib import Path
 from typing import List, Optional
-from xml.etree import ElementTree
 
 import tifffile
 import xmlschema
@@ -15,38 +15,37 @@ def _log(message: str):
     print(message)
 
 
-def test_func(schemas: list[Path], file: Path):
-    for schema in schemas:
-        test_schema = xmlschema.XMLSchema(schema)
-        with tifffile.TiffFile(file) as tf:
-            metadata = tf.ome_metadata
-            if not metadata:
-                return f"{file} is not a valid OME.TIFF file: Failed to read OME XML"
-        ome_element_tree = ElementTree.fromstring(metadata)
-        errors = set([e.reason for e in test_schema.iter_errors(ome_element_tree) if e.reason])
-        if errors:
-            _log(f"Validation failed with schema {schema.name} for {file}: {errors}")
-            return f"{file} is not a valid OME.TIFF file per schema {schema.name}: {'; '.join(sorted(errors))}"
-
-
 class OmeTiffFieldValidator(Validator):
     description = "Recursively test all ome-tiff files for an assay-specific list of fields"
     cost = 1.0
     version = "1.0"
-    schemas = []
+    schemas = {}
+    """
+    To add a new schema, first create a valid XSD schema based on the OME TIFF schema
+    and add to ome_tiff_schemas dir.
+    Then add to schema_regex_mapping as path_to_schema: [regex_strings_for_relevant_assay_type].
+    """
+    schema_regex_mapping = {
+        Path(__file__).parent / "ome_tiff_schemas/ome_tiff_field_schema_default.xsd": [".*"]
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        schema_dir = Path(__file__).parent / "ome_tiff_schemas"
-        schema_regex_mapping = {"ome_tiff_field_schema_default.xsd": ".*"}
-        for schema, regex in schema_regex_mapping.items():
-            schema_path = schema_dir / schema
+        self.get_schemas()
+
+    def get_schemas(self):
+        if self.schemas:
+            _log(f"Prior schemas: {list(self.schemas)}")
+            self.schemas = {}
+        for schema, regex in self.schema_regex_mapping.items():
             try:
-                xmlschema.XMLSchema.meta_schema.validate(schema_path)
-            except Exception:
+                xml_schema = xmlschema.XMLSchema(schema)
+            except xmlschema.XMLSchemaException or SyntaxError:
                 raise RuntimeError(f"Schema {schema} is invalid.")
-            if re.fullmatch(regex, self.assay_type):
-                self.schemas.append(schema_path)
+            for regex_str in regex:
+                if re.fullmatch(regex_str, self.assay_type):
+                    self.schemas[schema] = xml_schema
+        _log(f"Schemas: {list(self.schemas)}")
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
@@ -62,15 +61,38 @@ class OmeTiffFieldValidator(Validator):
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
+        if not filenames_to_test:
+            return []
 
-        rslt_list: List[Optional[str]] = list(
+        rslt_list = [
             rslt
-            for rslt in pool.imap_unordered(partial(test_func, self.schemas), filenames_to_test)
+            for rslt in pool.imap_unordered(partial(self.errors_by_schema), filenames_to_test)
             if rslt is not None
-        )
+        ]
         if rslt_list:
-            return rslt_list
+            return list(itertools.chain.from_iterable(rslt_list))
         elif filenames_to_test:
             return [None]
         else:
-            return []
+            raise Exception("test")
+
+    def errors_by_schema(self, file: Path) -> Optional[list[str]]:
+        compiled_errors = []
+        for schema_name, schema in self.schemas.items():
+            with tifffile.TiffFile(file) as tf:
+                try:
+                    xml_document = xmlschema.XmlDocument(tf.ome_metadata)
+                except Exception:
+                    return [f"{file} is not a valid OME.TIFF file: Failed to read OME XML"]
+            ome_element_tree = xml_document.get_etree_document()
+            errors = set([e.reason for e in schema.iter_errors(ome_element_tree) if e.reason])
+            if errors:
+                sorted_errors = "; ".join(sorted(errors))
+                _log(
+                    f"Validation failed with schema '{schema_name.name}' for {file}: {sorted_errors}"
+                )
+                compiled_errors.append(
+                    f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {sorted_errors}"
+                )
+        if compiled_errors:
+            return compiled_errors
