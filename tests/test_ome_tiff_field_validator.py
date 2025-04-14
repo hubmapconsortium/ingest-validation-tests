@@ -1,11 +1,11 @@
-import re
 import zipfile
 from pathlib import Path
 
 import pytest
+from test_tiff_validators_base_class import TestTiffValidators
 
 
-class TestOmeTiffFieldValidator:
+class TestOmeTiffFieldValidator(TestTiffValidators):
 
     def validator(self, test_data_fname, assay_type, tmp_path):
         from ome_tiff_field_validator import OmeTiffFieldValidator
@@ -14,23 +14,6 @@ class TestOmeTiffFieldValidator:
         zfile = zipfile.ZipFile(test_data_path)
         zfile.extractall(tmp_path)
         return OmeTiffFieldValidator(tmp_path / test_data_path.stem, assay_type)
-
-    def check_errors(self, msg_re_list, errors):
-        assert len(msg_re_list) == len(errors)
-        unmatched_errors = []
-        for err_str in errors:
-            msg_re_list_dup = list(msg_re_list)  # to avoid editing during iteration
-            match = False
-            for re_str in msg_re_list_dup:
-                if (err_str is None and re_str is None) or re.fullmatch(
-                    re_str, err_str, flags=re.MULTILINE
-                ):
-                    msg_re_list.remove(re_str)
-                    match = True
-                    break
-            if not match:
-                unmatched_errors.append(err_str)
-        assert not unmatched_errors, f"Unmatched errors: {unmatched_errors}"
 
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),

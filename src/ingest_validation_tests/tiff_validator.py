@@ -1,3 +1,4 @@
+import re
 from multiprocessing import Pool
 from os import cpu_count
 from typing import List, Optional
@@ -42,10 +43,18 @@ class TiffValidator(Validator):
         _log(f"Threading at TiffValidator with {threads}")
         pool = Pool(threads)
         filenames_to_test = []
-        for glob_expr in ["**/*.tif", "**/*.tiff", "**/*.TIFF", "**/*.TIF"]:
+        for glob_expr in [
+            "**/*.tif",
+            "**/*.TIF",
+            "**/*.tiff",
+            "**/*.TIFF",
+        ]:
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
+        filenames_to_test = [
+            file for file in filenames_to_test[:] if not re.match(r".*ome.tif.*", str(file))
+        ]
         try:
             rslt_list: List[Optional[str]] = list(
                 rslt
