@@ -21,12 +21,22 @@ class OmeTiffFieldValidator(Validator):
     version = "1.0"
     schemas = {}
     """
-    To add a new schema, first create a valid XSD schema based on the OME TIFF schema
-    and add to ome_tiff_schemas dir.
-    Then add to schema_regex_mapping as path_to_schema: [regex_strings_for_relevant_assay_type].
+    To add a new schema, first create a derivative XSD schema based on the OME XML schema
+    (ome.xsd at https://www.openmicroscopy.org/Schemas/) and add to `ome_tiff_schemas dir`.
+    Then add to schema_regex_mapping as path_to_schema: [regex_strings_for_relevant_assay_type(s)].
+
+    Note: Schemas should only make the default ome.xsd more restrictive (optional -> required,
+    limiting valid categorical values, making min/max more conservative, etc) so as not to
+    conflict with the base OME XML spec.
+
+    Files in an upload are validated against all schemas where the assay name matches the regex,
+    so make sure your schema does not conflict meaningfully with other relevant schemas (or
+    consider refactoring to only validate against a single schema).
     """
     schema_regex_mapping = {
-        Path(__file__).parent / "ome_tiff_schemas/ome_tiff_field_schema_default.xsd": [".*"]
+        # Required PhysicalSizeX/Y
+        Path(__file__).parent
+        / "ome_tiff_schemas/ome_tiff_field_schema_default.xsd": [".*"],
     }
 
     def __init__(self, *args, **kwargs):
@@ -45,6 +55,7 @@ class OmeTiffFieldValidator(Validator):
             for regex_str in regex:
                 if re.fullmatch(regex_str, self.assay_type):
                     self.schemas[schema] = xml_schema
+                    break
         _log(f"Schemas: {list(self.schemas)}")
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
@@ -53,10 +64,8 @@ class OmeTiffFieldValidator(Validator):
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
-            "**/*.ome.tif",
-            "**/*.ome.tiff",
-            "**/*.OME.TIFF",
-            "**/*.OME.TIF",
+            "**/*.[oO][mM][eE].[tT][iI][fF]",
+            "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
         ]:
             for path in self.paths:
                 for file in path.glob(glob_expr):
