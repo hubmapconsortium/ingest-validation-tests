@@ -48,12 +48,13 @@ class OmeTiffFieldValidator(Validator):
             _log(f"Prior schemas: {list(self.schemas)}")
             self.schemas = {}
         for schema, regex in self.schema_regex_mapping.items():
-            try:
-                xml_schema = xmlschema.XMLSchema(schema)
-            except xmlschema.XMLSchemaException or SyntaxError:
-                raise RuntimeError(f"Schema {schema} is invalid.")
+            # Iterate through regex for a given schema, if match found add schema to self.schemas and break, check next schema
             for regex_str in regex:
                 if re.fullmatch(regex_str, self.assay_type):
+                    try:
+                        xml_schema = xmlschema.XMLSchema(schema)
+                    except xmlschema.XMLSchemaException or SyntaxError:
+                        raise RuntimeError(f"Schema {schema} is invalid.")
                     self.schemas[schema] = xml_schema
                     break
         _log(f"Schemas: {list(self.schemas)}")
@@ -96,7 +97,7 @@ class OmeTiffFieldValidator(Validator):
             ome_element_tree = xml_document.get_etree_document()
             errors = set([e.reason for e in schema.iter_errors(ome_element_tree) if e.reason])
             if errors:
-                msg = f"Validation failed with schema '{schema_name.name}' for {file}: {'; '.join(sorted(errors))}"
+                msg = f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {'; '.join(sorted(errors))}"
                 _log(msg)
                 compiled_errors.append(msg)
         if compiled_errors:
