@@ -25,16 +25,14 @@ def _log(message: str):
 def _check_tiff_file(path: str) -> Optional[str]:
     try:
         with tifffile.TiffFile(path) as tfile:
-            for page in tfile.pages:
-                _ = page.asarray()  # force decompression
-        return None
+            [page.array() for page in tfile.pages]  # force decompression
     except Exception as excp:
         _log(f"{path} is not a valid TIFF file: {excp}")
         return f"{path} is not a valid TIFF file: {excp}"
 
 
 class TiffValidator(Validator):
-    description = "Recursively test all tiff files that are not ome.tiffs for validity"
+    description = "Recursively test all tiff files (including ome.tiffs) for validity"
     cost = 1.0
     version = "1.0"
 
@@ -50,9 +48,6 @@ class TiffValidator(Validator):
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
-        filenames_to_test = [
-            file for file in filenames_to_test[:] if not re.match(r".*ome.tif.*", str(file))
-        ]
         try:
             rslt_list: List[Optional[str]] = list(
                 rslt
