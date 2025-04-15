@@ -10,7 +10,7 @@ class TestTiffValidators:
         for err_str in errors:
             match = False
             for re_str in msg_re_list_dup:
-                ### Need to remove unmatched "None" values to avoid Exception from re
+                # Need to remove unmatched "None" values to avoid Exception from re
                 if len([string for string in [err_str, re_str] if string is None]) == 1:
                     pass
                 if (err_str is None and re_str is None) or re.fullmatch(
