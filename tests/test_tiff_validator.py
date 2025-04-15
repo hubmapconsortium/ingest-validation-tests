@@ -14,10 +14,10 @@ class TestTiffValidator(TestTiffValidators):
             (
                 "test_data/tiff_tree_bad.zip",
                 [
-                    ".*notatiff.tif is not a valid TIFF file.*",
-                    ".*notatiff.tiff is not a valid TIFF file.*",
+                    ".*tiff_tree_bad/dir1/notatiff.tif is not a valid TIFF file.*",
+                    ".*tiff_tree_bad/dir1/dir3/notatiff.TIF is not a valid TIFF file.*",
                     ".*notatiff.TIFF is not a valid TIFF file.*",
-                    ".*notatiff.TIF is not a valid TIFF file.*",
+                    ".*tiff_tree_bad/notatiff.tiff is not a valid TIFF file.*",
                 ],
                 "codex",
             ),

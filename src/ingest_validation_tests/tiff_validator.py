@@ -44,10 +44,8 @@ class TiffValidator(Validator):
         pool = Pool(threads)
         filenames_to_test = []
         for glob_expr in [
-            "**/*.tif",
-            "**/*.TIF",
-            "**/*.tiff",
-            "**/*.TIFF",
+            "**/*.[tT][iI][fF]",
+            "**/*.[tT][iI][fF][fF]",
         ]:
             for path in self.paths:
                 for file in path.glob(glob_expr):
