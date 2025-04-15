@@ -27,7 +27,7 @@ class OmeTiffFieldValidator(Validator):
 
     Note: Schemas should only make the default ome.xsd more restrictive (optional -> required,
     limiting valid categorical values, making min/max more conservative, etc) so as not to
-    conflict with the base OME XML spec.
+    conflict with the base OME XML spec. `xmlschema.XmlDocument` will validate against base OME schema.
 
     Files in an upload are validated against all schemas where the assay name matches the regex,
     so make sure your schema does not conflict meaningfully with other relevant schemas (or
