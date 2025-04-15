@@ -22,7 +22,7 @@ class TestTiffValidator(TestTiffValidators):
                 "codex",
             ),
             ("test_data/fake_snrnaseq_tree_good.zip", [], "snRNAseq"),
-            ("test_data/codex_tree_ometiff_bad.zip", [], "codex"),
+            ("test_data/codex_tree_ometiff_bad.zip", [None], "codex"),
         ),
     )
     def test_tiff_validator(self, test_data_fname, msg_re_list, assay_type, tmp_path):

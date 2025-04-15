@@ -24,7 +24,7 @@ def _log(message: str):
 def _check_tiff_file(path: str) -> Optional[str]:
     try:
         with tifffile.TiffFile(path) as tfile:
-            [page.array() for page in tfile.pages]  # force decompression
+            [page.asarray() for page in tfile.pages]  # force decompression
     except Exception as excp:
         _log(f"{path} is not a valid TIFF file: {excp}")
         return f"{path} is not a valid TIFF file: {excp}"
