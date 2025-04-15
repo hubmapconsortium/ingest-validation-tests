@@ -1,4 +1,3 @@
-import re
 from multiprocessing import Pool
 from os import cpu_count
 from typing import List, Optional
