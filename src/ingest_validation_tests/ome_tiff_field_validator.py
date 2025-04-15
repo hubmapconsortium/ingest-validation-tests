@@ -83,7 +83,7 @@ class OmeTiffFieldValidator(Validator):
         elif filenames_to_test:
             return [None]
         else:
-            raise Exception("test")
+            return []
 
     def errors_by_schema(self, file: Path) -> Optional[list[str]]:
         compiled_errors = []
