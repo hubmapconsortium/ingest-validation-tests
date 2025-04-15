@@ -96,12 +96,8 @@ class OmeTiffFieldValidator(Validator):
             ome_element_tree = xml_document.get_etree_document()
             errors = set([e.reason for e in schema.iter_errors(ome_element_tree) if e.reason])
             if errors:
-                sorted_errors = "; ".join(sorted(errors))
-                _log(
-                    f"Validation failed with schema '{schema_name.name}' for {file}: {sorted_errors}"
-                )
-                compiled_errors.append(
-                    f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {sorted_errors}"
-                )
+                msg = f"Validation failed with schema '{schema_name.name}' for {file}: {'; '.join(sorted(errors))}"
+                _log(msg)
+                compiled_errors.append(msg)
         if compiled_errors:
             return compiled_errors
