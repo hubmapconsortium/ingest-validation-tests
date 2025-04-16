@@ -22,7 +22,7 @@ class OmeTiffFieldValidator(Validator):
     schemas = {}
     """
     To add a new schema, first create a derivative XSD schema based on the OME XML schema
-    (ome.xsd at https://www.openmicroscopy.org/Schemas/) and add to `ome_tiff_schemas dir`.
+    (ome.xsd at https://www.openmicroscopy.org/Schemas/) and add to `ome_tiff_schemas` dir.
     Then add to schema_regex_mapping as path_to_schema: [regex_strings_for_relevant_assay_type(s)].
 
     Note: Schemas should only make the default ome.xsd more restrictive (optional -> required,
