@@ -32,10 +32,8 @@ class OmeTiffValidator(Validator):
         _log(f"Threading at OmeTiffValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
-            "**/*.ome.tif",
-            "**/*.ome.tiff",
-            "**/*.OME.TIFF",
-            "**/*.OME.TIF",
+            "**/*.[oO][mM][eE].[tT][iI][fF]",
+            "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
         ]:
             for path in self.paths:
                 for file in path.glob(glob_expr):
