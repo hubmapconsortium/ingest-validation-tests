@@ -1,4 +1,3 @@
-import logging
 from multiprocessing import Pool
 from os import cpu_count
 from typing import List, Optional
@@ -7,23 +6,15 @@ import tifffile
 from ingest_validation_tools.plugin_validator import Validator
 
 
-def filter(record):
-    if record.levelno >= logging.WARNING:
-        raise ValueError(record)
-    return True
-
-
 def _log(message: str):
     print(message)
 
 
 def _check_tiff_file(path: str) -> Optional[str]:
-    tifffile.logger().addFilter(filter)
     try:
         with tifffile.TiffFile(path) as tfile:
             for page in tfile.pages:
                 _ = page.asarray()  # force decompression
-        tifffile.logger().removeFilter(filter)
         return None
     except Exception as excp:
         _log(f"{path} is not a valid TIFF file: {excp}")
