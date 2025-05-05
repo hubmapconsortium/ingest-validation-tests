@@ -3,19 +3,23 @@ from typing import List, Optional, Union
 
 import tifffile
 import xmlschema
-from ingest_validation_tools.plugin_validator import Validator
+from ingest_validation_tools.plugin_validator import Validator  # type: ignore
 from tests_utils import GetParentData
 
 
 def get_ometiff_size(file) -> Union[str, dict]:
     try:
         tf = tifffile.TiffFile(file)
-        xml_document = xmlschema.XmlDocument(tf.ome_metadata)
+        xml_document = xmlschema.XmlDocument(tf.ome_metadata)  # type: ignore | checks below should be sufficient if bad type returned
         if xml_document.schema and not xml_document.schema.is_valid(xml_document):
-            return f"{file} is not a valid OME.TIFF file"
+            return f"{file} is not a valid OME.TIFF file."
+        elif not xml_document.schema:
+            return f"Can't read OME XML from file {file}."
+        xml_image_data = (
+            xml_document.schema.to_dict(xml_document).get("Image")[0].get("Pixels")  # type: ignore | xmlschema.DecodeType causing issues
+        )
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
-    xml_image_data = xml_document.schema.to_dict(xml_document).get("Image")[0].get("Pixels")
     try:
         rst = {
             "X": xml_image_data.get("@PhysicalSizeX"),
