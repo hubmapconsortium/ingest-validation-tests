@@ -61,7 +61,7 @@ class ImageSizeValidator(Validator):
         filenames_to_test = []
         parent_filenames_to_test = []
         try:
-            for row in self.metadata_tsv.rows:
+            for row in self.schema.rows:
                 data_path = Path(row["data_path"])
                 if not data_path.is_absolute():
                     data_path = Path(self.paths[0]).parent / data_path
