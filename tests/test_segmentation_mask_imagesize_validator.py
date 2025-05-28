@@ -59,7 +59,7 @@ def test_segmentation_mask_imagesize_validator(
     assert len(tsv_path_l) == 1, "Failed to find one metadata file"
     recs_df = pd.read_csv(tsv_path_l[0], sep="\t")
     sv = MySchemaVersion(rows=recs_df.to_dict("records"))
-    validator = ImageSizeValidator(tmp_seg_path / test_data_path.stem, assay_type, schema=sv)
+    validator = ImageSizeValidator(tmp_seg_path / test_data_path.stem, assay_type, metadata_tsv=sv)
     errors = validator.collect_errors(coreuse=4)[:]
     assert len(msg_re_list) == len(errors)
     for err_str, re_str in zip(errors, msg_re_list):
