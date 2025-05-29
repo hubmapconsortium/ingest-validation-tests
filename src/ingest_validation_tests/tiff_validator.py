@@ -5,17 +5,6 @@ from typing import List, Optional
 import tifffile
 from ingest_validation_tools.plugin_validator import Validator
 
-# monkey patch tifffile to raise an exception every time a warning
-# is logged
-original_log_warning = tifffile.tifffile.log_warning
-
-
-def my_log_warning(msg, *args, **kwargs):
-    raise RuntimeError(f"{msg.format(*args, **kwargs)}")
-
-
-tifffile.tifffile.log_warning = my_log_warning
-
 
 def _log(message: str):
     print(message)
