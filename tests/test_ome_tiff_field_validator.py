@@ -113,6 +113,6 @@ class TestOmeTiffFieldValidator:
         """
         validator = self.validator(test_data_fname, assay_type, tmp_path)
         validator.cfg_list.append(self.test_config_entry)
-        jsonschema.validate(validator.cfg_list, validator.schema)
+        jsonschema.validate(validator.cfg_list, validator.cfg_schema)
         errors = validator.collect_errors(coreuse=4)[:]
         self.check_errors(msg_re_list, errors)

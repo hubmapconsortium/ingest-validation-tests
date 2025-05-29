@@ -99,9 +99,9 @@ class OmeTiffFieldValidator(Validator):
         cfg_path = Path(__file__).parent / "ome_tiff_fields.json"
         self.cfg_list = json.loads(cfg_path.read_text())
         cfg_schema_path = Path(__file__).parent / "ome_tiff_fields_schema.json"
-        self.schema = json.loads(cfg_schema_path.read_text())
+        self.cfg_schema = json.loads(cfg_schema_path.read_text())
         try:
-            validate(self.cfg_list, self.schema)
+            validate(self.cfg_list, self.cfg_schema)
         except Exception:
             raise RuntimeError(
                 f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
