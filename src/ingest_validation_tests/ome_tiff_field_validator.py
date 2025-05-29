@@ -1,4 +1,4 @@
-import json
+import itertools
 import re
 from functools import partial
 from multiprocessing import Pool
@@ -9,137 +9,96 @@ from typing import List, Optional
 import tifffile
 import xmlschema
 from ingest_validation_tools.plugin_validator import Validator
-from jsonschema import validate
 
 
 def _log(message: str):
     print(message)
 
 
-def expand_terms(dct: dict, prefix: str = "") -> list:
-    """
-    Convert a dict of of XML info as provided by xmlschema to the
-    form used in the dictionary of expected fields
-    """
-    rslt = []
-    expanded_prefix = prefix + "_" if prefix else ""
-    for key, val in dct.items():
-        if key.startswith("@"):  # terminal element
-            rslt.append((expanded_prefix + key[1:], val))
-        elif key == "$" and isinstance(val, str):  # special case?
-            rslt.append((expanded_prefix + key, val))
-        else:
-            child_list_list = []
-            if isinstance(val, list):
-                for elt in val:
-                    child_list_list.append(expand_terms(elt, expanded_prefix + key))
-            elif isinstance(val, dict):
-                child_list_list.append(expand_terms(val, expanded_prefix + key))
-            elif val is None:
-                child_list_list.append([(expanded_prefix + key, None)])
-            else:
-                raise ValueError(f"list or dict expected; got {type(val)} {val}")
-            for child_list in child_list_list:
-                for key, val in child_list:
-                    rslt.append((key, val))
-    return rslt
-
-
-def check_one_prop(key: str, all_image_props: list, this_test: dict) -> None:
-    all_image_prop_keys = set(key for key, _ in all_image_props)
-    test_type = this_test["dtype"]
-    test_type_map = {"integer": int, "float": float, "categorical": str}
-    if test_type == "trap":
-        # This test is useful when you want to scan lots of ome-tiff files for an
-        # example of a new field type
-        if key in all_image_prop_keys:
-            raise RuntimeError(f"TRAP: {key} in {all_image_prop_keys} vs {this_test}")
-    elif test_type in ["categorical", "integer", "float"]:
-        if this_test.get("required_field"):
-            assert key in all_image_prop_keys, f"{key} is required but missing"
-        for val in [thisval for thiskey, thisval in all_image_props if thiskey == key]:
-            if allowed_vals := this_test.get("allowed_values"):
-                assert val in allowed_vals, f"{key} == {val} is not one of {allowed_vals}"
-            assert isinstance(val, test_type_map[test_type]), f"{key} = {val} is not a {test_type}"
-    else:
-        raise NotImplementedError(f"Unimplemented dtype {test_type} for ome-tiff field")
-
-
-def _check_ome_tiff_file(file: str, /, tests: dict) -> Optional[str]:
-    try:
-        with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata)
-    except Exception:
-        return f"{file} is not a valid OME.TIFF file: Failed to read OME XML"
-
-    try:
-        image_props = xmlschema.to_dict(xml_document)["Image"]
-        expanded_image_props = []
-        for term_dct in image_props:
-            expanded_image_props.extend(expand_terms(term_dct))
-        error_l = []
-        for key in tests:
-            try:
-                check_one_prop(key, expanded_image_props, tests[key])
-            except AssertionError as excp:
-                error_l.append(str(excp))
-        if error_l:
-            return f"{file} is not a valid OME.TIFF file: {'; '.join(error_l)}"
-    except Exception as excp:
-        return f"{file} is not a valid OME.TIFF file: {excp}"
-
-
 class OmeTiffFieldValidator(Validator):
     description = "Recursively test all ome-tiff files for an assay-specific list of fields"
     cost = 1.0
     version = "1.0"
+    schemas = {}
+    """
+    To add a new schema, first create a derivative XSD schema based on the OME XML schema
+    (ome.xsd at https://www.openmicroscopy.org/Schemas/) and add to `ome_tiff_schemas` dir.
+    Then add to schema_regex_mapping as path_to_schema: [regex_strings_for_relevant_assay_type(s)].
+
+    Note: Schemas should only make the default ome.xsd more restrictive (optional -> required,
+    limiting valid categorical values, making min/max more conservative, etc) so as not to
+    conflict with the base OME XML spec. `xmlschema.XmlDocument` will validate against base OME schema.
+
+    Files in an upload are validated against all schemas where the assay name matches the regex,
+    so make sure your schema does not conflict meaningfully with other relevant schemas (or
+    consider refactoring to only validate against a single schema).
+    """
+    schema_regex_mapping = {
+        # Required PhysicalSizeX/Y
+        Path(__file__).parent
+        / "ome_tiff_schemas/ome_tiff_field_schema_default.xsd": [".*"],
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        cfg_path = Path(__file__).parent / "ome_tiff_fields.json"
-        self.cfg_list = json.loads(cfg_path.read_text())
-        cfg_schema_path = Path(__file__).parent / "ome_tiff_fields_schema.json"
-        self.cfg_schema = json.loads(cfg_schema_path.read_text())
-        try:
-            validate(self.cfg_list, self.cfg_schema)
-        except Exception:
-            raise RuntimeError(
-                f"Configuration error: {cfg_path}" f" does not satisfy schema {cfg_schema_path}"
-            )
+        self.get_schemas()
+
+    def get_schemas(self):
+        if self.schemas:
+            _log(f"Prior schemas: {list(self.schemas)}")
+            self.schemas = {}
+        for schema, regex in self.schema_regex_mapping.items():
+            # Iterate through regex for a given schema, if match found add schema to self.schemas and break, check next schema
+            for regex_str in regex:
+                if re.fullmatch(regex_str, self.assay_type):
+                    try:
+                        xml_schema = xmlschema.XMLSchema(schema)
+                    except xmlschema.XMLSchemaException or SyntaxError:
+                        raise RuntimeError(f"Schema {schema} is invalid.")
+                    self.schemas[schema] = xml_schema
+                    break
+        _log(f"Schemas: {list(self.schemas)}")
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
-        all_tests = {}
-        for test_set in self.cfg_list:
-            if re.fullmatch(test_set["re"], self.assay_type):
-                all_tests.update(test_set["fields"])
-
-        if not all_tests:
-            return []  # nothing to test for this assay
-
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
         pool = Pool(threads)
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
-            "**/*.ome.tif",
-            "**/*.ome.tiff",
-            "**/*.OME.TIFF",
-            "**/*.OME.TIF",
+            "**/*.[oO][mM][eE].[tT][iI][fF]",
+            "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
         ]:
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
+        if not filenames_to_test:
+            return []
 
-        rslt_list: List[Optional[str]] = list(
+        rslt_list = [
             rslt
-            for rslt in pool.imap_unordered(
-                partial(_check_ome_tiff_file, tests=all_tests), filenames_to_test
-            )
+            for rslt in pool.imap_unordered(partial(self.errors_by_schema), filenames_to_test)
             if rslt is not None
-        )
+        ]
         if rslt_list:
-            return rslt_list
+            return list(itertools.chain.from_iterable(rslt_list))
         elif filenames_to_test:
             return [None]
         else:
             return []
+
+    def errors_by_schema(self, file: Path) -> Optional[list[str]]:
+        compiled_errors = []
+        for schema_name, schema in self.schemas.items():
+            with tifffile.TiffFile(file) as tf:
+                try:
+                    xml_document = xmlschema.XmlDocument(tf.ome_metadata)
+                except Exception:
+                    return [f"{file} is not a valid OME.TIFF file: Failed to read OME XML"]
+            ome_element_tree = xml_document.get_etree_document()
+            errors = {e.reason for e in schema.iter_errors(ome_element_tree) if e.reason}
+            if errors:
+                msg = f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {'; '.join(sorted(errors))}"
+                _log(msg)
+                compiled_errors.append(msg)
+        if compiled_errors:
+            return compiled_errors
