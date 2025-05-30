@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import tifffile
 import xmlschema
-from ingest_validation_tools.plugin_validator import Validator
+from ingest_validation_tools.plugin_validator import Validator  # type: ignore
 
 
 def _log(message: str):
@@ -91,7 +91,7 @@ class OmeTiffFieldValidator(Validator):
         for schema_name, schema in self.schemas.items():
             with tifffile.TiffFile(file) as tf:
                 try:
-                    xml_document = xmlschema.XmlDocument(tf.ome_metadata)
+                    xml_document = xmlschema.XmlDocument(tf.ome_metadata)  # type: ignore | checks below should be sufficient if bad type returned
                 except Exception:
                     return [f"{file} is not a valid OME.TIFF file: Failed to read OME XML"]
             ome_element_tree = xml_document.get_etree_document()

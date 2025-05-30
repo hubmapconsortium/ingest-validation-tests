@@ -1,12 +1,7 @@
-black==24.1.1
-flake8==7.0.0
-git+https://github.com/hubmapconsortium/fastq-utils.git@v0.2.5#egg=hubmap-fastq-utils
-imagecodecs>=2023.3.16
-isort==5.13.2
-jsonschema==4.4.0
-pandas>=1.2.0
-pytest==8.0.0
-python-frontmatter>=1.0.0
-tifffile==2020.10.1
-xmlschema>=1.6
-semantic-version>=2.10
+#-r https://raw.githubusercontent.com/hubmapconsortium/ingest-validation-tools/116f82568ac8f610bfd12f156e0bfc8ddd0a3105/requirements.in
+#-r https://raw.githubusercontent.com/hubmapconsortium/ingest-validation-tools/116f82568ac8f610bfd12f156e0bfc8ddd0a3105/requirements-dev.in
+black==25.1.0
+flake8==7.1.0
+isort==6.0.1
+semantic-version==2.10
+pytest==8.3.5
