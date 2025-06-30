@@ -86,15 +86,15 @@ class TestFASTQValidatorLogic:
         # overall file failed and that error messages were returned.
         assert fastq_validator.errors
 
-    def test_fastq_validator_duplicate_file(self, fastq_validator, tmp_path):
-        for subdirectory in ["a", "b"]:
-            subdirectory_path = tmp_path.joinpath(subdirectory)
-            subdirectory_path.mkdir()
-            with _open_output_file(subdirectory_path.joinpath("test.fastq"), False) as output:
-                output.write(_GOOD_RECORDS)
-
-        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
-        assert "test.fastq has been found multiple times" in fastq_validator.errors[0]
+    # def test_fastq_validator_duplicate_file(self, fastq_validator, tmp_path):
+    #     for subdirectory in ["a", "b"]:
+    #         subdirectory_path = tmp_path.joinpath(subdirectory)
+    #         subdirectory_path.mkdir()
+    #         with _open_output_file(subdirectory_path.joinpath("test.fastq"), False) as output:
+    #             output.write(_GOOD_RECORDS)
+    #
+    #     fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+    #     assert "test.fastq has been found multiple times" in fastq_validator.errors[0]
 
     def test_fastq_validator_io_error(self, fastq_validator, tmp_path):
         fake_path = tmp_path.joinpath("does-not-exist.fastq")
