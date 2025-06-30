@@ -29,15 +29,15 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     Looking for fastq filenames with a particular format to compare record counts.
 
     Expected pattern:
-        - <arbitrary_text>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>.<fastq,fastq.gz,fq>
-        - e.g. arbitrary_string_L001_R1_001.fastq
+        - <filepath><arbitrary_text>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>.<fastq,fastq.gz,fq>
+        - e.g. path/arbitrary_string_L001_R1_001.fastq
     Minimum required elements: lane (must occur before read), read
     May also include: arbitrary text, set_num
 
     Regex documentation:
         BEFORE_READ (?P<before_read>.*_L\\d+_.*(...))
             - named capture group `before_read` must include pattern L<one or more digits>_
-              before the READ subpattern defined below, can contain
+              before the READ subpattern defined below, can contain filepath and
               arbitrary other characters
         READ (?=(?P<entire_read>(?P<read>R|I)\\d(?=_|\\.)))
             - subpattern of BEFORE_READ that ensures the presence
@@ -285,7 +285,7 @@ class FASTQValidatorLogic:
                 for path, files in self.files_by_path.items():
                     # Only want to make groups, check line counts, and check for duplicates
                     # within a given data_path.
-                    self._find_duplicates(files)
+                    # self._find_duplicates(files)
                     groups = self._make_groups(files)
                     self._find_counts(groups, lock)
                 if self._ungrouped_files:
@@ -296,7 +296,7 @@ class FASTQValidatorLogic:
     def _make_groups(self, files: List[Path]) -> dict[filename_pattern, list[Path]]:
         groups = defaultdict(list)
         for file in files:
-            potential_match = get_prefix_read_type_and_set(file.name)
+            potential_match = get_prefix_read_type_and_set(str(file))
             if potential_match:
                 groups[potential_match].append(file)
             else:
