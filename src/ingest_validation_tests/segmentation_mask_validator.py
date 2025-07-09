@@ -20,7 +20,7 @@ class SegmentationMaskValidator(Validator):
     version = "1.0"
     required = ["segmentation mask"]
 
-    def collect_errors(self, **kwargs) -> list[Optional[Union[str, None]]]:
+    def collect_errors(self, **kwargs) -> list[Optional[Union[str, dict, None]]]:
         """
         Return the errors found by this validator.
 
@@ -60,7 +60,7 @@ class SegmentationMaskValidator(Validator):
                     xlsx_files.append(file)
         return xlsx_files
 
-    def validate_file(self, file_path: Path) -> Optional[str]:
+    def validate_file(self, file_path: Path) -> Optional[Union[str, dict]]:
         with open(file_path, "rb") as f:
             file = {"input_file": f}
             headers = {"content_type": "multipart/form-data"}
@@ -82,3 +82,5 @@ class SegmentationMaskValidator(Validator):
                     f"Cause: {cause} "
                     f"Suggestion: {fixSuggestion}"
                 )
+            if errors := response.json().get("reporting"):
+                return errors
