@@ -71,7 +71,6 @@ class SegmentationMaskValidator(Validator):
             file = {"input_file": f}
             headers = {"content_type": "multipart/form-data"}
             response = requests.post(
-                # TODO: stage?
                 "https://api.stage.metadatavalidator.metadatacenter.org/service/validate-structured-xlsx",
                 headers=headers,
                 files=file,
@@ -80,6 +79,7 @@ class SegmentationMaskValidator(Validator):
             try:
                 response.raise_for_status()
             except HTTPError:
+                # File missing header, etc.
                 message = response.json().get("message", "")
                 cause = response.json().get("cause", "")
                 fixSuggestion = response.json().get("fixSuggestion", "")
@@ -88,6 +88,7 @@ class SegmentationMaskValidator(Validator):
                     f"Cause: {cause} "
                     f"Suggestion: {fixSuggestion}"
                 )
+            # Actual validation errors
             if errors := response.json().get("reporting"):
                 error_strs = []
                 for error in errors:
