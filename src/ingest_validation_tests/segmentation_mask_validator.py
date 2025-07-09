@@ -43,8 +43,14 @@ class SegmentationMaskValidator(Validator):
         if not self.xlsx_files_list:
             return ["No object by feature .XLSX files found."]
         rslt_list = [self.validate_file(file_path) for file_path in self.xlsx_files_list]
-        if rslt_list:
-            return rslt_list
+        flat_list = []
+        for subitem in rslt_list:
+            if type(subitem) is list:
+                flat_list.extend(subitem)
+            else:
+                flat_list.append(subitem)
+        if flat_list:
+            return flat_list
         else:
             return [None]
 
@@ -60,7 +66,7 @@ class SegmentationMaskValidator(Validator):
                     xlsx_files.append(file)
         return xlsx_files
 
-    def validate_file(self, file_path: Path) -> Optional[Union[str, dict]]:
+    def validate_file(self, file_path: Path) -> Optional[Union[str, list]]:
         with open(file_path, "rb") as f:
             file = {"input_file": f}
             headers = {"content_type": "multipart/form-data"}
@@ -83,4 +89,17 @@ class SegmentationMaskValidator(Validator):
                     f"Suggestion: {fixSuggestion}"
                 )
             if errors := response.json().get("reporting"):
-                return errors
+                error_strs = []
+                for error in errors:
+                    row = error.get("row")
+                    col = error.get("column")
+                    val = error.get("value")
+                    err_type = error.get("errorType")
+                    msg = error.get("errorMessage")
+                    repair = error.get("repairSuggestion")
+                    # 8 rows of header info in object x feature XLSX template
+                    err_str = f"Row {row + 10}, column '{col}', value '{val}': {msg} (error type: {err_type})."
+                    if repair and repair != "Not applicable":
+                        err_str += f" Repair suggestion: {repair}."
+                    error_strs.append(err_str)
+                return error_strs
