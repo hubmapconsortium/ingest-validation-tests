@@ -38,22 +38,4 @@ This repository contains plug-in tests for use during validation of submissions.
 
 ### Testing
 
-- If ingest-validation-tools is not already set up:
-
-  ```
-  # Starting from ingest-validation-tests...
-  cd ..
-  git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
-  cd ingest-validation-tests
-  pip install -r ../ingest-validation-tools/requirements.txt
-  pip install -r ../ingest-validation-tools/requirements-dev.txt
-  ```
-
-- If ingest-validation-tools is already set up, add the appropriate ingest-validation-tools path and run:
-
-  ```
-  pip install -r <path-to-ingest-validation-tools>/requirements.txt
-  pip install -r <path-to-ingest-validation-tools>/requirements-dev.txt
-  ```
-
 - Run `./test.sh`

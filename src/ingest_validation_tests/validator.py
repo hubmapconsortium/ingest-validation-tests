@@ -92,6 +92,7 @@ def validation_class_iter() -> list[Validator]:
         for _, obj in inspect.getmembers(mod):
             if inspect.isclass(obj) and obj != Validator and issubclass(obj, Validator):
                 sort_me.append((obj.cost, obj.description, obj))
+    sort_me.sort()
     sorted_classes = []
     for _, _, val_class in sort_me:
         sorted_classes.append(val_class)
