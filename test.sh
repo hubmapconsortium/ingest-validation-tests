@@ -8,4 +8,4 @@
 #
 set -o errexit
 
-python tests/pytest_runner.py ${path_to_tools} "$@"
+python tests/pytest_runner.py "$@"
