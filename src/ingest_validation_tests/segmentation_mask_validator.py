@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Optional, Union
 
 import requests
-from ingest_validation_tools.plugin_validator import Validator
 from requests.exceptions import HTTPError
+from validator import Validator
 
 
 class SegmentationMaskValidator(Validator):

@@ -3,7 +3,7 @@ from os import cpu_count
 from typing import List, Optional
 
 import tifffile
-from ingest_validation_tools.plugin_validator import Validator
+from validator import Validator
 
 
 def _log(message: str):
