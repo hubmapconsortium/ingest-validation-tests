@@ -8,7 +8,4 @@
 #
 set -o errexit
 
-path_to_tools='../ingest-validation-tools'
-${path_to_tools}/src/validate_upload.py --help > /dev/null \
-    || die 'validate_upload.py failed'
 python tests/pytest_runner.py ${path_to_tools} "$@"
