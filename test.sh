@@ -6,6 +6,8 @@
 #   ./test.sh -n -t tests/test_fastq_validator_logic.py::TestFASTQValidatorLogic::test_fastq_groups_good -d
 # Run all tests, skip linting/formatting, no interactive debugger:
 #   ./test.sh -n
+# Run all tests, pass arbitrary argument directly to pytest:
+#   ./test.sh -- hello_pytest
 
 usage() { echo "Usage: $0 [-n] [-t <test_string>]
     -n : skip linting/formatting
@@ -44,24 +46,25 @@ shift $((OPTIND - 1))
 PARAMS=("$PARAMS$@")
 
 # Run linting/formatting if not skipped with -n
-# black/isort will auto-format
+# Respects configs in pyproject.toml / .flake8
+# Note: black/isort will auto-format
 if [ -z "$SKIP" ]; then
     echo "Running linting/formatting checks..."
     echo "--------"
-    echo "flake8"
-    flake8 --ignore=E501,W503,E203 .
-    if [ $? -ne 0 ]; then
-        ERROR=1
-    fi
-    echo "--------"
     echo "black"
-    black --line-length 99 src
+    black src
     if [ $? -ne 0 ]; then
         ERROR=1
     fi
     echo "--------"
     echo "isort"
-    isort --profile black src
+    isort src
+    if [ $? -ne 0 ]; then
+        ERROR=1
+    fi
+    echo "--------"
+    echo "flake8"
+    flake8 src
     if [ $? -ne 0 ]; then
         ERROR=1
     fi
@@ -74,5 +77,6 @@ if [[ $ERROR == 1 ]]; then
 fi
 
 # Run test suite with appropriate args
+echo "--------"
 echo "running python/tests_pytest_runner.py $TEST $DEBUG ${PARAMS[@]}"
 python tests/pytest_runner.py "$TEST" "$DEBUG" "${PARAMS[@]}" || exit 1
