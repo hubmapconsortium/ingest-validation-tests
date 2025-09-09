@@ -86,6 +86,16 @@ class TestFASTQValidatorLogic:
         # overall file failed and that error messages were returned.
         assert fastq_validator.errors
 
+    def test_fastq_validator_empty_file(self, fastq_validator, tmp_path):
+        test_file = tmp_path.joinpath("test.fastq")
+        with _open_output_file(test_file, False) as output:
+            output.write("")
+
+        fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
+
+        assert len(fastq_validator.errors) == 1
+        assert "empty" in fastq_validator.errors[0]
+
     def test_fastq_validator_io_error(self, fastq_validator, tmp_path):
         fake_path = tmp_path.joinpath("does-not-exist.fastq")
 
@@ -106,6 +116,7 @@ class TestFASTQValidatorLogic:
     def test_fastq_validator_line_1_empty(self, fastq_validator):
         result = fastq_validator.validate_fastq_record("", 0)
 
+        assert len(result) == 1
         assert "does not begin with '@'" in result[0]
 
     def test_fastq_validator_line_2_good(self, fastq_validator):
