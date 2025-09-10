@@ -41,8 +41,8 @@ class GZValidator(Validator):
         for path in self.paths:
             for glob_expr in ["**/*.gz"]:
                 file_list.extend(path.glob(glob_expr))
+        pool = Pool(threads)
         try:
-            pool = Pool(threads)
             engine = Engine()
             data_output = pool.imap_unordered(engine, file_list)
         except Exception as e:
