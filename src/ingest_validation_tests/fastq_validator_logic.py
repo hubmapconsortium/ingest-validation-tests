@@ -206,8 +206,9 @@ class FASTQValidatorLogic:
                 self._format_error(error)
                 for error in self.validate_fastq_record(line.rstrip(), line_count)
             )
+            line_count += 1
 
-        return line_count + 1
+        return line_count
 
     def validate_fastq_file(self, fastq_file: Path) -> None:
         _log(f"Validating {fastq_file.name}...")
