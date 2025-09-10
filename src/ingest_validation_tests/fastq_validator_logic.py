@@ -29,15 +29,15 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
     Looking for fastq filenames with a particular format to compare record counts.
 
     Expected pattern:
-        - <arbitrary_text>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>.<fastq,fastq.gz,fq>
-        - e.g. arbitrary_string_L001_R1_001.fastq
+        - <filepath><arbitrary_text>_<lane:L#+>_<read_type:I,R,read>#_<set_num:#+>.<fastq,fastq.gz,fq>
+        - e.g. path/arbitrary_string_L001_R1_001.fastq
     Minimum required elements: lane (must occur before read), read
     May also include: arbitrary text, set_num
 
     Regex documentation:
         BEFORE_READ (?P<before_read>.*_L\\d+_.*(...))
             - named capture group `before_read` must include pattern L<one or more digits>_
-              before the READ subpattern defined below, can contain
+              before the READ subpattern defined below, can contain filepath and
               arbitrary other characters
         READ (?=(?P<entire_read>(?P<read>R|I)\\d(?=_|\\.)))
             - subpattern of BEFORE_READ that ensures the presence
@@ -206,8 +206,9 @@ class FASTQValidatorLogic:
                 self._format_error(error)
                 for error in self.validate_fastq_record(line.rstrip(), line_count)
             )
+            line_count += 1
 
-        return line_count + 1
+        return line_count
 
     def validate_fastq_file(self, fastq_file: Path) -> None:
         _log(f"Validating {fastq_file.name}...")
@@ -247,7 +248,6 @@ class FASTQValidatorLogic:
         - [parallel] Opens, validates, and gets line count of each file in list, and then
         populates self._file_record_counts as {filepath: record_count}.
         - If successful, loops through each data_path in the `paths` parameter.
-            - Checks for duplicate filenames inside that data_path.
             - Groups files with matching prefix/read_type/set_num values.
             - Compares record_counts across grouped files, logs any that don't match or are ungrouped.
         """
@@ -283,9 +283,7 @@ class FASTQValidatorLogic:
                 pool.close()
                 pool.join()
                 for path, files in self.files_by_path.items():
-                    # Only want to make groups, check line counts, and check for duplicates
-                    # within a given data_path.
-                    self._find_duplicates(files)
+                    # Only want to make groups and check line counts within a given data_path.
                     groups = self._make_groups(files)
                     self._find_counts(groups, lock)
                 if self._ungrouped_files:
@@ -296,7 +294,7 @@ class FASTQValidatorLogic:
     def _make_groups(self, files: List[Path]) -> dict[filename_pattern, list[Path]]:
         groups = defaultdict(list)
         for file in files:
-            potential_match = get_prefix_read_type_and_set(file.name)
+            potential_match = get_prefix_read_type_and_set(str(file))
             if potential_match:
                 groups[potential_match].append(file)
             else:
@@ -304,22 +302,6 @@ class FASTQValidatorLogic:
         for group in groups.values():
             group.sort()
         return groups
-
-    def _find_duplicates(self, files: List[Path]):
-        """
-        Ensures that each filename only appears once in a given path.
-        """
-        paths_and_files = defaultdict(list)
-        for filepath in files:
-            paths_and_files[filepath.name].append(filepath.parents[0])
-        for filename, filepaths in paths_and_files.items():
-            if len(filepaths) > 1:
-                self.errors.append(
-                    _log(
-                        f"{filename} has been found multiple times during this validation. "
-                        f"Locations of duplicates: {str(filepaths)}."
-                    )
-                )
 
     def _find_counts(self, groups: dict[filename_pattern, list[Path]], lock):
         with lock:

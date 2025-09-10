@@ -86,15 +86,15 @@ class TestFASTQValidatorLogic:
         # overall file failed and that error messages were returned.
         assert fastq_validator.errors
 
-    def test_fastq_validator_duplicate_file(self, fastq_validator, tmp_path):
-        for subdirectory in ["a", "b"]:
-            subdirectory_path = tmp_path.joinpath(subdirectory)
-            subdirectory_path.mkdir()
-            with _open_output_file(subdirectory_path.joinpath("test.fastq"), False) as output:
-                output.write(_GOOD_RECORDS)
+    def test_fastq_validator_empty_file(self, fastq_validator, tmp_path):
+        test_file = tmp_path.joinpath("test.fastq")
+        with _open_output_file(test_file, False) as output:
+            output.write("")
 
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
-        assert "test.fastq has been found multiple times" in fastq_validator.errors[0]
+
+        assert len(fastq_validator.errors) == 1
+        assert "empty" in fastq_validator.errors[0]
 
     def test_fastq_validator_io_error(self, fastq_validator, tmp_path):
         fake_path = tmp_path.joinpath("does-not-exist.fastq")
@@ -116,6 +116,7 @@ class TestFASTQValidatorLogic:
     def test_fastq_validator_line_1_empty(self, fastq_validator):
         result = fastq_validator.validate_fastq_record("", 0)
 
+        assert len(result) == 1
         assert "does not begin with '@'" in result[0]
 
     def test_fastq_validator_line_2_good(self, fastq_validator):
@@ -242,12 +243,19 @@ NACTGACTGA
         assert fastq_validator.errors
 
     def test_fastq_groups_good(self, fastq_validator, tmp_path):
+        for subdir in [tmp_path / "subdir1", tmp_path / "subdir2"]:
+            subdir.mkdir()
         files = [
             PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_001.fastq")),
             PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_001.fastq")),
             PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R3_001.fastq")),
             PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_002.fastq")),
             PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_002.fastq")),
+            # Make sure filenames are not being compared across directories
+            PosixPath(tmp_path.joinpath("subdir1/20147_Healthy_PA_S1_L001_R1_001.fastq")),
+            PosixPath(tmp_path.joinpath("subdir1/20147_Healthy_PA_S1_L001_R2_001.fastq")),
+            PosixPath(tmp_path.joinpath("subdir2/20147_Healthy_PA_S1_L001_R1_001.fastq")),
+            PosixPath(tmp_path.joinpath("subdir2/20147_Healthy_PA_S1_L001_R2_001.fastq")),
         ]
         for file in files:
             with _open_output_file(file, False) as output:
@@ -256,17 +264,37 @@ NACTGACTGA
         fastq_validator.validate_fastq_files_in_path([tmp_path], 2)
         assert fastq_validator._make_groups(files) == {
             filename_pattern(
-                before_read="20147_Healthy_PA_S1_L001_", read="R", after_read="_001.fastq"
+                before_read=str(tmp_path.joinpath("20147_Healthy_PA_S1_L001_")),
+                read="R",
+                after_read="_001.fastq",
             ): [
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_001.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_001.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R3_001.fastq")),
             ],
             filename_pattern(
-                before_read="20147_Healthy_PA_S1_L001_", read="R", after_read="_002.fastq"
+                before_read=str(tmp_path.joinpath("20147_Healthy_PA_S1_L001_")),
+                read="R",
+                after_read="_002.fastq",
             ): [
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R1_002.fastq")),
                 PosixPath(tmp_path.joinpath("20147_Healthy_PA_S1_L001_R2_002.fastq")),
+            ],
+            filename_pattern(
+                before_read=str(tmp_path.joinpath("subdir1/20147_Healthy_PA_S1_L001_")),
+                read="R",
+                after_read="_001.fastq",
+            ): [
+                PosixPath(tmp_path.joinpath("subdir1/20147_Healthy_PA_S1_L001_R1_001.fastq")),
+                PosixPath(tmp_path.joinpath("subdir1/20147_Healthy_PA_S1_L001_R2_001.fastq")),
+            ],
+            filename_pattern(
+                before_read=str(tmp_path.joinpath("subdir2/20147_Healthy_PA_S1_L001_")),
+                read="R",
+                after_read="_001.fastq",
+            ): [
+                PosixPath(tmp_path.joinpath("subdir2/20147_Healthy_PA_S1_L001_R1_001.fastq")),
+                PosixPath(tmp_path.joinpath("subdir2/20147_Healthy_PA_S1_L001_R2_001.fastq")),
             ],
         }
         assert not fastq_validator.errors
