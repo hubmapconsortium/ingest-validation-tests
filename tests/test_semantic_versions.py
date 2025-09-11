@@ -1,16 +1,15 @@
 import re
-from pathlib import Path
 
 import semantic_version
-from ingest_validation_tools.plugin_validator import validation_class_iter
 
 FALLBACK_REGEX = r"^\d+\.\d+$"
 
 
 def test_plugin_semantic_versions():
-    plugin_dir = Path(__file__).parent.parent / "src" / "ingest_validation_tests"
+    from validator import validation_class_iter
+
     fb_regex = re.compile(FALLBACK_REGEX)
-    for cls in validation_class_iter(plugin_dir):
+    for cls in validation_class_iter():
         try:
             _ = semantic_version.Version(cls.version)
         except ValueError:

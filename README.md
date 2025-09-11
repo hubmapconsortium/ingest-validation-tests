@@ -25,10 +25,11 @@ This repository contains plug-in tests for use during validation of submissions.
 - Creating and activating a virtual environment is recommended. These instructions assume you are using a virtual environment. Example using venv:
 
   ```
-  python3.9 -m venv hm-ingest-validation-tests
+  python3.11 -m venv hm-ingest-validation-tests
   source hm-ingest-validation-tests/bin/activate
   ```
 
+- Run `pip install -r requirements.txt`
 - Run `pip install -r requirements-dev.txt`
 - (optional) Integrate black with your editor.
   - [Instructions for black.](https://black.readthedocs.io/en/stable/integrations/editors.html)
@@ -37,22 +38,4 @@ This repository contains plug-in tests for use during validation of submissions.
 
 ### Testing
 
-- If ingest-validation-tools is not already set up:
-
-  ```
-  # Starting from ingest-validation-tests...
-  cd ..
-  git clone https://github.com/hubmapconsortium/ingest-validation-tools.git
-  cd ingest-validation-tests
-  pip install -r ../ingest-validation-tools/requirements.txt
-  pip install -r ../ingest-validation-tools/requirements-dev.txt
-  ```
-
-- If ingest-validation-tools is already set up, add the appropriate ingest-validation-tools path and run:
-
-  ```
-  pip install -r <path-to-ingest-validation-tools>/requirements.txt
-  pip install -r <path-to-ingest-validation-tools>/requirements-dev.txt
-  ```
-
-- Run `test.sh`
+- Run `./test.sh`

@@ -5,7 +5,7 @@ Test for some common errors in the directory and file structure of CODEX dataset
 from typing import List, Optional
 
 import pandas as pd
-from ingest_validation_tools.plugin_validator import Validator
+from validator import Validator
 
 
 class QuitNowException(Exception):
