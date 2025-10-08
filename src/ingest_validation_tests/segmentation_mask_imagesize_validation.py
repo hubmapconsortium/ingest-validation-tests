@@ -3,8 +3,8 @@ from typing import List, Optional, Union
 
 import tifffile
 import xmlschema
-from ingest_validation_tools.plugin_validator import Validator  # type: ignore
 from tests_utils import GetParentData
+from validator import Validator
 
 
 def get_ometiff_size(file) -> Union[str, dict]:

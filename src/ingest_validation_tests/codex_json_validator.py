@@ -2,8 +2,9 @@ import json
 from pathlib import Path
 from typing import List, Optional
 
-from ingest_validation_tools.plugin_validator import Validator
 from jsonschema import validate
+from jsonschema.exceptions import SchemaError, ValidationError
+from validator import Validator
 
 
 class CodexJsonValidator(Validator):
@@ -29,8 +30,9 @@ class CodexJsonValidator(Validator):
                     instance = json.loads(file.read_text())
                     try:
                         validate(instance=instance, schema=schema)
-                    except Exception as e:
-                        rslt.append(f"{file}: {e}")
+                    except (ValidationError, SchemaError) as e:
+                        self._log(e)
+                        rslt.append(f"{file}: {e.__class__.__name__}: {e.message}")
         print(f"DONE <{rslt}> {files_tested}")
         if rslt:
             return rslt
