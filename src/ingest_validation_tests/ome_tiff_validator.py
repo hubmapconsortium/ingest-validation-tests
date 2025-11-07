@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import tifffile
 import xmlschema
-from validator import Validator
+from validator import Validator, parse_xmlschema_validationerror
 
 
 def _log(message: str):
@@ -17,6 +17,8 @@ def _check_ome_tiff_file(file: str) -> Optional[str]:
             xml_document = xmlschema.XmlDocument(tf.ome_metadata)
         if xml_document.schema and not xml_document.schema.is_valid(xml_document):
             return f"{file} is not a valid OME.TIFF file"
+    except xmlschema.XMLSchemaDecodeError as excp:
+        return f"{file} is not a valid OME.TIFF file: {parse_xmlschema_validationerror(excp)}"
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
 

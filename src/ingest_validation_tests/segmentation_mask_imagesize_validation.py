@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import tifffile
 import xmlschema
 from tests_utils import GetParentData
-from validator import Validator
+from validator import Validator, parse_xmlschema_validationerror
 
 
 def get_ometiff_size(file) -> Union[str, dict]:
@@ -18,6 +18,8 @@ def get_ometiff_size(file) -> Union[str, dict]:
         xml_image_data = (
             xml_document.schema.to_dict(xml_document).get("Image")[0].get("Pixels")  # type: ignore | xmlschema.DecodeType causing issues
         )
+    except xmlschema.XMLSchemaDecodeError as excp:
+        return f"{file} is not a valid OME.TIFF file: {parse_xmlschema_validationerror(excp)}"
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
     try:

@@ -1,8 +1,11 @@
 import inspect
+import logging
 import sys
 from importlib import util
 from pathlib import Path
 from typing import Union
+
+from xmlschema import XMLSchemaValidationError
 
 
 class Validator(object):
@@ -67,6 +70,19 @@ class Validator(object):
 
 
 PathOrStr = Union[str, Path]
+
+
+def parse_xmlschema_validationerror(excp: XMLSchemaValidationError) -> str:
+    logging.info(
+        f"""
+        XMLSchemaException:
+        {excp.__class__.__name__}
+        Reason: {excp.reason}"
+
+        {excp.__str__()}
+        """
+    )
+    return f"{excp.__class__.__name__}: {excp.reason}"
 
 
 def validation_class_iter() -> list[Validator]:
