@@ -3,3 +3,4 @@ flake8==7.1.0
 isort==6.0.1
 semantic-version==2.10
 pytest==8.3.5
+typing-extensions==4.15.0
