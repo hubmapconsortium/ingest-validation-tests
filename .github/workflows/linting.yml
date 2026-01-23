@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
@@ -21,12 +21,15 @@ jobs:
         uses: py-actions/py-dependency-install@v3
         with:
           path: "requirements-dev.txt"
+      # Should respect .flake8 config
       - name: Flake8 Lint
         run: |
-          flake8 --ignore=E501,W503,E203 .
+          flake8 src
+      # Should respect pyproject.toml config
       - name: Black Lint
         run: |
-          black --line-length 99 --check --verbose .
+          black --check --verbose src
+      # Should respect pyproject.toml config
       - name: isort Lint
         run: |
-          isort --profile black --check-only --diff .
+          isort --check-only --diff src

@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import tifffile
 import xmlschema
-from ingest_validation_tools.plugin_validator import Validator
+from validator import Validator
 
 
 def _log(message: str):
@@ -44,6 +44,7 @@ class OmeTiffValidator(Validator):
             for rslt in pool.imap_unordered(_check_ome_tiff_file, filenames_to_test)
             if rslt is not None
         )
+        pool.close()
         if rslt_list:
             return rslt_list
         elif filenames_to_test:

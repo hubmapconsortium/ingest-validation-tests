@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import frontmatter
-from ingest_validation_tools.plugin_validator import Validator
+from validator import Validator
 
 
 class PublicationValidator(Validator):

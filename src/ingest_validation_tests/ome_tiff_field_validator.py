@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import tifffile
 import xmlschema
-from ingest_validation_tools.plugin_validator import Validator  # type: ignore
+from validator import Validator
 
 
 def _log(message: str):
@@ -61,7 +61,6 @@ class OmeTiffFieldValidator(Validator):
 
     def collect_errors(self, **kwargs) -> List[Optional[str]]:
         threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        pool = Pool(threads)
         _log(f"Threading at OmeTiffFieldValidator with {threads}")
         filenames_to_test = []
         for glob_expr in [
@@ -74,11 +73,13 @@ class OmeTiffFieldValidator(Validator):
         if not filenames_to_test:
             return []
 
+        pool = Pool(threads)
         rslt_list = [
             rslt
             for rslt in pool.imap_unordered(partial(self.errors_by_schema), filenames_to_test)
             if rslt is not None
         ]
+        pool.close()
         if rslt_list:
             return list(itertools.chain.from_iterable(rslt_list))
         elif filenames_to_test:
