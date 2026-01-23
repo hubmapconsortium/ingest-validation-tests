@@ -1,5 +1,6 @@
 import logging
 from functools import cached_property
+from json.decoder import JSONDecodeError
 from pathlib import Path
 from typing import Optional, Union
 
@@ -69,15 +70,21 @@ class SegmentationMaskValidator(Validator):
     def validate_file(self, file_path: Path) -> Optional[Union[str, list[str]]]:
         with open(file_path, "rb") as f:
             file = {"input_file": f}
-            headers = {"content_type": "multipart/form-data"}
+            headers = {"content-type": "multipart/form-data"}
             response = requests.post(
                 "https://api.stage.metadatavalidator.metadatacenter.org/service/validate-structured-xlsx",
                 headers=headers,
                 files=file,
             )
-            logging.info(f"Response: {response.json()}")
             try:
+                logging.info(f"Response: {response.json()}")
                 response.raise_for_status()
+            except JSONDecodeError:
+                logging.info(f"Response: {response.text}")
+                return f"""
+                    Error while checking file {file_path.stem}.
+                    {response.text}
+                """
             except HTTPError:
                 # File missing header, etc.
                 message = response.json().get("message", "")
