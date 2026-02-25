@@ -2,17 +2,10 @@ import itertools
 import re
 from functools import partial
 from multiprocessing import Pool
-from os import cpu_count
 from pathlib import Path
-from typing import List, Optional
 
-import tifffile
 import xmlschema
-from validator import Validator
-
-
-def _log(message: str):
-    print(message)
+from validator import Validator, check_ome_tiff_file, ome_tiff_globs
 
 
 class OmeTiffFieldValidator(Validator):
@@ -41,11 +34,10 @@ class OmeTiffFieldValidator(Validator):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.get_schemas()
 
     def get_schemas(self):
         if self.schemas:
-            _log(f"Prior schemas: {list(self.schemas)}")
+            self._log(f"Prior schemas: {list(self.schemas)}")
             self.schemas = {}
         for schema, regex in self.schema_regex_mapping.items():
             # Iterate through regex for a given schema, if match found add schema to self.schemas and break, check next schema
@@ -54,56 +46,49 @@ class OmeTiffFieldValidator(Validator):
                     try:
                         xml_schema = xmlschema.XMLSchema(schema)
                     except xmlschema.XMLSchemaException or SyntaxError:
-                        raise RuntimeError(f"Schema {schema} is invalid.")
+                        raise Exception(f"Schema {schema} is invalid.")
                     self.schemas[schema] = xml_schema
                     break
-        _log(f"Schemas: {list(self.schemas)}")
+        self._log(f"Schemas: {list(self.schemas)}")
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
-        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        _log(f"Threading at OmeTiffFieldValidator with {threads}")
+    def get_filenames(self) -> list:
         filenames_to_test = []
-        for glob_expr in [
-            "**/*.[oO][mM][eE].[tT][iI][fF]",
-            "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
-        ]:
+        for glob_expr in ome_tiff_globs:
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
-        if not filenames_to_test:
-            return []
+        return filenames_to_test if filenames_to_test else []
 
-        pool = Pool(threads)
+    def _collect_errors(self) -> list[str | None]:
+        try:
+            self.get_schemas()
+        except Exception as e:
+            return [str(e)]
+
+        filenames_to_test = self.get_filenames()
+        pool = Pool(self.threads)
         rslt_list = [
             rslt
             for rslt in pool.imap_unordered(partial(self.errors_by_schema), filenames_to_test)
             if rslt is not None
         ]
         pool.close()
-        if rslt_list:
-            return list(itertools.chain.from_iterable(rslt_list))
-        elif filenames_to_test:
-            return [None]
-        else:
-            return []
+        return self._return_result(
+            list(itertools.chain.from_iterable(rslt_list)) if rslt_list else None,
+            filenames_to_test,
+        )
 
-    def errors_by_schema(self, file: Path) -> Optional[list[str]]:
+    def errors_by_schema(self, file: Path) -> list[str] | None:
         try:
-            with tifffile.TiffFile(file) as tf:
-                try:
-                    xml_document = xmlschema.XmlDocument(
-                        tf.ome_metadata)  # type: ignore | checks below should be sufficient if bad type returned
-                except Exception:
-                    return [f"{file} is not a valid OME.TIFF file: Failed to read OME XML"]
+            xml_document = check_ome_tiff_file(file)
         except Exception as e:
-            return [f"{file} is not a valid OME.TIFF file: {e}"]
-
+            return [str(e)]
         compiled_errors = []
         for schema_name, schema in self.schemas.items():
             ome_element_tree = xml_document.get_etree_document()
             errors = {e.reason for e in schema.iter_errors(ome_element_tree) if e.reason}
             if errors:
                 msg = f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {'; '.join(sorted(errors))}"
-                _log(msg)
+                self._log(msg)
                 compiled_errors.append(msg)
         return compiled_errors if compiled_errors else None

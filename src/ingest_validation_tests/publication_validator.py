@@ -5,7 +5,6 @@ Test for some common errors in the directory and file structure of publications.
 import json
 import re
 from pathlib import Path
-from typing import List, Optional
 
 import frontmatter
 from validator import Validator
@@ -22,15 +21,13 @@ class PublicationValidator(Validator):
     version = "1.0"
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
-    required = "publication"
+    required = ["publication"]
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
+    def _collect_errors(self, **kwargs) -> list[str | None]:
         """
         Return the errors found by this validator
         """
         del kwargs
-        if self.required not in self.contains and self.assay_type.lower() != self.required:
-            return []  # We only test Publication data
         rslt = []
         for path in self.paths:
             vignette_path = path / "vignettes"
@@ -74,12 +71,7 @@ class PublicationValidator(Validator):
                 except AssertionError as excp:
                     rslt.append(str(excp))
 
-        if rslt:
-            return rslt
-        elif self.paths:
-            return [None]
-        else:
-            return []
+        return self._return_result(rslt, self.paths)
 
     def url_search_iter(self, root):
         if isinstance(root, list):
