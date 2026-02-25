@@ -33,10 +33,12 @@ class PublicationValidator(Validator):
             return []  # We only test Publication data
         rslt = []
         for path in self.paths:
-            try:
-                vignette_path = path / "vignettes"
-                assert vignette_path.is_dir(), "vignettes not found or not a directory"
-                for this_vignette_path in vignette_path.glob("*"):
+            vignette_path = path / "vignettes"
+            if not vignette_path.is_dir():
+                rslt.append("vignettes not found or not a directory")
+                continue
+            for this_vignette_path in vignette_path.glob("*"):
+                try:
                     assert this_vignette_path.is_dir(), (
                         f"Found the non-dir {this_vignette_path}" " in vignettes"
                     )
@@ -69,9 +71,8 @@ class PublicationValidator(Validator):
                         "unexpected files in vignette:"
                         f" {list(str(elt) for elt in this_vignette_all_paths)}"
                     )
-
-            except AssertionError as excp:
-                rslt.append(str(excp))
+                except AssertionError as excp:
+                    rslt.append(str(excp))
 
         if rslt:
             return rslt

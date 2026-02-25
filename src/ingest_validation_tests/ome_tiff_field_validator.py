@@ -88,21 +88,22 @@ class OmeTiffFieldValidator(Validator):
             return []
 
     def errors_by_schema(self, file: Path) -> Optional[list[str]]:
+        try:
+            with tifffile.TiffFile(file) as tf:
+                try:
+                    xml_document = xmlschema.XmlDocument(
+                        tf.ome_metadata)  # type: ignore | checks below should be sufficient if bad type returned
+                except Exception:
+                    return [f"{file} is not a valid OME.TIFF file: Failed to read OME XML"]
+        except Exception as e:
+            return [f"{file} is not a valid OME.TIFF file: {e}"]
+
         compiled_errors = []
         for schema_name, schema in self.schemas.items():
-            try:
-                with tifffile.TiffFile(file) as tf:
-                    try:
-                        xml_document = xmlschema.XmlDocument(tf.ome_metadata)  # type: ignore | checks below should be sufficient if bad type returned
-                    except Exception:
-                        return [f"{file} is not a valid OME.TIFF file: Failed to read OME XML"]
-            except Exception as e:
-                return [f"{file} is not a valid OME.TIFF file: {e}"]
             ome_element_tree = xml_document.get_etree_document()
             errors = {e.reason for e in schema.iter_errors(ome_element_tree) if e.reason}
             if errors:
                 msg = f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {'; '.join(sorted(errors))}"
                 _log(msg)
                 compiled_errors.append(msg)
-        if compiled_errors:
-            return compiled_errors
+        return compiled_errors if compiled_errors else None

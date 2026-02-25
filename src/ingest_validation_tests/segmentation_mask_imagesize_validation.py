@@ -62,10 +62,10 @@ class ImageSizeValidator(Validator):
             return []  # We only test Segmentation Masks
         files_tested = None
         output = []
-        filenames_to_test = []
-        parent_filenames_to_test = []
-        try:
-            for row in self.schema.rows:
+        for row in self.schema.rows:
+            filenames_to_test = []
+            parent_filenames_to_test = []
+            try:
                 data_path = Path(row["data_path"])
                 if not data_path.is_absolute():
                     data_path = Path(self.paths[0]).parent / data_path
@@ -91,8 +91,8 @@ class ImageSizeValidator(Validator):
                     segmentation_mask_size == base_image_size
                 ), "Files and base image size do not match"
 
-        except AssertionError as exep:
-            output.append(str(exep))
+            except AssertionError as exep:
+                output.append(str(exep))
 
         if output:
             return output
