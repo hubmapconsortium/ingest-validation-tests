@@ -124,15 +124,22 @@ def test_threads_core_use_param():
     assert v.threads == 4
 
 
-def test_threads_calculation_over_1(monkeypatch):
+def test_threads_cpu_count_calc_gt_1(monkeypatch):
     with monkeypatch.context() as m:
         m.setattr("validator.cpu_count", lambda: 8)
         v = ValidatorTestClass(["tmp_path"], "required_type", **default_kwargs)
         assert v.threads == 2
 
 
-def test_threads_calculation_under_1(monkeypatch):
+def test_threads_cpu_count_calc_lt_1(monkeypatch):
     with monkeypatch.context() as m:
         m.setattr("validator.cpu_count", lambda: 3)
+        v = ValidatorTestClass(["tmp_path"], "required_type", **default_kwargs)
+        assert v.threads == 1
+
+
+def test_threads_default_to_1(monkeypatch):
+    with monkeypatch.context() as m:
+        m.setattr("validator.cpu_count", lambda: 0)
         v = ValidatorTestClass(["tmp_path"], "required_type", **default_kwargs)
         assert v.threads == 1

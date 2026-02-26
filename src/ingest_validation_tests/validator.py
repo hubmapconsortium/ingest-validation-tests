@@ -3,7 +3,6 @@ import sys
 from importlib import util
 from os import cpu_count
 from pathlib import Path
-from typing import Any
 
 import tifffile
 import xmlschema
@@ -95,14 +94,18 @@ class Validator:
     def _collect_errors(self) -> list[str | None]:
         raise NotImplementedError()
 
-    def _return_result(self, rslt_list: list | None, data_tested: Any) -> list[str | None]:
+    def _return_result(self, rslt_list: list | None, data_tested: list) -> list[str | None]:
         """
         Return the errors found by this validator.
 
-        Return types:
-            list[str]: errors reported, return list of human-readable error messages
-            list[None]: no errors reported, report plugin run
-            list[]: plugin not relevant to this dataset type, don't report plugin run
+        Arguments:
+            rslt_list: list of errors found by plugin
+            data_tested: list of (usually) files tested by plugin
+
+        Returns:
+            list[str]: Truthy rslt_list, return list of human-readable error messages
+            list[None]: Falsey rslt_list but truthy data_tested, report plugin run
+            list[]: neither rslt_list nor data_tested, report plugin not run
         """
         if rslt_list:
             self._log("Errors found.")

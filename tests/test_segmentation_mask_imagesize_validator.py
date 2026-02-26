@@ -26,7 +26,7 @@ class MySchemaVersion:
         (
             "test_data/segmask_HBM787.DVDV.435_crop512.zip",
             "test_data/pas_HBM847.ZQZH.768_crop512.zip",
-            [],
+            [None],
             "segmentation mask",
         ),
         (
@@ -34,6 +34,12 @@ class MySchemaVersion:
             "test_data/pas_HBM847.ZQZH.768_crop512.zip",
             ["Files and base image size do not match"],
             "segmentation mask",
+        ),
+        (
+            "test_data/segmask_HBM787.DVDV.435_crop400.zip",
+            "test_data/pas_HBM847.ZQZH.768_crop512.zip",
+            [],
+            "bad_type",
         ),
     ),
 )
