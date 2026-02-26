@@ -94,7 +94,7 @@ class Validator:
     def _collect_errors(self) -> list[str | None]:
         raise NotImplementedError()
 
-    def _return_result(self, rslt_list: list | None, data_tested: list) -> list[str | None]:
+    def _return_result(self, rslt_list: list | None, data_tested: list | bool) -> list[str | None]:
         """
         Return the errors found by this validator.
 
