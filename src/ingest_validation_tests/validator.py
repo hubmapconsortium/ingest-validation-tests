@@ -43,10 +43,11 @@ class Validator:
             schema: SchemaVersion object from ingest-validation-tools
             globus_token: Globus auth token
             app_context: contains project and env-specific urls, headers
+            coreuse: optionally pass in desired number of threads
 
         Usage:
             v = ValidatorSubclass(<base_paths>, <assay_type>, ...)
-            errors = v.collect_errors(<kwargs>)
+            errors = v.collect_errors()
 
         """
         if isinstance(base_paths, list):
@@ -100,7 +101,8 @@ class Validator:
 
         Arguments:
             rslt_list: list of errors found by plugin
-            data_tested: list of (usually) files tested by plugin
+            data_tested: list of (usually) files tested by plugin or bool
+                representing whether data was tested
 
         Returns:
             list[str]: Truthy rslt_list, return list of human-readable error messages

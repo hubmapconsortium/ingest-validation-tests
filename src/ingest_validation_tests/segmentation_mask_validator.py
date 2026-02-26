@@ -20,8 +20,7 @@ class SegmentationMaskValidator(Validator):
     version = "1.0"
     required = ["segmentation mask"]
 
-    def _collect_errors(self, **kwargs) -> list[str | None]:
-        del kwargs
+    def _collect_errors(self) -> list[str | None]:
         if not self.xlsx_files_list:
             return ["No object by feature .XLSX files found."]
         rslt_list = [self.validate_file(file_path) for file_path in self.xlsx_files_list]

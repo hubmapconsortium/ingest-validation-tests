@@ -50,11 +50,10 @@ class ImageSizeValidator(Validator):
         "**/*.OME.TIF",
     ]
 
-    def _collect_errors(self, **kwargs) -> list[str | None]:
-        del kwargs
+    def _collect_errors(self) -> list[str | None]:
         if not self.schema:
             return ["No schema found."]
-        files_tested = []
+        files_tested = False
         output = []
         for row in self.schema.rows:
             filenames_to_test = []
@@ -84,7 +83,7 @@ class ImageSizeValidator(Validator):
                 assert (
                     segmentation_mask_size == base_image_size
                 ), "Files and base image size do not match"
-                files_tested.append((filenames_to_test[0], parent_filenames_to_test[0]))
+                files_tested = True
 
             except AssertionError as e:
                 output.append(str(e))

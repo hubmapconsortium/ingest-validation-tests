@@ -20,8 +20,7 @@ class TiffValidator(Validator):
     cost = 1.0
     version = "1.0"
 
-    def _collect_errors(self, **kwargs) -> list[str | None]:
-        del kwargs
+    def _collect_errors(self) -> list[str | None]:
         pool = Pool(self.threads)
         filenames_to_test = []
         for glob_expr in [

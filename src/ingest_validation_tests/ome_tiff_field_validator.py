@@ -51,21 +51,20 @@ class OmeTiffFieldValidator(Validator):
                     break
         self._log(f"Schemas: {list(self.schemas)}")
 
-    def get_filenames(self) -> list:
-        filenames_to_test = []
-        for glob_expr in ome_tiff_globs:
-            for path in self.paths:
-                for file in path.glob(glob_expr):
-                    filenames_to_test.append(file)
-        return filenames_to_test if filenames_to_test else []
-
     def _collect_errors(self) -> list[str | None]:
         try:
             self.get_schemas()
         except Exception as e:
             return [str(e)]
 
-        filenames_to_test = self.get_filenames()
+        filenames_to_test = []
+        for glob_expr in ome_tiff_globs:
+            for path in self.paths:
+                for file in path.glob(glob_expr):
+                    filenames_to_test.append(file)
+        if not filenames_to_test:
+            return []
+
         pool = Pool(self.threads)
         rslt_list = [
             rslt

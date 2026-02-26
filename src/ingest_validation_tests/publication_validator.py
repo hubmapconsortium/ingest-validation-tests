@@ -23,11 +23,10 @@ class PublicationValidator(Validator):
     url_re = r"[Uu][Rr][Ll]"
     required = ["publication"]
 
-    def _collect_errors(self, **kwargs) -> list[str | None]:
+    def _collect_errors(self) -> list[str | None]:
         """
         Return the errors found by this validator
         """
-        del kwargs
         rslt = []
         for path in self.paths:
             vignette_path = path / "vignettes"
