@@ -133,7 +133,8 @@ def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
             elif not xml_document.schema:
                 raise Exception(f"Can't read OME XML from file {file}.")
     except Exception as excp:
-        raise Exception(f"{file} is not a valid OME.TIFF file: {excp}")
+        print(f"{file} is not a valid OME.TIFF file: {excp}")
+        raise Exception(f"{file} is not a valid OME.TIFF file: not a TIFF file.")
     return xml_document
 
 

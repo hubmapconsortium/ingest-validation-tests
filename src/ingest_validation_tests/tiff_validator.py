@@ -12,7 +12,7 @@ def _check_tiff_file(path: str) -> str | None:
         return None
     except Exception as excp:
         print(f"{path} is not a valid TIFF file: {excp}")
-        return f"{path} is not a valid TIFF file: {excp}"
+        return f"{path} is not a valid TIFF file: not a TIFF file."
 
 
 class TiffValidator(Validator):

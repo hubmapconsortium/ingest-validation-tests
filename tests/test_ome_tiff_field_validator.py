@@ -21,7 +21,7 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
             (
                 "test_data/codex_tree_ometiff_bad.zip",
                 [
-                    ".*/codex_tree_ometiff_bad/tubhiswt_C0_bad.ome.tif is not a valid OME.TIFF file: wrong type <class 'NoneType'> for 'source' attribute: an ElementTree object or an Element instance or a string containing XML data or an URL or a file-like object is required.",
+                    ".*/codex_tree_ometiff_bad/tubhiswt_C0_bad.ome.tif is not a valid OME.TIFF file: not a TIFF file.",
                     ".*/codex_tree_ometiff_bad/sample1.ome.tif is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
                     ".*/codex_tree_ometiff_bad/sample2.ome.tif is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
                 ],
