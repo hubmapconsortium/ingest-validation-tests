@@ -65,7 +65,7 @@ class Validator:
         self.app_context = app_context
         num_cpus = cpu_count()
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
-        self._log(f"Threading at {__class__.__name__} with {self.threads}")
+        self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
 
     def collect_errors(self, **kwargs) -> list[str | None]:
         """
@@ -81,7 +81,7 @@ class Validator:
 
     @property
     def plugin_valid(self) -> bool:
-        print(self.required)
+        self._log(f"Required assay_type: {self.required}")
         if not self.required:
             # Plugin runs for all dataset_types
             return True
@@ -115,7 +115,7 @@ class Validator:
         elif data_tested:
             self._log("No errors found.")
             return [None]
-        self._log("Plugin not relevant? Not run.")
+        self._log("Plugin not relevant. Not run.")
         return []
 
     def _log(self, message):
