@@ -1,6 +1,5 @@
 import zipfile
 from pathlib import Path
-from typing import Optional
 from unittest.mock import patch
 
 import pytest
@@ -68,7 +67,7 @@ def test_segmentation_mask_validator(
         assert errors == expected_errors
 
 
-def get_mock_response(success: Optional[bool], response_data: bytes):
+def get_mock_response(success: bool | None, response_data: bytes):
     mock_resp = requests.models.Response()
     mock_resp.status_code = 200 if success else 400
     mock_resp._content = response_data

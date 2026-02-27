@@ -67,8 +67,8 @@ def test_publication_validator(test_data_fname, msg_re_list, assay_type, tmp_pat
     test_data_path = Path(test_data_fname)
     zfile = zipfile.ZipFile(test_data_path)
     zfile.extractall(tmp_path)
-    validator = PublicationValidator(tmp_path / test_data_path.stem, assay_type)
-    errors = validator.collect_errors(coreuse=4)[:]
+    validator = PublicationValidator(tmp_path / test_data_path.stem, assay_type, coreuse=4)
+    errors = validator.collect_errors()[:]
     print(f"errors: {errors}")
     matched_err_str_list = []
     for err_str in errors:

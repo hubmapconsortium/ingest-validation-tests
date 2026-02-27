@@ -32,7 +32,8 @@ def main():
     with add_path(str(plugins_path)):
         args = []
         for arg in sys.argv[1:]:
-            args.append(arg)
+            if arg:
+                args.append(arg)
         args.append("-vv")
         sys.exit(pytest.main(args))
 

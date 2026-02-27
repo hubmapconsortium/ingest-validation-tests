@@ -1,8 +1,6 @@
 import gzip
 import re
 from multiprocessing import Pool
-from os import cpu_count
-from typing import List, Optional
 
 from validator import Validator
 
@@ -33,30 +31,21 @@ class GZValidator(Validator):
     cost = 5.0
     version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
+    def _collect_errors(self) -> list[str | None]:
         data_output2 = []
-        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        _log(f"Threading at GZValidator with {threads}")
         file_list = []
         for path in self.paths:
             for glob_expr in ["**/*.gz"]:
                 file_list.extend(path.glob(glob_expr))
-        pool = Pool(threads)
+        pool = Pool(self.threads)
         try:
             engine = Engine()
             data_output = pool.imap_unordered(engine, file_list)
         except Exception as e:
             _log(f"Error {e}")
-            pool.close()
-            pool.join()
             data_output2.extend(f"Error: {e}")
         else:
-            pool.close()
-            pool.join()
             [data_output2.append(output) for output in data_output if output]
-        if data_output2:
-            return data_output2
-        elif file_list:
-            return [None]
-        else:
-            return []
+        pool.close()
+        pool.join()
+        return self._return_result(data_output2, file_list)

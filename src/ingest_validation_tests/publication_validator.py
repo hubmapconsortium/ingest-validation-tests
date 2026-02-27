@@ -5,7 +5,6 @@ Test for some common errors in the directory and file structure of publications.
 import json
 import re
 from pathlib import Path
-from typing import List, Optional
 
 import frontmatter
 from validator import Validator
@@ -22,21 +21,20 @@ class PublicationValidator(Validator):
     version = "1.0"
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
-    required = "publication"
+    required = ["publication"]
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
+    def _collect_errors(self) -> list[str | None]:
         """
         Return the errors found by this validator
         """
-        del kwargs
-        if self.required not in self.contains and self.assay_type.lower() != self.required:
-            return []  # We only test Publication data
         rslt = []
         for path in self.paths:
-            try:
-                vignette_path = path / "vignettes"
-                assert vignette_path.is_dir(), "vignettes not found or not a directory"
-                for this_vignette_path in vignette_path.glob("*"):
+            vignette_path = path / "vignettes"
+            if not vignette_path.is_dir():
+                rslt.append("vignettes not found or not a directory")
+                continue
+            for this_vignette_path in vignette_path.glob("*"):
+                try:
                     assert this_vignette_path.is_dir(), (
                         f"Found the non-dir {this_vignette_path}" " in vignettes"
                     )
@@ -69,16 +67,10 @@ class PublicationValidator(Validator):
                         "unexpected files in vignette:"
                         f" {list(str(elt) for elt in this_vignette_all_paths)}"
                     )
+                except AssertionError as excp:
+                    rslt.append(str(excp))
 
-            except AssertionError as excp:
-                rslt.append(str(excp))
-
-        if rslt:
-            return rslt
-        elif self.paths:
-            return [None]
-        else:
-            return []
+        return self._return_result(rslt, self.paths)
 
     def url_search_iter(self, root):
         if isinstance(root, list):

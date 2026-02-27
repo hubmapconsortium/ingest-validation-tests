@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import List, Optional
 
 from jsonschema import validate
 from jsonschema.exceptions import SchemaError, ValidationError
@@ -11,13 +10,9 @@ class CodexJsonValidator(Validator):
     description = "Check CODEX JSON against schema"
     cost = 1.0
     version = "1.0"
-    required = "codex"
+    required = ["codex"]
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
-        del kwargs
-        if self.required not in self.contains and self.assay_type.lower() != self.required:
-            return []  # We only test CODEX data
-
+    def _collect_errors(self) -> list[str | None]:
         schema_path = Path(__file__).parent / "codex_schema.json"
         schema = json.loads(schema_path.read_text())
 
@@ -34,9 +29,4 @@ class CodexJsonValidator(Validator):
                         self._log(e)
                         rslt.append(f"{file}: {e.__class__.__name__}: {e.message}")
         print(f"DONE <{rslt}> {files_tested}")
-        if rslt:
-            return rslt
-        elif files_tested:
-            return [None]
-        else:
-            return []
+        return self._return_result(rslt, files_tested)
