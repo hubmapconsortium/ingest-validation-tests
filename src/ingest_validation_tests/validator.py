@@ -71,12 +71,13 @@ class Validator:
         """
         Ensure plugin is valid, and if so, collect errors
         according to the subclass's _collect_errors method.
-
-        Kwargs included for backward compatibility.
         """
-        del kwargs
         if not self.plugin_valid:
             return []
+        # kwargs and coreuse included here for backward compatibility.
+        if coreuse := kwargs.get("coreuse"):
+            self.threads = coreuse
+            self._log(f"Update: threading at {self.__class__.__name__} with {self.threads}")
         return self._collect_errors()
 
     @property
