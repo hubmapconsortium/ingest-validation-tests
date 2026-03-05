@@ -86,40 +86,50 @@ class TestQpTiffChannelValidator:
             "Could not find 'lab_processed/images/*.qptiff.channels.csv' files (required for phenocycler).",
         ]
 
-    def test_multiple_files_with_errors(self, tmp_path):
-        test_data = [
-            Path("test_data/qptiff_both_missing.zip"),
-            Path("test_data/qptiff_one_missing.zip"),
-        ]
-        for test_data_fname in test_data:
+    @pytest.mark.parametrize(
+        ("test_data_fnames", "msg_re_list"),
+        (
+            (
+                [
+                    Path("test_data/qptiff_both_missing.zip"),
+                    Path("test_data/qptiff_one_missing.zip"),
+                ],
+                [
+                    "qptiff_both_missing/lab_processed/images/qptiff_both_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
+                    "qptiff_both_missing/lab_processed/images/qptiff_both_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_nuclei_segmentation'",
+                    "qptiff_one_missing/lab_processed/images/qptiff_one_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
+                ],
+            ),
+            (
+                [
+                    Path("test_data/qptiff_bad_extra_column.zip"),
+                    Path("test_data/qptiff_both_missing.zip"),
+                ],
+                [
+                    "Unexpected column header found in column 3: 'bad'. Columns 1-4 must match required order. Can't validate qptiff_bad_extra_column/lab_processed/images/qptiff_bad_extra_column.qptiff.channels.csv.",
+                    "qptiff_both_missing/lab_processed/images/qptiff_both_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
+                    "qptiff_both_missing/lab_processed/images/qptiff_both_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_nuclei_segmentation'",
+                ],
+            ),
+            (
+                [
+                    Path("test_data/qptiff_good.zip"),
+                    Path("test_data/qptiff_one_missing.zip"),
+                ],
+                [
+                    "qptiff_one_missing/lab_processed/images/qptiff_one_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
+                ],
+            ),
+        ),
+    )
+    def test_multiple_files(self, test_data_fnames, msg_re_list, tmp_path):
+        for test_data_fname in test_data_fnames:
             test_data_path = Path(test_data_fname)
             zfile = zipfile.ZipFile(test_data_path)
             zfile.extractall(tmp_path)
         validator = QpTiffChannelValidator(
-            [tmp_path / test_data_path.stem for test_data_path in test_data], "phenocycler"
+            [tmp_path / test_data_path.stem for test_data_path in test_data_fnames], "phenocycler"
         )
         errors = validator.collect_errors()[:]
         errors.sort()
-        assert errors == [
-            "qptiff_both_missing/lab_processed/images/qptiff_both_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
-            "qptiff_both_missing/lab_processed/images/qptiff_both_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_nuclei_segmentation'",
-            "qptiff_one_missing/lab_processed/images/qptiff_one_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
-        ]
-
-    def test_multiple_files_mixed_result(self, tmp_path):
-        test_data = [
-            Path("test_data/qptiff_good.zip"),
-            Path("test_data/qptiff_one_missing.zip"),
-        ]
-        for test_data_fname in test_data:
-            test_data_path = Path(test_data_fname)
-            zfile = zipfile.ZipFile(test_data_path)
-            zfile.extractall(tmp_path)
-        validator = QpTiffChannelValidator(
-            [tmp_path / test_data_path.stem for test_data_path in test_data], "phenocycler"
-        )
-        errors = validator.collect_errors()[:]
-        errors.sort()
-        assert errors == [
-            "qptiff_one_missing/lab_processed/images/qptiff_one_missing.qptiff.channels.csv must have at least one 'Yes' value in column 'is_channel_used_for_cell_segmentation'",
-        ]
+        assert errors == msg_re_list
