@@ -1,7 +1,3 @@
-"""
-Test for some common errors in the directory and file structure of publications.
-"""
-
 import json
 import re
 from pathlib import Path
@@ -10,13 +6,15 @@ import frontmatter
 from validator import Validator
 
 
-class PublicationValidator(Validator):
+class PublicationVignettesValidator(Validator):
     """
     Test for some common errors in the directory and file structure of
     publications.
     """
 
-    description = "Test for common problems found in publications"
+    description = (
+        "Test for common problems found in the directory and file structure of publications"
+    )
     cost = 1.0
     version = "1.0"
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
@@ -24,9 +22,6 @@ class PublicationValidator(Validator):
     required = ["publication"]
 
     def _collect_errors(self) -> list[str | None]:
-        """
-        Return the errors found by this validator
-        """
         rslt = []
         for path in self.paths:
             vignette_path = path / "vignettes"
