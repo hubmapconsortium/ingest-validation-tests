@@ -80,6 +80,7 @@ class QpTiffChannelValidator(Validator):
                     column_order_errors.append(
                         f"Unexpected column header found in column {index+1}: '{df.columns[index]}'. Columns 1-4 must match required order. Can't validate {self.rel_filename_str(filename)}."
                     )
+                    # columns hopelessly out of order if non-required column found
                     break
                 else:
                     column_order_errors.append(f"{self.rel_filename_str(filename)}: {e}")
