@@ -9,7 +9,7 @@ class TestQpTiffChannelValidator:
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),
         (
-            # test case: both columns missing Yes value
+            # test case: both columns missing Yes/true value
             (
                 "test_data/qptiff_both_missing.zip",
                 [
@@ -18,7 +18,7 @@ class TestQpTiffChannelValidator:
                 ],
                 "phenocycler",
             ),
-            # test case: one column missing Yes value
+            # test case: one column missing Yes/true value
             (
                 "test_data/qptiff_one_missing.zip",
                 [
@@ -26,12 +26,30 @@ class TestQpTiffChannelValidator:
                 ],
                 "phenocycler",
             ),
-            # test case: both columns have Yes value
+            # test case: both columns have Yes/true values
             ("test_data/qptiff_good.zip", [None], "phenocycler"),
-            # test case: both columns have Yes value, column names have spaces
+            # test case: both columns have Yes/true values, column names have spaces
             (
                 "test_data/qptiff_good_with_alt_column_format.zip",
                 [None],
+                "phenocycler",
+            ),
+            # test case: columns out of order
+            (
+                "test_data/qptiff_bad_column_order.zip",
+                [
+                    "qptiff_bad_column_order/lab_processed/images/qptiff_bad_column_order.qptiff.channels.csv: 'is_antibody' must be column 4",
+                    "qptiff_bad_column_order/lab_processed/images/qptiff_bad_column_order.qptiff.channels.csv: 'is_channel_used_for_cell_segmentation' must be column 3",
+                    "qptiff_bad_column_order/lab_processed/images/qptiff_bad_column_order.qptiff.channels.csv: 'is_channel_used_for_nuclei_segmentation' must be column 2",
+                ],
+                "phenocycler",
+            ),
+            # test case: extra column interrupts required column order
+            (
+                "test_data/qptiff_bad_extra_column.zip",
+                [
+                    "Unexpected column header found in column 3: 'bad'. Columns 1-4 must match required order. Can't validate qptiff_bad_extra_column/lab_processed/images/qptiff_bad_extra_column.qptiff.channels.csv."
+                ],
                 "phenocycler",
             ),
             # test case: wrong assay type
