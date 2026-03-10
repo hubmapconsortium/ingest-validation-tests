@@ -13,8 +13,8 @@ class PublicationMetadataValidator(Validator):
     version = "1.0"
     required = ["publication"]
 
-    def __init__(self, base_paths, assay_type):
-        super().__init__(base_paths, assay_type)
+    def __init__(self, base_paths, assay_type, *args, **kwargs):
+        super().__init__(base_paths, assay_type, *args, **kwargs)
         self.description += f"Correct any errors by updating {self.ingest_ui_link}"
         self.errors = []
         self.source_ids = self.entity_data.get("source_ids")
@@ -24,6 +24,7 @@ class PublicationMetadataValidator(Validator):
 
     @property
     def ingest_ui_link(self) -> str:
+        # Defaults to HuBMAP
         project_url = self.app_context.get("ingest_url", "")
         if "sennet" in project_url:
             proj = "sennet"
@@ -36,7 +37,7 @@ class PublicationMetadataValidator(Validator):
         self._check_ancestors()
         self._check_urls()
         self._check_dois()
-        self._return_result(self.errors, self.assay_type == "publication")
+        return self._return_result(self.errors, self.assay_type == "publication")
 
     @cached_property
     def entity_data(self) -> dict:
@@ -49,13 +50,13 @@ class PublicationMetadataValidator(Validator):
             "title": self.entity_data.get("title"),
             "publication_venue": self.entity_data.get("publication_venue"),
             "publication_date": self.entity_data.get("publication_date"),
-            "publiication_status": self.entity_data.get("publiication_status"),
+            "publication_status": self.entity_data.get("publication_status"),
             "abstract": self.entity_data.get("abstract"),
         }
         try:
-            assert all(list(required_fields.values()))
+            assert all(required_fields.values())
         except AssertionError:
-            missing = ", ".join([key for key, val in required_fields.items() if val is None])
+            missing = ", ".join([key for key, val in required_fields.items() if not val])
             self.errors.append(f"Missing required fields: {missing}")
 
     def _check_ancestors(self):

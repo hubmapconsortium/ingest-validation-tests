@@ -75,8 +75,12 @@ class ImageSizeValidator(Validator):
                     ).glob(glob_expr):
                         parent_filenames_to_test.append(file)
 
-                assert len(filenames_to_test) == 1, "Too many or too few files Mask"
-                assert len(parent_filenames_to_test) == 1, "Too many or too few files Base Images"
+                assert (
+                    len(filenames_to_test) == 1
+                ), f"Too many or too few files Mask ({[self.rel_filename_str(path) for path in filenames_to_test]})"
+                assert (
+                    len(parent_filenames_to_test) == 1
+                ), f"Too many or too few files Base Images ({[self.rel_filename_str(path) for path in parent_filenames_to_test]})"
 
                 segmentation_mask_size = get_ometiff_size(filenames_to_test[0])
                 base_image_size = get_ometiff_size(parent_filenames_to_test[0])
