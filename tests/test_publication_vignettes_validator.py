@@ -24,7 +24,6 @@ from publication_vignettes_validator import (
                                 "Expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent.",
                                 "Expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent.",
                             ],
-                            "hint": [PublicationVignettesValidator.hint],
                         }
                     ]
                 }
@@ -69,7 +68,6 @@ from publication_vignettes_validator import (
                     "publication_tree_bad_4/vignettes/vignette_01": [
                         {
                             "description.md": ["'figure' dict missing required element 'name'."],
-                            "hint": [PublicationVignettesValidator.hint],
                         }
                     ]
                 }
@@ -83,7 +81,6 @@ from publication_vignettes_validator import (
                     "publication_tree_bad_5/vignettes/vignette_01": [
                         {
                             "description.md": ["'figure' dict missing required element 'file'."],
-                            "hint": [PublicationVignettesValidator.hint],
                         },
                         "Unexpected files in vignette: publication_tree_bad_5/vignettes/vignette_01/osmfish.json",
                     ]
@@ -111,7 +108,6 @@ from publication_vignettes_validator import (
                             "description.md": [
                                 "Expected data file data/codeluppi_2018_nature_methods.molecules.h5ad.zarr is absent."
                             ],
-                            "hint": [PublicationVignettesValidator.hint],
                         }
                     ]
                 }

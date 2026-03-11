@@ -13,15 +13,12 @@ class PublicationVignettesValidator(Validator):
     publications.
     """
 
-    description = (
-        "Test for common problems found in the directory and file structure of publications"
-    )
+    description = "Test for common problems found in the directory and file structure of publications. (Please check the guidance document for formatting requirements: https://docs.google.com/document/d/1JosCXhMMFNdU0GEBk6cUCeT6VewaruKKB0Etr-wWSMo/edit?usp=sharing)"
     cost = 1.0
     version = "1.0"
     base_url_re = r"(\s*\{\{\s*base_url\s*\}\})/(.*)"
     url_re = r"[Uu][Rr][Ll]"
     required = ["publication"]
-    hint = "Please check the guidance document for formatting requirements: https://docs.google.com/document/d/1JosCXhMMFNdU0GEBk6cUCeT6VewaruKKB0Etr-wWSMo/edit?usp=sharing"
 
     def _collect_errors(self) -> list[str | None]:
         rslt = []
@@ -79,12 +76,13 @@ class PublicationVignettesValidator(Validator):
     ) -> tuple[dict, set[Path]]:
         errors = defaultdict(list)
         vig_fm = frontmatter.loads(md_path.read_text())
-        if "name" not in vig_fm.metadata and "figures" not in vig_fm.metadata:
-            errors[self.rel_filename_str(md_path)].append(
-                f"Vignette markdown is incorrectly formatted or missing required elements. 'name': {vig_fm.get('name')}, 'figures': {vig_fm.get('figures')}"
-            )
-        vig_figures = []
         rel_md_path = str(md_path.relative_to(vignette_dir))
+        for key in ["name", "figures"]:
+            if key not in vig_fm.metadata:
+                errors[rel_md_path].append(
+                    f"Vignette markdown is incorrectly formatted. Missing required element '{key}'."
+                )
+        vig_figures = []
         for fig_dict in vig_fm.get("figures", []):
             for key in ["file", "name"]:
                 if key not in fig_dict:
@@ -96,8 +94,6 @@ class PublicationVignettesValidator(Validator):
             if file_errors := self.validate_vitessce_config(vignette_dir / fname, path):
                 errors[rel_md_path].extend(file_errors)
             all_paths_in_vignette.remove(vignette_dir / fname)
-        if errors:
-            errors["hint"] = [self.hint]
         return dict(errors) if errors else {}, all_paths_in_vignette
 
     def url_search_iter(self, root):

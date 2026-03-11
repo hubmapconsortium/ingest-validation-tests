@@ -55,7 +55,7 @@ class PublicationMetadataValidator(Validator):
         }
         url = urljoin(
             self.app_context["entities_url"],
-            f"entities/{self.uuid}?exclude=direct_ancestors.files",
+            f"{self.uuid}?exclude=direct_ancestors.files",
         )
         response = requests.get(url, headers=headers)
         response.raise_for_status()
@@ -90,10 +90,7 @@ class PublicationMetadataValidator(Validator):
 
     @property
     def uuid(self) -> str:
-        # borrowed from ingest-pipeline
-        print(f"extracting uuid from current working directory {os.getcwd()}")
-        for elt in reversed(os.getcwd().split(os.sep)):
-            # return s and len(s) == 32 and all([c in "0123456789abcdef" for c in list(s)])
+        for elt in reversed(str(self.paths[0]).split(os.sep)):
             if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
                 return elt
         raise RuntimeError("no uuid was found in the path to the current" " working directory")
