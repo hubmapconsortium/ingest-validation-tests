@@ -16,48 +16,105 @@ from publication_vignettes_validator import (
         (
             "test_data/publication_tree_bad_complex.zip",
             [
-                "expected data file data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent",  # noqa: E501
-                "expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent",  # noqa: E501
-                "expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent",  # noqa: E501
+                {
+                    "publication_tree_bad_complex/vignettes/vignette_12": [
+                        {
+                            "description.md": [
+                                "Expected data file data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent.",
+                                "Expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent.",
+                                "Expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent.",
+                            ],
+                            "hint": [PublicationVignettesValidator.hint],
+                        }
+                    ]
+                }
             ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_1.zip",
-            ["vignettes not found or not a directory"],
+            [
+                {
+                    "publication_tree_bad_1": "Directory not found.",
+                }
+            ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_2.zip",
-            ["Found a subdirectory in a vignette"],
+            [
+                {
+                    "publication_tree_bad_2/vignettes/vignette_01": [
+                        "Found subdirectories in vignette: publication_tree_bad_2/vignettes/vignette_01/thisisasubdirectory"
+                    ]
+                }
+            ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_3.zip",
-            ["A vignette has more than one markdown file"],
+            [
+                {
+                    "publication_tree_bad_3/vignettes/vignette_01": [
+                        "Vignette has more than one markdown file: description2.md, description.md"
+                    ]
+                }
+            ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_4.zip",
-            ["figure dict does not provide a name"],
+            [
+                {
+                    "publication_tree_bad_4/vignettes/vignette_01": [
+                        {
+                            "description.md": ["'figure' dict missing required element 'name'."],
+                            "hint": [PublicationVignettesValidator.hint],
+                        }
+                    ]
+                }
+            ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_5.zip",
-            ["figure dict does not reference a file"],
+            [
+                {
+                    "publication_tree_bad_5/vignettes/vignette_01": [
+                        {
+                            "description.md": ["'figure' dict missing required element 'file'."],
+                            "hint": [PublicationVignettesValidator.hint],
+                        },
+                        "Unexpected files in vignette: publication_tree_bad_5/vignettes/vignette_01/osmfish.json",
+                    ]
+                }
+            ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_6.zip",
-            ["unexpected files in vignette.*"],
+            [
+                {
+                    "publication_tree_bad_6/vignettes/vignette_01": [
+                        "Unexpected files in vignette: publication_tree_bad_6/vignettes/vignette_01/randomfile.txt"
+                    ]
+                }
+            ],
             "Publication",
         ),
         (
             "test_data/publication_tree_bad_7.zip",
             [
-                "expected data file"
-                " data/codeluppi_2018_nature_methods.molecules.h5ad.zarr"
-                " is absent"
+                {
+                    "publication_tree_bad_7/vignettes/vignette_01": [
+                        {
+                            "description.md": [
+                                "Expected data file data/codeluppi_2018_nature_methods.molecules.h5ad.zarr is absent."
+                            ],
+                            "hint": [PublicationVignettesValidator.hint],
+                        }
+                    ]
+                }
             ],
             "Publication",
         ),
@@ -74,15 +131,4 @@ def test_publication_vignettes_validator(test_data_fname, msg_re_list, assay_typ
     )
     errors = validator.collect_errors()[:]
     print(f"errors: {errors}")
-    matched_err_str_list = []
-    for err_str in errors:
-        for re_str in msg_re_list:
-            if (err_str is None and re_str is None) or re.match(re_str, err_str):
-                msg_re_list.remove(re_str)
-                matched_err_str_list.append(err_str)
-                break
-    print(f"matched errors: {matched_err_str_list}")
-    matched_err_str_set = set(matched_err_str_list)
-    for err_str in errors:
-        assert err_str in matched_err_str_set, f"Unexpected error msg {err_str}"
-    assert not msg_re_list, f"Expected error regexes were not matched: {msg_re_list}"
+    assert errors == msg_re_list
