@@ -55,7 +55,7 @@ class PublicationVignettesValidator(Validator):
         all_paths_in_vignette = set(vignette_dir.glob("*"))
         if len(md_paths := list(vignette_dir.glob("*.md"))) > 1:
             errors.append(
-                f"Vignette has more than one markdown file: {', '.join([str(path.relative_to(vignette_dir)) for path in md_paths])}"
+                f"Vignette has more than one markdown file: {', '.join([str(path.relative_to(vignette_dir)) for path in sorted(md_paths)])}"
             )
             return errors
         md_errors, modified_all_paths_in_vignette = self._check_vignette_md(

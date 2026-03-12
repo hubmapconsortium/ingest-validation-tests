@@ -69,7 +69,7 @@ from publication_vignettes_validator import (
             [
                 {
                     "publication_tree_bad_3/vignettes/vignette_01": [
-                        "Vignette has more than one markdown file: description2.md, description.md"
+                        "Vignette has more than one markdown file: description.md, description2.md"
                     ]
                 }
             ],
