@@ -1,4 +1,6 @@
+import json
 import os
+from collections import defaultdict
 from functools import cached_property
 from urllib.parse import urljoin
 
@@ -20,31 +22,117 @@ class PublicationMetadataValidator(Validator):
         super().__init__(base_paths, assay_type, *args, **kwargs)
         self.description += f"Correct any errors by updating {self.ingest_ui_link}"
         self.errors = []
-        self.source_ids = self.entity_data.get("source_ids")
-        self.publication_url = self.entity_data.get("publication_url")
-        self.publication_doi = self.entity_data.get("publication_doi")
-        self.omap_doi = self.entity_data.get("omap_doi")
+        self.publication_url = self.entity_data.get("publication_url", "")
+        self.publication_doi = self.entity_data.get("publication_doi", "")
+        self.omap_doi = self.entity_data.get("omap_doi", "")
+
+    def _collect_errors(self) -> list[str | None]:
+        self.check_required()
+        self.check_ancestors()
+        self.check_urls()
+        return self._return_result(self.errors, self.assay_type == "publication")
+
+    def check_required(self):
+        required_fields = {
+            "publication_url": self.publication_url,
+            "title": self.entity_data.get("title"),
+            "publication_venue": self.entity_data.get("publication_venue"),
+            "publication_date": self.entity_data.get("publication_date"),
+            "publication_status": self.entity_data.get("publication_status"),
+            "abstract": self.entity_data.get("description"),
+        }
+        try:
+            assert all(required_fields.values())
+        except AssertionError:
+            missing = ", ".join([key for key, val in required_fields.items() if not val])
+            self.errors.append(f"Missing required fields: {missing}")
+
+    def check_ancestors(self):
+        if not self.app_context.get("constraints_url"):
+            self.errors.append(
+                "Constraints URL is missing from app_context, can't check Source IDs."
+            )
+            return
+        ancestors = self.entity_data.get("direct_ancestors", [])
+        # check required source_ids are present
+        if len(ancestors) == 0:
+            self.errors.append("Publication has no Source IDs (required).")
+            return
+        payload = []
+        for ancestor in ancestors:
+            # make sure ancestor is published
+            if ancestor.get("status", "").lower() != "published":
+                self.errors.append(
+                    f"Source ID '{ancestor.get(f'{self.project}_id')}' is not published."
+                )
+            # check against constraints endpoint
+            payload.append(
+                {
+                    "ancestors": {"entity_type": ancestor.get("entity_type")},
+                    "descendants": {"entity_type": "publication"},
+                }
+            )
+        self._make_constraints_check(payload)
+
+    def _make_constraints_check(self, payload):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+        params = {"match": True, "order": "ancestors"}
+        response = requests.post(
+            self.app_context["constraints_url"],
+            headers=headers,
+            data=json.dumps(payload),
+            params=params,
+        )
+        try:
+            response.raise_for_status()
+        except Exception:
+            failures = defaultdict(list)
+            for i, entity_check in enumerate(response.json().get("description", [])):
+                if entity_check["code"] != 200:
+                    failures[self.entity_data["direct_ancestors"][i].get("entity_type")].append(
+                        self.entity_data["direct_ancestors"][i].get(f"{self.project}_id")
+                    )
+            formatted_errors = [
+                f"{key}: {[', '.join([val for val in values])]}"
+                for key, values in failures.items()
+            ]
+            self.errors.append(
+                f"Invalid ancestor(s) for Publication. {'; '.join(formatted_errors)}"
+            )
+
+    def check_urls(self):
+        try:
+            self._make_request(self.publication_url)
+        except Exception:
+            self.errors.append(f"Bad Publication URL: {self.publication_url}.")
+        self._check_dois()
+
+    def _check_dois(self):
+        for doi_type, doi in {
+            "Publication DOI": self.publication_doi,
+            "OMAP DOI": self.omap_doi,
+        }.items():
+            if not doi:
+                # omap_doi is not required, publication_doi presence already checked
+                continue
+            try:
+                if doi.startswith("http"):
+                    self._make_request(doi)
+                else:
+                    self._make_request(f"https://doi.org/{doi}")
+            except Exception:
+                self.errors.append(f"Bad {doi_type}: {doi}.")
+
+    def _make_request(self, url: str):
+        response = requests.get(url)
+        response.raise_for_status()
 
     @property
     def ingest_ui_link(self) -> str:
         return f"https://ingest.{self.project}consortium.org/publication/{self.entity_data.get('uuid')}"
-
-    @property
-    def project(self) -> str:
-        # Defaults to HuBMAP
-        project_url = self.app_context.get("ingest_url", "")
-        if "sennet" in project_url:
-            proj = "sennet"
-        else:
-            proj = "hubmap"
-        return proj
-
-    def _collect_errors(self) -> list[str | None]:
-        self._check_required()
-        self._check_ancestors()
-        self._check_urls()
-        self._check_dois()
-        return self._return_result(self.errors, self.assay_type == "publication")
 
     @cached_property
     def entity_data(self) -> dict:
@@ -61,36 +149,19 @@ class PublicationMetadataValidator(Validator):
         response.raise_for_status()
         return response.json()
 
-    def _check_required(self):
-        required_fields = {
-            "source_ids": self.source_ids,
-            "publication_url": self.publication_url,
-            "title": self.entity_data.get("title"),
-            "publication_venue": self.entity_data.get("publication_venue"),
-            "publication_date": self.entity_data.get("publication_date"),
-            "publication_status": self.entity_data.get("publication_status"),
-            "abstract": self.entity_data.get("abstract"),
-        }
-        try:
-            assert all(required_fields.values())
-        except AssertionError:
-            missing = ", ".join([key for key, val in required_fields.items() if not val])
-            self.errors.append(f"Missing required fields: {missing}")
-
-    def _check_ancestors(self):
-        # check status is published
-        # check against constraints endpoint
-        pass
-
-    def _check_urls(self):
-        pass
-
-    def _check_dois(self):
-        pass
-
     @property
     def uuid(self) -> str:
         for elt in reversed(str(self.paths[0]).split(os.sep)):
             if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
                 return elt
-        raise RuntimeError("no uuid was found in the path to the current" " working directory")
+        raise Exception("no uuid was found in the path to the current working directory")
+
+    @property
+    def project(self) -> str:
+        # Defaults to HuBMAP
+        project_url = self.app_context.get("ingest_url", "")
+        if "sennet" in project_url:
+            proj = "sennet"
+        else:
+            proj = "hubmap"
+        return proj

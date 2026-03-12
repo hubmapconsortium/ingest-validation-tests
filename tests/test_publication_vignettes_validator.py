@@ -1,4 +1,3 @@
-import re
 import zipfile
 from pathlib import Path
 
@@ -11,8 +10,72 @@ from publication_vignettes_validator import (
 @pytest.mark.parametrize(
     ("test_data_fname", "msg_re_list", "assay_type"),
     (
+        # good submission
         ("test_data/publication_tree_good.zip", [None], "Publication"),
         ("test_data/publication_tree_good_complex.zip", [None], "Publication"),
+        # no directory
+        (
+            "test_data/publication_tree_bad_1.zip",
+            [
+                {
+                    "publication_tree_bad_1": "Directory not found.",
+                }
+            ],
+            "Publication",
+        ),
+        # data_path / vignettes is not a dir
+        (
+            "test_data/publication_tree_bad_7.zip",
+            [
+                {
+                    "publication_tree_bad_7": "publication_tree_bad_7/vignettes is not a directory.",
+                }
+            ],
+            "Publication",
+        ),
+        # vignette path is not a directory
+        (
+            "test_data/publication_tree_bad_4.zip",
+            [{"publication_tree_bad_4/vignettes/does_not_belong_here": "Not a directory."}],
+            "Publication",
+        ),
+        # subdirectories in vignette dir
+        (
+            "test_data/publication_tree_bad_2.zip",
+            [
+                {
+                    "publication_tree_bad_2/vignettes/vignette_01": [
+                        "Found subdirectories in vignette: publication_tree_bad_2/vignettes/vignette_01/thisisasubdirectory"
+                    ]
+                }
+            ],
+            "Publication",
+        ),
+        # extra file in vignette dir
+        (
+            "test_data/publication_tree_bad_6.zip",
+            [
+                {
+                    "publication_tree_bad_6/vignettes/vignette_01": [
+                        "Unexpected files in vignette: publication_tree_bad_6/vignettes/vignette_01/randomfile.txt"
+                    ]
+                }
+            ],
+            "Publication",
+        ),
+        # multiple markdown files
+        (
+            "test_data/publication_tree_bad_3.zip",
+            [
+                {
+                    "publication_tree_bad_3/vignettes/vignette_01": [
+                        "Vignette has more than one markdown file: description2.md, description.md"
+                    ]
+                }
+            ],
+            "Publication",
+        ),
+        # test .md: missing files
         (
             "test_data/publication_tree_bad_complex.zip",
             [
@@ -30,90 +93,7 @@ from publication_vignettes_validator import (
             ],
             "Publication",
         ),
-        (
-            "test_data/publication_tree_bad_1.zip",
-            [
-                {
-                    "publication_tree_bad_1": "Directory not found.",
-                }
-            ],
-            "Publication",
-        ),
-        (
-            "test_data/publication_tree_bad_2.zip",
-            [
-                {
-                    "publication_tree_bad_2/vignettes/vignette_01": [
-                        "Found subdirectories in vignette: publication_tree_bad_2/vignettes/vignette_01/thisisasubdirectory"
-                    ]
-                }
-            ],
-            "Publication",
-        ),
-        (
-            "test_data/publication_tree_bad_3.zip",
-            [
-                {
-                    "publication_tree_bad_3/vignettes/vignette_01": [
-                        "Vignette has more than one markdown file: description2.md, description.md"
-                    ]
-                }
-            ],
-            "Publication",
-        ),
-        (
-            "test_data/publication_tree_bad_4.zip",
-            [
-                {
-                    "publication_tree_bad_4/vignettes/vignette_01": [
-                        {
-                            "description.md": ["'figure' dict missing required element 'name'."],
-                        }
-                    ]
-                }
-            ],
-            "Publication",
-        ),
-        (
-            "test_data/publication_tree_bad_5.zip",
-            [
-                {
-                    "publication_tree_bad_5/vignettes/vignette_01": [
-                        {
-                            "description.md": ["'figure' dict missing required element 'file'."],
-                        },
-                        "Unexpected files in vignette: publication_tree_bad_5/vignettes/vignette_01/osmfish.json",
-                    ]
-                }
-            ],
-            "Publication",
-        ),
-        (
-            "test_data/publication_tree_bad_6.zip",
-            [
-                {
-                    "publication_tree_bad_6/vignettes/vignette_01": [
-                        "Unexpected files in vignette: publication_tree_bad_6/vignettes/vignette_01/randomfile.txt"
-                    ]
-                }
-            ],
-            "Publication",
-        ),
-        (
-            "test_data/publication_tree_bad_7.zip",
-            [
-                {
-                    "publication_tree_bad_7/vignettes/vignette_01": [
-                        {
-                            "description.md": [
-                                "Expected data file data/codeluppi_2018_nature_methods.molecules.h5ad.zarr is absent."
-                            ],
-                        }
-                    ]
-                }
-            ],
-            "Publication",
-        ),
+        # wrong data type
         ("test_data/tiff_tree_good.zip", [], "codex"),
     ),
 )
@@ -128,3 +108,56 @@ def test_publication_vignettes_validator(test_data_fname, msg_re_list, assay_typ
     errors = validator.collect_errors()[:]
     print(f"errors: {errors}")
     assert errors == msg_re_list
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected_errors"),
+    (
+        # good example
+        (
+            "test_data/publication_vignette_good.md",
+            ({}, set()),
+        ),
+        # missing top-level key
+        (
+            "test_data/publication_vignette_bad_missing_top_level_key.md",
+            (
+                {
+                    "publication_vignette_bad_missing_top_level_key.md": [
+                        "Vignette markdown is incorrectly formatted. Missing required element 'name'.",
+                    ],
+                },
+                set(),
+            ),
+        ),
+        # missing key in figures dict
+        (
+            "test_data/publication_vignette_bad_missing_top_level_key.md",
+            (
+                {
+                    "publication_vignette_bad_missing_top_level_key.md": [
+                        "Vignette markdown is incorrectly formatted. Missing required element 'name'.",
+                    ]
+                },
+                set(),
+            ),
+        ),
+    ),
+)
+def test_md_files(filename, expected_errors, monkeypatch):
+    with monkeypatch.context() as m:
+        m.setattr(
+            "publication_vignettes_validator.PublicationVignettesValidator.validate_vitessce_config",
+            lambda a, b, c: [],
+        )
+        validator = PublicationVignettesValidator("test_path", "Publication")
+        errors = validator._check_vignette_md(
+            Path(filename),
+            {
+                Path(filename),
+                Path("test_data/doesnt_matter.json"),
+            },  # json file referenced in .md file
+            Path("test_data"),
+            Path("test_data"),
+        )
+        assert errors == expected_errors

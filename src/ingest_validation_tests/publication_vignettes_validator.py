@@ -28,7 +28,13 @@ class PublicationVignettesValidator(Validator):
                 rslt.append({self.rel_filename_str(path): "Directory not found."})
                 continue
             if not vignettes_path.is_dir():
-                rslt.append({self.rel_filename_str(path): "Path is not a directory."})
+                rslt.append(
+                    {
+                        self.rel_filename_str(
+                            path
+                        ): f"{self.rel_filename_str(path)}/vignettes is not a directory."
+                    }
+                )
                 continue
             errors = []
             for vignette_dir in vignettes_path.glob("*"):
@@ -38,7 +44,6 @@ class PublicationVignettesValidator(Validator):
                 if dir_errors := self._check_vignette_dir(vignette_dir, path):
                     errors.append({self.rel_filename_str(vignette_dir): dir_errors})
             rslt.extend(errors)
-        print(rslt)
         return self._return_result(rslt, self.paths)
 
     def _check_vignette_dir(self, vignette_dir: Path, path: Path) -> list:
@@ -89,6 +94,8 @@ class PublicationVignettesValidator(Validator):
                     errors[rel_md_path].append(f"'figure' dict missing required element '{key}'.")
             if fig_dict.get("file"):
                 vig_figures.append(fig_dict["file"])
+        print(all_paths_in_vignette)
+        print(md_path)
         all_paths_in_vignette.remove(md_path)
         for fname in vig_figures:
             if file_errors := self.validate_vitessce_config(vignette_dir / fname, path):
