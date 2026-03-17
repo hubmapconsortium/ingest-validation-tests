@@ -124,6 +124,12 @@ class Validator:
             print(message)
             return message
 
+    def rel_filename_str(self, filename: Path) -> str:
+        try:
+            return str(filename.relative_to(self.paths[0].parent))
+        except Exception:
+            return str(filename)
+
 
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     try:
