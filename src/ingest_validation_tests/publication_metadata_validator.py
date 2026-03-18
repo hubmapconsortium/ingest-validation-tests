@@ -96,6 +96,7 @@ class PublicationMetadataValidator(Validator):
 
     @property
     def ingest_ui_link(self) -> str:
+        # prod only
         return f"https://ingest.{self.project}consortium.org/publication/{self.entity_data.get('uuid')}"
 
     @cached_property
