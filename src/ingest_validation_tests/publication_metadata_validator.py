@@ -18,10 +18,7 @@ class PublicationMetadataValidator(Validator):
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
-        self.description = (
-            f"{self.description}. Correct any errors by updating {self.ingest_ui_link}"
-        )
-        self.errors = []
+        self.errors: list = []
         self.publication_url = self.entity_data.get("publication_url", "")
         self.publication_doi = self.entity_data.get("publication_doi", "")
         self.omap_doi = self.entity_data.get("omap_doi", "")
@@ -30,6 +27,8 @@ class PublicationMetadataValidator(Validator):
         self.check_required()
         self.check_ancestors()
         self.check_urls()
+        if self.errors:
+            self.errors.append(f"Correct any errors by updating {self.ingest_ui_link}")
         return self._return_result(self.errors, self.assay_type == "publication")
 
     def check_required(self):
@@ -74,23 +73,22 @@ class PublicationMetadataValidator(Validator):
             self._make_request(self.publication_url)
         except Exception:
             self.errors.append(f"Bad Publication URL '{self.publication_url}'.")
-        self._check_dois()
+        for doi_data in [
+            [self.publication_doi, "Publication DOI", "https://api.crossref.org/works/"],
+            [self.omap_doi, "OMAP DOI", "https://purl.humanatlas.io/omap/"],
+        ]:
+            self._check_doi(*doi_data)
 
-    def _check_dois(self):
-        for doi_type, doi in {
-            "Publication DOI": self.publication_doi,
-            "OMAP DOI": self.omap_doi,
-        }.items():
-            if not doi:
-                # omap_doi is not required, publication_doi presence already checked
-                continue
-            try:
-                if doi.startswith("http"):
-                    self._make_request(doi)
-                else:
-                    self._make_request(f"https://doi.org/{doi}")
-            except Exception:
-                self.errors.append(f"Bad {doi_type} '{doi}'.")
+    def _check_doi(self, doi: str, doi_type: str, url: str):
+        if not doi:
+            return
+        try:
+            if doi.startswith("http"):
+                self._make_request(doi)
+            else:
+                self._make_request(f"{url}{doi}")
+        except Exception:
+            self.errors.append(f"Bad {doi_type} '{doi}'.")
 
     def _make_request(self, url: str):
         response = requests.get(url)

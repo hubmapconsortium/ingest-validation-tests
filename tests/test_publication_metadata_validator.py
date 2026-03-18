@@ -1,60 +1,5 @@
 import pytest
-import requests
 from publication_metadata_validator import PublicationMetadataValidator
-
-
-class MockConstraintsResponseGood:
-
-    @staticmethod
-    def json():
-        return {
-            "code": 200,
-            "description": [
-                {
-                    "code": 200,
-                    "description": [
-                        {"entity_type": "dataset", "sub_type": None, "sub_type_val": None}
-                    ],
-                }
-            ],
-        }
-
-    @staticmethod
-    def raise_for_status():
-        response = MockConstraintsResponseGood.json()
-        if response["code"] == 200:
-            return
-        raise Exception
-
-
-class MockConstraintsResponseBad:
-
-    @staticmethod
-    def json():
-        return {
-            "code": 400,
-            "description": [
-                {
-                    "code": 200,
-                    "description": [
-                        {"entity_type": "dataset", "sub_type": None, "sub_type_val": None}
-                    ],
-                },
-                {
-                    "code": 404,
-                    "description": [
-                        {"entity_type": "sample", "sub_type": ["Organ"], "sub_type_val": None}
-                    ],
-                },
-            ],
-        }
-
-    @staticmethod
-    def raise_for_status():
-        response = MockConstraintsResponseBad.json()
-        if response["code"] == 200:
-            return
-        raise Exception
 
 
 class TestPublicationMetadataValidator:
@@ -86,22 +31,48 @@ class TestPublicationMetadataValidator:
         }
     }
 
+    @staticmethod
+    def mock_raise(url):
+        if "bad" in url:
+            raise Exception
+
     @pytest.fixture
     def _mock_validator_good(self, monkeypatch):
-
-        def mock_post(*args, **kwargs):
-            return MockConstraintsResponseGood()
-
-        def mock_raise(url):
-            if "bad" in url:
-                raise Exception
 
         monkeypatch.setattr(PublicationMetadataValidator, "entity_data", self.required_fields)
         monkeypatch.setattr(PublicationMetadataValidator, "uuid", "test_uuid")
         monkeypatch.setattr(
-            PublicationMetadataValidator, "_make_request", lambda a, url: mock_raise(url)
+            PublicationMetadataValidator, "_make_request", lambda a, url: self.mock_raise(url)
         )
-        monkeypatch.setattr(requests, "post", mock_post)
+
+    def test_collect_errors(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator, "_make_request", lambda a, url: self.mock_raise(url)
+            )
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields
+                | {
+                    "title": None,
+                    "description": "",
+                    "direct_ancestors": [
+                        {
+                            "status": "New",
+                            "hubmap_id": "test_id",
+                            "entity_type": "dataset",
+                        },
+                    ],
+                },
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v._collect_errors()
+            assert v.errors == [
+                "Missing required fields: title, abstract",
+                "Source ID 'test_id' is not published.",
+                "Correct any errors by updating https://ingest.hubmapconsortium.org/publication/test_uuid",
+            ]
 
     def test_required_present(self, _mock_validator_good):
         v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
@@ -170,19 +141,19 @@ class TestPublicationMetadataValidator:
     def test_get_project(self, _mock_validator_good):
         v = PublicationMetadataValidator(
             *self.default_args,
-            app_context={"ingest_url": "https://ingest.api.sennetconsortium.org"}
+            app_context={"ingest_url": "https://ingest.api.sennetconsortium.org"},
         )
         assert v.project == "sennet"
         v = PublicationMetadataValidator(
             *self.default_args,
-            app_context={"ingest_url": "https://ingest.api.hubmapconsortium.org"}
+            app_context={"ingest_url": "https://ingest.api.hubmapconsortium.org"},
         )
         assert v.project == "hubmap"
 
     def test_ingest_ui_link(self, _mock_validator_good):
         v = PublicationMetadataValidator(
             *self.default_args,
-            app_context={"ingest_url": "https://ingest.api.hubmapconsortium.org"}
+            app_context={"ingest_url": "https://ingest.api.hubmapconsortium.org"},
         )
         assert v.ingest_ui_link == "https://ingest.hubmapconsortium.org/publication/test_uuid"
 
