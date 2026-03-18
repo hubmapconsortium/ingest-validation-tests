@@ -124,11 +124,6 @@ class TestPublicationMetadataValidator:
         v.check_ancestors()
         assert v.errors == []
 
-    def test_check_ancestors_no_constraints_url(self, _mock_validator_good):
-        v = PublicationMetadataValidator(*self.default_args)
-        v.check_ancestors()
-        assert v.errors == ["Constraints URL is missing from app_context, can't check Source IDs."]
-
     def test_check_ancestors_none(self, monkeypatch):
         with monkeypatch.context() as m:
             m.setattr(
@@ -146,59 +141,31 @@ class TestPublicationMetadataValidator:
                 PublicationMetadataValidator,
                 "entity_data",
                 self.required_fields
-                | {"direct_ancestors": [{"status": "New", "hubmap_id": "test_id"}]},
-            )
-            m.setattr(
-                PublicationMetadataValidator,
-                "_make_constraints_check",
-                lambda a, b: None,
+                | {
+                    "direct_ancestors": [
+                        {"status": "New", "hubmap_id": "test_id", "entity_type": "dataset"}
+                    ]
+                },
             )
             v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
             v.check_ancestors()
             assert v.errors == ["Source ID 'test_id' is not published."]
 
-    def test_constraints_check_good(self, _mock_validator_good):
-        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
-        v._make_constraints_check({})
-        assert v.errors == []
-
-    @pytest.mark.parametrize(
-        ("errors", "req_fields_update"),
-        (
-            (
-                ["Invalid ancestor(s) for Publication. Sample: ['test_id2']"],
-                {
+    def test_check_ancestors_ancestor_not_dataset(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields
+                | {
                     "direct_ancestors": [
-                        {"hubmap_id": "test_id1", "entity_type": "Dataset", "status": "Published"},
-                        {"hubmap_id": "test_id2", "entity_type": "Sample", "status": "Published"},
+                        {"status": "Published", "hubmap_id": "test_id", "entity_type": "sample"}
                     ]
                 },
-            ),
-            # multiple different types of bad ancestors
-            (
-                ["Invalid ancestor(s) for Publication. Sample: ['test_id2']"],
-                {
-                    "direct_ancestors": [
-                        {"hubmap_id": "test_id1", "entity_type": "Dataset", "status": "Published"},
-                        {"hubmap_id": "test_id2", "entity_type": "Sample", "status": "Published"},
-                    ]
-                },
-            ),
-        ),
-    )
-    def test_constraints_check_bad(self, req_fields_update, errors, monkeypatch):
-
-        def mock_post(*args, **kwargs):
-            return MockConstraintsResponseBad()
-
-        monkeypatch.setattr(
-            PublicationMetadataValidator, "entity_data", self.required_fields | req_fields_update
-        )
-        monkeypatch.setattr(requests, "post", mock_post)
-
-        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
-        v._make_constraints_check({})
-        assert v.errors == errors
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_ancestors()
+            assert v.errors == ["Source ID 'test_id' is not a dataset."]
 
     def test_get_project(self, _mock_validator_good):
         v = PublicationMetadataValidator(
@@ -231,7 +198,7 @@ class TestPublicationMetadataValidator:
         v.omap_doi = "omap_doi_bad_value"
         v.check_urls()
         assert v.errors == [
-            "Bad Publication URL: pub_url_bad_value.",
-            "Bad Publication DOI: pub_doi_bad_value.",
-            "Bad OMAP DOI: omap_doi_bad_value.",
+            "Bad Publication URL 'pub_url_bad_value'.",
+            "Bad Publication DOI 'pub_doi_bad_value'.",
+            "Bad OMAP DOI 'omap_doi_bad_value'.",
         ]

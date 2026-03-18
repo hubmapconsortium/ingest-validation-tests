@@ -1,6 +1,4 @@
-import json
 import os
-from collections import defaultdict
 from functools import cached_property
 from urllib.parse import urljoin
 
@@ -13,14 +11,16 @@ class PublicationMetadataValidator(Validator):
     Test for some common errors in the metadata for publications.
     """
 
-    description = "Test for common problems found in publication metadata."
+    description = "Test for common problems found in publication metadata"
     cost = 1.0
     version = "1.0"
     required = ["publication"]
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
-        self.description += f"Correct any errors by updating {self.ingest_ui_link}"
+        self.description = (
+            f"{self.description}. Correct any errors by updating {self.ingest_ui_link}"
+        )
         self.errors = []
         self.publication_url = self.entity_data.get("publication_url", "")
         self.publication_doi = self.entity_data.get("publication_doi", "")
@@ -48,66 +48,32 @@ class PublicationMetadataValidator(Validator):
             self.errors.append(f"Missing required fields: {missing}")
 
     def check_ancestors(self):
-        if not self.app_context.get("constraints_url"):
-            self.errors.append(
-                "Constraints URL is missing from app_context, can't check Source IDs."
-            )
-            return
         ancestors = self.entity_data.get("direct_ancestors", [])
         # check required source_ids are present
         if len(ancestors) == 0:
             self.errors.append("Publication has no Source IDs (required).")
             return
-        payload = []
+        self._check_ancestors(ancestors)
+
+    def _check_ancestors(self, ancestors: dict):
         for ancestor in ancestors:
             # make sure ancestor is published
             if ancestor.get("status", "").lower() != "published":
                 self.errors.append(
                     f"Source ID '{ancestor.get(f'{self.project}_id')}' is not published."
                 )
-            # check against constraints endpoint
-            payload.append(
-                {
-                    "ancestors": {"entity_type": ancestor.get("entity_type")},
-                    "descendants": {"entity_type": "publication"},
-                }
-            )
-        self._make_constraints_check(payload)
-
-    def _make_constraints_check(self, payload):
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
-        params = {"match": True, "order": "ancestors"}
-        response = requests.post(
-            self.app_context["constraints_url"],
-            headers=headers,
-            data=json.dumps(payload),
-            params=params,
-        )
-        try:
-            response.raise_for_status()
-        except Exception:
-            failures = defaultdict(list)
-            for i, entity_check in enumerate(response.json().get("description", [])):
-                if entity_check["code"] != 200:
-                    failures[self.entity_data["direct_ancestors"][i].get("entity_type")].append(
-                        self.entity_data["direct_ancestors"][i].get(f"{self.project}_id")
-                    )
-            formatted_errors = [
-                f"{key}: {[', '.join([val for val in values])]}"
-                for key, values in failures.items()
-            ]
-            self.errors.append(
-                f"Invalid ancestor(s) for Publication. {'; '.join(formatted_errors)}"
-            )
+            # make sure ancestor is dataset (should be replaced with
+            # constraints endpoint when implemented)
+            if ancestor.get("entity_type", "").lower() != "dataset":
+                self.errors.append(
+                    f"Source ID '{ancestor.get(f'{self.project}_id')}' is not a dataset."
+                )
 
     def check_urls(self):
         try:
             self._make_request(self.publication_url)
         except Exception:
-            self.errors.append(f"Bad Publication URL: {self.publication_url}.")
+            self.errors.append(f"Bad Publication URL '{self.publication_url}'.")
         self._check_dois()
 
     def _check_dois(self):
@@ -124,7 +90,7 @@ class PublicationMetadataValidator(Validator):
                 else:
                     self._make_request(f"https://doi.org/{doi}")
             except Exception:
-                self.errors.append(f"Bad {doi_type}: {doi}.")
+                self.errors.append(f"Bad {doi_type} '{doi}'.")
 
     def _make_request(self, url: str):
         response = requests.get(url)
