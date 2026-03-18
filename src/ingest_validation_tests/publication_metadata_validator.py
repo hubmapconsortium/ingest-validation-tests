@@ -71,19 +71,16 @@ class PublicationMetadataValidator(Validator):
         except Exception:
             self.errors.append(f"Bad Publication URL '{self.publication_url}'.")
         for doi_data in [
-            [self.publication_doi, "Publication DOI", "https://api.crossref.org/works/"],
-            [self.omap_doi, "OMAP DOI", "https://purl.humanatlas.io/omap/"],
+            [self.publication_doi, "Publication DOI"],
+            [self.omap_doi, "OMAP DOI"],
         ]:
             self._check_doi(*doi_data)
 
-    def _check_doi(self, doi: str, doi_type: str, url: str):
+    def _check_doi(self, doi: str, doi_type: str):
         if not doi:
             return
         try:
-            if doi.startswith("http"):
-                self._make_request(doi)
-            else:
-                self._make_request(f"{url}{doi}")
+            self._make_request(f"https://doi.org/{doi}")
         except Exception:
             self.errors.append(f"Bad {doi_type} '{doi}'.")
 
