@@ -25,8 +25,8 @@ class QpTiffChannelValidator(Validator):
         ["is_antibody", "is antibody"],
     ]
 
-    def __init__(self, base_paths, assay_type):
-        super().__init__(base_paths, assay_type)
+    def __init__(self, base_paths, assay_type, *args, **kwargs):
+        super().__init__(base_paths, assay_type, *args, **kwargs)
         self.errors = []
 
     def _collect_errors(self) -> list[str | None]:
