@@ -52,9 +52,6 @@ class PublicationMetadataValidator(Validator):
         if len(ancestors) == 0:
             self.errors.append("Publication has no Source IDs (required).")
             return
-        self._check_ancestors(ancestors)
-
-    def _check_ancestors(self, ancestors: dict):
         for ancestor in ancestors:
             # make sure ancestor is published
             if ancestor.get("status", "").lower() != "published":
