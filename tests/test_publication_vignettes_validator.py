@@ -18,7 +18,7 @@ from publication_vignettes_validator import (
             "test_data/publication_tree_bad_1.zip",
             [
                 {
-                    "publication_tree_bad_1": "Directory not found.",
+                    "publication_tree_bad_1/vignettes": "Directory not found.",
                 }
             ],
             "Publication",
@@ -83,9 +83,9 @@ from publication_vignettes_validator import (
                     "publication_tree_bad_complex/vignettes/vignette_12": [
                         {
                             "description.md": [
-                                "Expected data file data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent.",
-                                "Expected data file data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent.",
-                                "Expected data file data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent.",
+                                "Expected data file publication_tree_bad_complex/data/vignette_12/A/0/325b936e-4132-45fe-8674-9abbde568be8 is absent.",
+                                "Expected data file publication_tree_bad_complex/data/vignette_12/A/0/9db02302-07d9-4c54-ad45-4578c4822cce is absent.",
+                                "Expected data file publication_tree_bad_complex/data/vignette_12/A/1/90b3667d-3ccc-4241-9227-fee578d41bac is absent.",
                             ],
                         }
                     ]

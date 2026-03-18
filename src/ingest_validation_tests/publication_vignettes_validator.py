@@ -25,7 +25,7 @@ class PublicationVignettesValidator(Validator):
         for path in self.paths:
             vignettes_path = path / "vignettes"
             if not vignettes_path.exists():
-                rslt.append({self.rel_filename_str(path): "Directory not found."})
+                rslt.append({f"{self.rel_filename_str(path)}/vignettes": "Directory not found."})
                 continue
             if not vignettes_path.is_dir():
                 rslt.append(
@@ -133,6 +133,8 @@ class PublicationVignettesValidator(Validator):
                     extra_url = match.group(2)
                     data_path = path / "data" / extra_url
                     if not data_path.exists():
-                        rslt.append(f"Expected data file {Path('data') / extra_url} is absent.")
+                        rslt.append(
+                            f"Expected data file {self.rel_filename_str(data_path)} is absent."
+                        )
 
         return rslt
