@@ -1,12 +1,12 @@
 import re
 
 import semantic_version
+from validator import validation_class_iter
 
 FALLBACK_REGEX = r"^\d+\.\d+$"
 
 
 def test_plugin_semantic_versions():
-    from validator import validation_class_iter
 
     fb_regex = re.compile(FALLBACK_REGEX)
     for cls in validation_class_iter():

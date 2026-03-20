@@ -59,7 +59,7 @@ class SegmentationMaskValidator(Validator):
             except JSONDecodeError:
                 logging.info(f"Response: {response.text}")
                 return f"""
-                    Error while checking file {file_path.stem}.
+                    Error while checking file {self.rel_filename_str(file_path)}.
                     {response.text}
                 """
             except HTTPError:
@@ -68,7 +68,7 @@ class SegmentationMaskValidator(Validator):
                 cause = response.json().get("cause", "")
                 fixSuggestion = response.json().get("fixSuggestion", "")
                 return (
-                    f"Error while checking file {file_path.stem} because of error '{message}'. "
+                    f"Error while checking file {self.rel_filename_str(file_path)}: {message}. "
                     f"Cause: {cause} "
                     f"Suggestion: {fixSuggestion}"
                 )
@@ -83,7 +83,7 @@ class SegmentationMaskValidator(Validator):
                     msg = error.get("errorMessage")
                     repair = error.get("repairSuggestion")
                     # 8 rows of header info in object x feature XLSX template
-                    err_str = f"Row {row + 10}, column '{col}', value '{val}': {msg} (error type: {err_type})."
+                    err_str = f"{self.rel_filename_str(file_path)}: Row {row + 10}, column '{col}', value '{val}': {msg} (error type: {err_type})."
                     if repair and repair != "Not applicable":
                         err_str += f" Repair suggestion: {repair}."
                     error_strs.append(err_str)

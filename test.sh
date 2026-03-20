@@ -78,5 +78,5 @@ fi
 
 # Run test suite with appropriate args
 echo "--------"
-echo "running python/tests_pytest_runner.py $TEST $DEBUG ${PARAMS[@]}"
+echo "running python tests/pytest_runner.py $TEST $DEBUG ${PARAMS[@]}"
 python tests/pytest_runner.py "$TEST" "$DEBUG" "${PARAMS[@]}" || exit 1
