@@ -162,11 +162,18 @@ class TestPublicationMetadataValidator:
         v.check_urls()
         assert v.errors == []
 
-    def test_check_urls_error_formatting(self, _mock_validator_good):
+    def test_check_urls_error_formatting(self, monkeypatch, _mock_validator_good):
+        monkeypatch.setattr(
+            PublicationMetadataValidator,
+            "entity_data",
+            self.required_fields
+            | {
+                "publication_url": "pub_url_bad_value",
+                "publication_doi": "pub_doi_bad_value",
+                "omap_doi": "omap_doi_bad_value",
+            },
+        )
         v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
-        v.publication_url = "pub_url_bad_value"
-        v.publication_doi = "pub_doi_bad_value"
-        v.omap_doi = "omap_doi_bad_value"
         v.check_urls()
         assert v.errors == [
             "Bad Publication URL 'pub_url_bad_value'.",
