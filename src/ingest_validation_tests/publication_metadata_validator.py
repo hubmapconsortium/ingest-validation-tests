@@ -19,9 +19,6 @@ class PublicationMetadataValidator(Validator):
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
         self.errors: list = []
-        self.publication_url = self.entity_data.get("publication_url", "")
-        self.publication_doi = self.entity_data.get("publication_doi", "")
-        self.omap_doi = self.entity_data.get("omap_doi", "")
 
     def _collect_errors(self) -> list[str | None]:
         self.check_required()
@@ -33,7 +30,7 @@ class PublicationMetadataValidator(Validator):
 
     def check_required(self):
         required_fields = {
-            "publication_url": self.publication_url,
+            "publication_url": self.entity_data.get("publication_url"),
             "title": self.entity_data.get("title"),
             "publication_venue": self.entity_data.get("publication_venue"),
             "publication_date": self.entity_data.get("publication_date"),
@@ -66,13 +63,14 @@ class PublicationMetadataValidator(Validator):
                 )
 
     def check_urls(self):
+        publication_url = self.entity_data.get("publication_url", "")
         try:
-            self._make_request(self.publication_url)
+            self._make_request(publication_url)
         except Exception:
-            self.errors.append(f"Bad Publication URL '{self.publication_url}'.")
+            self.errors.append(f"Bad Publication URL '{publication_url}'.")
         for doi_data in [
-            [self.publication_doi, "Publication DOI"],
-            [self.omap_doi, "OMAP DOI"],
+            [self.entity_data.get("publication_doi", ""), "Publication DOI"],
+            [self.entity_data.get("omap_doi", ""), "OMAP DOI"],
         ]:
             self._check_doi(*doi_data)
 
