@@ -1,24 +1,13 @@
 from multiprocessing import Pool
-from os import cpu_count
-from typing import List, Optional
 
-import tifffile
-import xmlschema
-from validator import Validator
+from validator import Validator, check_ome_tiff_file, ome_tiff_globs
 
 
-def _log(message: str):
-    print(message)
-
-
-def _check_ome_tiff_file(file: str) -> Optional[str]:
+def _check_ome_tiff_file(file):
     try:
-        with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata)
-        if xml_document.schema and not xml_document.schema.is_valid(xml_document):
-            return f"{file} is not a valid OME.TIFF file"
-    except Exception as excp:
-        return f"{file} is not a valid OME.TIFF file: {excp}"
+        check_ome_tiff_file(file)
+    except Exception as e:
+        return str(e)
 
 
 class OmeTiffValidator(Validator):
@@ -26,28 +15,18 @@ class OmeTiffValidator(Validator):
     cost = 1.0
     version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
-        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        pool = Pool(threads)
-        _log(f"Threading at OmeTiffValidator with {threads}")
+    def _collect_errors(self) -> list[str | None]:
+        pool = Pool(self.threads)
         filenames_to_test = []
-        for glob_expr in [
-            "**/*.[oO][mM][eE].[tT][iI][fF]",
-            "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
-        ]:
+        for glob_expr in ome_tiff_globs:
             for path in self.paths:
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
 
-        rslt_list: List[Optional[str]] = list(
+        rslt_list: list[str | None] = list(
             rslt
             for rslt in pool.imap_unordered(_check_ome_tiff_file, filenames_to_test)
             if rslt is not None
         )
         pool.close()
-        if rslt_list:
-            return rslt_list
-        elif filenames_to_test:
-            return [None]
-        else:
-            return []
+        return self._return_result(rslt_list, filenames_to_test)

@@ -1,6 +1,5 @@
 import zipfile
 from pathlib import Path
-from typing import Optional
 from unittest.mock import patch
 
 import pytest
@@ -29,7 +28,7 @@ import requests
             False,
             b'{"message":"Bad Excel file","cause":"Missing a separator row.","statusInfo":"400 Bad Request","fixSuggestion":"Please add a new blank row between the schema table and the data table to separate."}',
             [
-                "Error while checking file seg_mask_bad_file-objects because of error 'Bad Excel file'. Cause: Missing a separator row. Suggestion: Please add a new blank row between the schema table and the data table to separate."
+                "Error while checking file seg_mask_bad_file/derived/segmentation_masks/seg_mask_bad_file-objects.xlsx: Bad Excel file. Cause: Missing a separator row. Suggestion: Please add a new blank row between the schema table and the data table to separate."
             ],
             "Segmentation Mask",
         ),
@@ -38,8 +37,8 @@ import requests
             True,
             b'{"status":"FAILED","reporting":[{"recordNumber":1,"columnLabel":"Protocol for mask creation (DOI)","variable":"Protocol for mask creation (DOI)","value":null,"errorType":"missingRequired","errorMessage":"Required value is missing","repairSuggestion":null,"row":0,"column":"Protocol for mask creation (DOI)"},{"recordNumber":8,"columnLabel":"Annotation tool","variable":"Annotation tool","value":"bad_val","errorType":"notStandardTerm","errorMessage":"Value is not among the permissible values","repairSuggestion":"Not applicable","row":7,"column":"Annotation tool"}]}',
             [
-                "Row 10, column 'Protocol for mask creation (DOI)', value 'None': Required value is missing (error type: missingRequired).",
-                "Row 17, column 'Annotation tool', value 'bad_val': Value is not among the permissible values (error type: notStandardTerm).",
+                "seg_mask_bad_metadata/derived/segmentation_masks/seg_mask_bad_metadata-objects.xlsx: Row 10, column 'Protocol for mask creation (DOI)', value 'None': Required value is missing (error type: missingRequired).",
+                "seg_mask_bad_metadata/derived/segmentation_masks/seg_mask_bad_metadata-objects.xlsx: Row 17, column 'Annotation tool', value 'bad_val': Value is not among the permissible values (error type: notStandardTerm).",
             ],
             "Segmentation Mask",
         ),
@@ -68,7 +67,7 @@ def test_segmentation_mask_validator(
         assert errors == expected_errors
 
 
-def get_mock_response(success: Optional[bool], response_data: bytes):
+def get_mock_response(success: bool | None, response_data: bytes):
     mock_resp = requests.models.Response()
     mock_resp.status_code = 200 if success else 400
     mock_resp._content = response_data

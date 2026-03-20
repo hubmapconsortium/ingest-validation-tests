@@ -8,7 +8,7 @@ from multiprocessing import Manager, Pool
 from multiprocessing.managers import ListProxy
 from os import cpu_count
 from pathlib import Path
-from typing import Callable, List, Optional, TextIO, Union
+from typing import Callable, TextIO
 
 import fastq_utils
 from typing_extensions import Self
@@ -24,7 +24,7 @@ def get_filename(pattern: filename_pattern) -> str:
     return f"{pattern.before_read}{pattern.read}#{pattern.after_read}"
 
 
-def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
+def get_prefix_read_type_and_set(filename: str) -> filename_pattern | None:
     """
     Looking for fastq filenames with a particular format to compare record counts.
 
@@ -66,7 +66,7 @@ def get_prefix_read_type_and_set(filename: str) -> Optional[filename_pattern]:
         )
 
 
-def printable_filenames(files: Union[list, ListProxy, Path, str], newlines: bool = True):
+def printable_filenames(files: list | ListProxy | Path | str, newlines: bool = True):
     if type(files) is list or type(files) is ListProxy:
         file_list = [str(file) for file in files]
         if newlines:
@@ -82,7 +82,7 @@ def _open_fastq_file(file: Path) -> TextIO:
     return gzip.open(file, "rt") if file.name.endswith(".gz") else file.open()
 
 
-def _log(message: str, verbose: bool = True) -> Optional[str]:
+def _log(message: str, verbose: bool = True) -> str | None:
     if verbose:
         print(message)
         return message
@@ -92,7 +92,7 @@ class Engine(object):
     def __init__(self, validate_object):
         self.validate_object = validate_object
 
-    def __call__(self, fastq_file) -> list[Optional[str]]:
+    def __call__(self, fastq_file) -> list[str | None]:
         errors = []
         _log(f"Validating matching fastq file {fastq_file}")
         self.validate_object.validate_fastq_file(fastq_file)
@@ -119,7 +119,7 @@ class FASTQValidatorLogic:
     _FASTQ_LINE_2_VALID_CHARS = "ACGNT"
 
     def __init__(self, verbose=False):
-        self.errors: List[Optional[str]] = []
+        self.errors: list[str | None] = []
         self.files_were_found = False
         self.files_by_path = Manager().dict()
         self._file_record_counts = Manager().dict()
@@ -142,13 +142,13 @@ class FASTQValidatorLogic:
         print(message)
         return message
 
-    def _validate_fastq_line_1(self, line: str) -> List[str]:
+    def _validate_fastq_line_1(self, line: str) -> list[str]:
         if not line or line[0] != "@":
             return ["Line does not begin with '@'."]
 
         return []
 
-    def _validate_fastq_line_2(self, line: str) -> List[str]:
+    def _validate_fastq_line_2(self, line: str) -> list[str]:
         self._line_2_length = len(line)
         self._last_line_2_number = self._line_number
 
@@ -158,14 +158,14 @@ class FASTQValidatorLogic:
 
         return []
 
-    def _validate_fastq_line_3(self, line: str) -> List[str]:
+    def _validate_fastq_line_3(self, line: str) -> list[str]:
         if not line or line[0] != "+":
             return ["Line does not begin with '+'."]
 
         return []
 
-    def _validate_fastq_line_4(self, line: str) -> List[str]:
-        errors: List[str] = []
+    def _validate_fastq_line_4(self, line: str) -> list[str]:
+        errors: list[str] = []
         invalid_chars = "".join(c for c in line if not 33 <= ord(c) <= 126)
         if invalid_chars:
             errors.append("Line contains invalid quality character(s): " f'"{invalid_chars}"')
@@ -185,10 +185,10 @@ class FASTQValidatorLogic:
         4: _validate_fastq_line_4,
     }
 
-    def validate_fastq_record(self, line: str, line_number: int) -> List[str]:
+    def validate_fastq_record(self, line: str, line_number: int) -> list[str]:
         line_index = line_number % 4 + 1
 
-        validator_method: Callable[[Self, str], List[str]] = self._VALIDATE_FASTQ_LINE_METHODS[
+        validator_method: Callable[[Self, str], list[str]] = self._VALIDATE_FASTQ_LINE_METHODS[
             line_index
         ]
 
@@ -242,7 +242,7 @@ class FASTQValidatorLogic:
                 self._format_error(f"Unexpected error: {e} on data file {fastq_file}.")
             )
 
-    def validate_fastq_files_in_path(self, paths: List[Path], threads: int) -> None:
+    def validate_fastq_files_in_path(self, paths: list[Path], threads: int) -> None:
         """
         - Builds a dict of {data_path: [filepaths]}.
         - [parallel] Opens, validates, and gets line count of each file in list, and then
@@ -291,7 +291,7 @@ class FASTQValidatorLogic:
         if len(data_found_one) > 0:
             self.errors.extend(data_found_one)
 
-    def _make_groups(self, files: List[Path]) -> dict[filename_pattern, list[Path]]:
+    def _make_groups(self, files: list[Path]) -> dict[filename_pattern, list[Path]]:
         groups = defaultdict(list)
         for file in files:
             potential_match = get_prefix_read_type_and_set(str(file))
@@ -333,19 +333,22 @@ def main():
     parser.add_argument("coreuse", type=int, help="Number of cores to use")
 
     args = parser.parse_args()
-    if isinstance(args.filepaths, List):
+    validator = FASTQValidatorLogic(True)
+    if not (threads := args.coreuse):
+        cpus = cpu_count()
+        threads = cpus // 4 if cpus else 1
+    if isinstance(args.filepaths, list):
         filepaths = [Path(path) for path in args.filepaths]
     elif isinstance(args.filepaths, Path):
         filepaths = [args.filepaths]
     elif isinstance(args.filepaths, str):
         filepaths = [Path(args.filepaths)]
     else:
-        raise Exception(f"Validator init received base_paths arg as type {type(args.filepaths)}")
+        validator.errors.append(
+            f"Validator init received base_paths arg as type {type(args.filepaths)}"
+        )
+        return
 
-    validator = FASTQValidatorLogic(True)
-    if not (threads := args.coreuse):
-        cpus = cpu_count()
-        threads = cpus // 4 if cpus else 1
     validator.validate_fastq_files_in_path(filepaths, threads)
 
 

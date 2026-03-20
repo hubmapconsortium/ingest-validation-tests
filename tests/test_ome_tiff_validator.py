@@ -24,6 +24,6 @@ class TestOmeTiffValidator(TestTiffValidators):
         test_data_path = Path(test_data_fname)
         zfile = zipfile.ZipFile(test_data_path)
         zfile.extractall(tmp_path)
-        validator = OmeTiffValidator(tmp_path / test_data_path.stem, assay_type)
-        errors = validator.collect_errors(coreuse=4)[:]
+        validator = OmeTiffValidator(tmp_path / test_data_path.stem, assay_type, coreuse=4)
+        errors = validator.collect_errors()[:]
         self.check_errors(msg_re_list, errors)
