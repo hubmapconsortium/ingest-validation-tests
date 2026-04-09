@@ -79,18 +79,29 @@ class TestPublicationMetadataValidator:
         v.check_required()
         assert v.errors == []
 
-    def test_required_missing(self, monkeypatch):
+    def test_required_missing_none(self, monkeypatch):
         with monkeypatch.context() as m:
             m.setattr(
                 PublicationMetadataValidator,
                 "entity_data",
-                self.required_fields | {"title": None, "description": ""},
+                self.required_fields | {"title": None},
             )
             v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
             v.check_required()
-            assert v.errors == ["Missing required fields: title, abstract"]
+            assert v.errors == ["Missing required fields: title"]
 
-    def test_required_bool(self, monkeypatch):
+    def test_required_missing_empty_string(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields | {"description": ""},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_required()
+            assert v.errors == ["Missing required fields: abstract"]
+
+    def test_required_bool_false_only(self, monkeypatch):
         with monkeypatch.context() as m:
             m.setattr(
                 PublicationMetadataValidator,
@@ -100,6 +111,22 @@ class TestPublicationMetadataValidator:
             v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
             v.check_required()
             assert v.errors == []
+
+    def test_required_bool_false_with_other_missing(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields
+                | {
+                    "publication_status": False,
+                    "title": "",
+                    "description": None,
+                },
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_required()
+            assert v.errors == ["Missing required fields: title, abstract"]
 
     def test_check_ancestors_good(self, _mock_validator_good):
         v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)

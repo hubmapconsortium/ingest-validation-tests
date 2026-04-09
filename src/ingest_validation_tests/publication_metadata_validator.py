@@ -38,9 +38,9 @@ class PublicationMetadataValidator(Validator):
             "abstract": self.entity_data.get("description"),
         }
         try:
-            assert all([value is not None for value in required_fields.values()])
+            assert all([value not in [None, ""] for value in required_fields.values()])
         except AssertionError:
-            missing = ", ".join([key for key, val in required_fields.items() if not val])
+            missing = ", ".join([key for key, val in required_fields.items() if val in ["", None]])
             self.errors.append(f"Missing required fields: {missing}")
 
     def check_ancestors(self):
