@@ -126,11 +126,12 @@ class QpTiffChannelValidator(Validator):
                         qptf_channels.append(channel_name.text)
         channels_list.sort()
         qptf_channels_sorted = set(sorted(qptf_channels))
-        if not set(channels_list) == set(qptf_channels_sorted):
+        if not set(channels_list) == qptf_channels_sorted:
             self.errors.append(
-                f"""Channels in {channels_csv} and {qptiff_file} do not match.
-                               CSV channels: {channels_list}
-                               QPTIFF channels: {qptf_channels_sorted}"""
+                f"""Channels in {self.rel_filename_str(channels_csv)} and {self.rel_filename_str(qptiff_file)} do not match.
+                    Channels in CSV that are not present in QPTIFF: {', '.join(set(channels_list).difference(qptf_channels_sorted))}
+                    Channels in QPTIFF that are not present in CSV: {', '.join(qptf_channels_sorted.difference(set(channels_list)))}
+                """
             )
 
     def _get_parent_dir_paths(self, path) -> tuple[Path | None, Path | None]:
