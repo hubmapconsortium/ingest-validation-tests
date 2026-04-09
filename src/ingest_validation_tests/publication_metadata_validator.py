@@ -38,7 +38,7 @@ class PublicationMetadataValidator(Validator):
             "abstract": self.entity_data.get("description"),
         }
         try:
-            assert all(required_fields.values())
+            assert all([value is not None for value in required_fields.values()])
         except AssertionError:
             missing = ", ".join([key for key, val in required_fields.items() if not val])
             self.errors.append(f"Missing required fields: {missing}")

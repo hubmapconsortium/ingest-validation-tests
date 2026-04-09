@@ -14,7 +14,7 @@ class TestPublicationMetadataValidator:
         "title": "title_value",
         "publication_venue": "pub_venue_value",
         "publication_date": "pub_date_value",
-        "publication_status": "pub_status_value",
+        "publication_status": True,
         "description": "abstract_value",
         "uuid": "test_uuid",
         "omap_doi": "omap_doi_value",
@@ -89,6 +89,17 @@ class TestPublicationMetadataValidator:
             v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
             v.check_required()
             assert v.errors == ["Missing required fields: title, abstract"]
+
+    def test_required_bool(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields | {"publication_status": False},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_required()
+            assert v.errors == []
 
     def test_check_ancestors_good(self, _mock_validator_good):
         v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
