@@ -107,6 +107,18 @@ class QpTiffChannelValidator(Validator):
         """
         channels = pd.read_csv(channels_csv)
         channels_list = channels.iloc[:, 0].tolist()
+        qptf_channels = self._get_qptiff_channels(qptiff_file)
+        channels_list.sort()
+        channels_set = set(channels_list)
+        if not channels_set == qptf_channels:
+            self.errors.append(
+                f"""Channels in {self.rel_filename_str(channels_csv)} and {self.rel_filename_str(qptiff_file)} do not match.
+                    Channels in CSV that are not present in QPTIFF: {', '.join(channels_set.difference(qptf_channels))}
+                    Channels in QPTIFF that are not present in CSV: {', '.join(qptf_channels.difference(channels_set))}
+                """
+            )
+
+    def _get_qptiff_channels(self, qptiff_file: Path) -> set[str]:
         qptf_channels = []
         with tifffile.TiffFile(qptiff_file) as qptf:
             for page in qptf.pages:
@@ -124,15 +136,7 @@ class QpTiffChannelValidator(Validator):
                         channel_name := ElementTree.fromstring(description).find("Name")
                     ) is not None:
                         qptf_channels.append(channel_name.text)
-        channels_list.sort()
-        qptf_channels_sorted = set(sorted(qptf_channels))
-        if not set(channels_list) == qptf_channels_sorted:
-            self.errors.append(
-                f"""Channels in {self.rel_filename_str(channels_csv)} and {self.rel_filename_str(qptiff_file)} do not match.
-                    Channels in CSV that are not present in QPTIFF: {', '.join(set(channels_list).difference(qptf_channels_sorted))}
-                    Channels in QPTIFF that are not present in CSV: {', '.join(qptf_channels_sorted.difference(set(channels_list)))}
-                """
-            )
+        return set(sorted(qptf_channels))
 
     def _get_parent_dir_paths(self, path) -> tuple[Path | None, Path | None]:
         channels_parent_path = Path(os.path.join(path, "lab_processed/images"))
