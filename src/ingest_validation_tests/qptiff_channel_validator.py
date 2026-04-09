@@ -8,8 +8,8 @@ from validator import Validator
 
 
 class QpTiffChannelValidator(Validator):
-    description = """Check for presence of at least one "Yes" value in
-    'is_channel_used_for_nuclei_segmentation' and 'is_channel_used_for_cell_segmentation'"""
+    description = """Check qptiff.channels.csv for cell/nuclei segmentation markers;
+    check channels in QPTIFF against channels in qptiff.channels.csv"""
     cost = 1.0
     version = "1.0"
     required = ["phenocycler"]
