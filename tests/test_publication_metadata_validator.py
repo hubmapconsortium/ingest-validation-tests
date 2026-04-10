@@ -14,7 +14,7 @@ class TestPublicationMetadataValidator:
         "title": "title_value",
         "publication_venue": "pub_venue_value",
         "publication_date": "pub_date_value",
-        "publication_status": "pub_status_value",
+        "publication_status": True,
         "description": "abstract_value",
         "uuid": "test_uuid",
         "omap_doi": "omap_doi_value",
@@ -79,12 +79,50 @@ class TestPublicationMetadataValidator:
         v.check_required()
         assert v.errors == []
 
-    def test_required_missing(self, monkeypatch):
+    def test_required_missing_none(self, monkeypatch):
         with monkeypatch.context() as m:
             m.setattr(
                 PublicationMetadataValidator,
                 "entity_data",
-                self.required_fields | {"title": None, "description": ""},
+                self.required_fields | {"title": None},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_required()
+            assert v.errors == ["Missing required fields: title"]
+
+    def test_required_missing_empty_string(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields | {"description": ""},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_required()
+            assert v.errors == ["Missing required fields: abstract"]
+
+    def test_required_bool_false_only(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields | {"publication_status": False},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v.check_required()
+            assert v.errors == []
+
+    def test_required_bool_false_with_other_missing(self, monkeypatch):
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields
+                | {
+                    "publication_status": False,
+                    "title": "",
+                    "description": None,
+                },
             )
             v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
             v.check_required()
