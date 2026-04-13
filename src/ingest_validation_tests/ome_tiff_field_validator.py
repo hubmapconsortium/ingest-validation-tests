@@ -72,6 +72,7 @@ class OmeTiffFieldValidator(Validator):
             if rslt is not None
         ]
         pool.close()
+        pool.join()
         return self._return_result(
             list(itertools.chain.from_iterable(rslt_list)) if rslt_list else None,
             filenames_to_test,
