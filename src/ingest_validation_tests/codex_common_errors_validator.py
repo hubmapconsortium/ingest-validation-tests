@@ -1,9 +1,3 @@
-"""
-Test for some common errors in the directory and file structure of CODEX datasets.
-"""
-
-from typing import List, Optional
-
 import pandas as pd
 from validator import Validator
 
@@ -46,15 +40,12 @@ class CodexCommonErrorsValidator(Validator):
     description = "Test for common problems found in CODEX"
     cost = 1.0
     version = "1.0"
-    required = "codex"
+    required = ["codex"]
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
+    def _collect_errors(self) -> list[str | None]:
         """
         Return the errors found by this validator
         """
-        del kwargs
-        if self.required not in self.contains and self.assay_type.lower() != self.required:
-            return []  # We only test CODEX data
         rslts = []
         for path in self.paths:
             rslt = []
@@ -216,10 +207,4 @@ class CodexCommonErrorsValidator(Validator):
                     rslts.extend(rslt)
                 else:
                     rslts.append(rslt)
-                pass
-        if rslts:
-            return rslts
-        elif self.paths:
-            return [None]
-        else:
-            return []
+        return self._return_result(rslts, self.paths)

@@ -26,7 +26,7 @@ class MySchemaVersion:
         (
             "test_data/segmask_HBM787.DVDV.435_crop512.zip",
             "test_data/pas_HBM847.ZQZH.768_crop512.zip",
-            [],
+            [None],
             "segmentation mask",
         ),
         (
@@ -34,6 +34,12 @@ class MySchemaVersion:
             "test_data/pas_HBM847.ZQZH.768_crop512.zip",
             ["Files and base image size do not match"],
             "segmentation mask",
+        ),
+        (
+            "test_data/segmask_HBM787.DVDV.435_crop400.zip",
+            "test_data/pas_HBM847.ZQZH.768_crop512.zip",
+            [],
+            "bad_type",
         ),
     ),
 )
@@ -59,8 +65,10 @@ def test_segmentation_mask_imagesize_validator(
     assert len(tsv_path_l) == 1, "Failed to find one metadata file"
     recs_df = pd.read_csv(tsv_path_l[0], sep="\t")
     sv = MySchemaVersion(rows=recs_df.to_dict("records"))
-    validator = ImageSizeValidator(tmp_seg_path / test_data_path.stem, assay_type, schema=sv)
-    errors = validator.collect_errors(coreuse=4)[:]
+    validator = ImageSizeValidator(
+        tmp_seg_path / test_data_path.stem, assay_type, schema=sv, coreuse=4
+    )
+    errors = validator.collect_errors()[:]
     assert len(msg_re_list) == len(errors)
     for err_str, re_str in zip(errors, msg_re_list):
         assert (err_str is None and re_str is None) or re.match(

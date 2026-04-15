@@ -1,24 +1,18 @@
 from multiprocessing import Pool
-from os import cpu_count
-from typing import List, Optional
 
 import tifffile
 from validator import Validator
 
 
-def _log(message: str):
-    print(message)
-
-
-def _check_tiff_file(path: str) -> Optional[str]:
+def _check_tiff_file(path: str) -> str | None:
     try:
         with tifffile.TiffFile(path) as tfile:
             for page in tfile.pages:
                 _ = page.asarray()  # force decompression
         return None
     except Exception as excp:
-        _log(f"{path} is not a valid TIFF file: {excp}")
-        return f"{path} is not a valid TIFF file: {excp}"
+        print(f"{path} is not a valid TIFF file: {excp}")
+        return f"{path} is not a valid TIFF file: not a TIFF file."
 
 
 class TiffValidator(Validator):
@@ -26,10 +20,8 @@ class TiffValidator(Validator):
     cost = 1.0
     version = "1.0"
 
-    def collect_errors(self, **kwargs) -> List[Optional[str]]:
-        threads = kwargs.get("coreuse", None) or cpu_count() // 4 or 1
-        _log(f"Threading at TiffValidator with {threads}")
-        pool = Pool(threads)
+    def _collect_errors(self) -> list[str | None]:
+        pool = Pool(self.threads)
         filenames_to_test = []
         for glob_expr in [
             "**/*.[tT][iI][fF]",
@@ -39,19 +31,14 @@ class TiffValidator(Validator):
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
         try:
-            rslt_list: List[Optional[str]] = list(
+            rslt_list: list[str | None] = list(
                 rslt
                 for rslt in pool.imap_unordered(_check_tiff_file, filenames_to_test)
                 if rslt is not None
             )
         except Exception as e:
-            _log(f"Error {e}")
+            self._log(f"Error {e}")
             rslt_list = [f"Error {e}"]
         pool.close()
         pool.join()
-        if rslt_list:
-            return rslt_list
-        elif filenames_to_test:
-            return [None]
-        else:
-            return []
+        return self._return_result(rslt_list, filenames_to_test)
