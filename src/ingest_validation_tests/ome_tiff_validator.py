@@ -29,4 +29,5 @@ class OmeTiffValidator(Validator):
             if rslt is not None
         )
         pool.close()
+        pool.join()
         return self._return_result(rslt_list, filenames_to_test)
