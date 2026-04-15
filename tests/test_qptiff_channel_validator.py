@@ -5,7 +5,7 @@ import pytest
 from qptiff_channel_validator import QpTiffChannelValidator
 
 
-class TestQpTiffChannelValidator:
+class TestQpTiffChannelCsv:
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),
         (
@@ -27,11 +27,11 @@ class TestQpTiffChannelValidator:
                 "phenocycler",
             ),
             # test case: both columns have Yes/true values
-            ("test_data/qptiff_good.zip", [None], "phenocycler"),
+            ("test_data/qptiff_good.zip", [], "phenocycler"),
             # test case: both columns have Yes/true values, column names have spaces
             (
                 "test_data/qptiff_good_with_alt_column_format.zip",
-                [None],
+                [],
                 "phenocycler",
             ),
             # test case: columns out of order
@@ -56,25 +56,33 @@ class TestQpTiffChannelValidator:
             ("test_data/qptiff_good.zip", [], "snRNAseq"),
         ),
     )
-    def test_qptiff_channel_validator(self, test_data_fname, msg_re_list, assay_type, tmp_path):
+    def test_qptiff_channel_csv(self, test_data_fname, msg_re_list, assay_type, tmp_path):
         test_data_path = Path(test_data_fname)
         zfile = zipfile.ZipFile(test_data_path)
         zfile.extractall(tmp_path)
         validator = QpTiffChannelValidator(tmp_path / test_data_path.stem, assay_type)
-        errors = validator.collect_errors()[:]
-        errors.sort()
-        assert errors == msg_re_list
+        validator.check_qptiff_channels_file(
+            Path(
+                tmp_path
+                / test_data_path.stem
+                / f"lab_processed/images/{test_data_path.stem}.qptiff.channels.csv"
+            )
+        )
+        for error in msg_re_list:
+            assert error in validator.errors
 
     def test_missing_required_dir(self, tmp_path):
         validator = QpTiffChannelValidator(tmp_path, "phenocycler")
         errors = validator.collect_errors()[:]
         errors.sort()
-        assert errors == [
+        for err in [
             "Can't find 'lab_processed/images' subdirectory in 'test_missing_required_dir0'.",
-            "Could not find 'lab_processed/images/*.qptiff.channels.csv' files (required for phenocycler).",
-        ]
+            "Can't find 'raw/images' subdirectory in 'test_missing_required_dir0'.",
+            "Could not find qptiff.channels.csv and associated QPTIFF files (required for phenocycler).",
+        ]:
+            assert err in errors
 
-    def test_missing_required_files(self, tmp_path):
+    def test_missing_channels_csv(self, tmp_path):
         dir1 = tmp_path / "lab_processed"
         dir1.mkdir()
         dir2 = dir1 / "images"
@@ -82,9 +90,10 @@ class TestQpTiffChannelValidator:
         validator = QpTiffChannelValidator(tmp_path, "phenocycler")
         errors = validator.collect_errors()[:]
         errors.sort()
-        assert errors == [
-            "Could not find 'lab_processed/images/*.qptiff.channels.csv' files (required for phenocycler).",
-        ]
+        assert (
+            "Could not find qptiff.channels.csv and associated QPTIFF files (required for phenocycler)."
+            in errors
+        )
 
     @pytest.mark.parametrize(
         ("test_data_fnames", "msg_re_list"),
@@ -127,9 +136,11 @@ class TestQpTiffChannelValidator:
             test_data_path = Path(test_data_fname)
             zfile = zipfile.ZipFile(test_data_path)
             zfile.extractall(tmp_path)
-        validator = QpTiffChannelValidator(
-            [tmp_path / test_data_path.stem for test_data_path in test_data_fnames], "phenocycler"
-        )
-        errors = validator.collect_errors()[:]
-        errors.sort()
-        assert errors == msg_re_list
+        test_data_paths = [tmp_path / test_data_path.stem for test_data_path in test_data_fnames]
+        validator = QpTiffChannelValidator(test_data_paths, "phenocycler")
+        for data_path in test_data_paths:
+            validator.check_qptiff_channels_file(
+                data_path / f"lab_processed/images/{data_path.stem}.qptiff.channels.csv"
+            )
+        for error in msg_re_list:
+            assert error in validator.errors

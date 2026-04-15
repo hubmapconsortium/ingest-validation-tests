@@ -1,13 +1,15 @@
 import os
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pandas as pd
+import tifffile
 from validator import Validator
 
 
 class QpTiffChannelValidator(Validator):
-    description = """Check for presence of at least one "Yes" value in
-    'is_channel_used_for_nuclei_segmentation' and 'is_channel_used_for_cell_segmentation'"""
+    description = """Check qptiff.channels.csv for cell/nuclei segmentation markers;
+    check channels in QPTIFF against channels in qptiff.channels.csv"""
     cost = 1.0
     version = "1.0"
     required = ["phenocycler"]
@@ -30,32 +32,45 @@ class QpTiffChannelValidator(Validator):
         self.errors = []
 
     def _collect_errors(self) -> list[str | None]:
-        filenames_to_test = []
+        if not (file_pairs_to_test := self.get_file_pairs_to_test()):
+            self.errors.append(
+                f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
+            )
+            return self._return_result(self.errors, False)
+        for channels_csv, qptiff_file in file_pairs_to_test.items():
+            self.check_qptiff_channels_file(channels_csv)
+            self.check_channels(channels_csv, qptiff_file)
+        return self._return_result(self.errors, bool(file_pairs_to_test))
+
+    def get_file_pairs_to_test(self) -> dict:
+        """
+        For each data path, pair {qptiff.channels.csv: qptiff_file}
+        """
+        file_pairs_to_test = {}
 
         for path in self.paths:
-            images_path = Path(os.path.join(path, "lab_processed/images"))
-            if not images_path.exists():
-                self.errors.append(
-                    f"Can't find 'lab_processed/images' subdirectory in '{path.stem}'."
-                )
+            channels_parent_path, qptiff_parent_path = self._get_parent_dir_paths(path)
+            if not channels_parent_path or not qptiff_parent_path:
                 continue
-            for filename in images_path.iterdir():
-                if "qptiff.channels.csv" in str(filename).lower():
-                    filenames_to_test.append(filename)
 
-        if filenames_to_test:
-            for filename in filenames_to_test:
-                self.check_qptiff_file(filename)
-        else:
-            self.errors.append(
-                f"Could not find 'lab_processed/images/*.qptiff.channels.csv' files (required for {self.assay_type})."
-            )
-        return self._return_result(self.errors, filenames_to_test)
+            channel_csv = self._get_file_path(channels_parent_path, "qptiff.channels.csv")
+            qptiff_file = self._get_file_path(qptiff_parent_path, ".qptiff")
+            if not (channel_csv and qptiff_file):
+                continue
+            file_pairs_to_test[channel_csv] = qptiff_file
 
-    def check_qptiff_file(self, filename: Path):
+        return file_pairs_to_test
+
+    def check_qptiff_channels_file(self, filename: Path):
+        """
+        Check for presence of at least one "Yes" value in
+        'is_channel_used_for_nuclei_segmentation' and 'is_channel_used_for_cell_segmentation',
+        and make sure columns are in order.
+        """
+
         df = pd.read_csv(filename)
         # pipeline uses column position to determine channel & cell/nucleus segmentation
-        if column_order_errors := self._check_column_order(df, filename):
+        if column_order_errors := self.check_column_order(df, filename):
             # validation can't continue if columns out of order
             self.errors.extend(column_order_errors)
             return
@@ -66,7 +81,7 @@ class QpTiffChannelValidator(Validator):
                     f"{self.rel_filename_str(filename)} must have at least one 'Yes' value in column '{column}'"
                 )
 
-    def _check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
+    def check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
         column_order_errors = []
         for index, columns in enumerate(self.ordered_columns):
             try:
@@ -84,3 +99,64 @@ class QpTiffChannelValidator(Validator):
                 else:
                     column_order_errors.append(f"{self.rel_filename_str(filename)}: {e}")
         return column_order_errors
+
+    def check_channels(self, channels_csv: Path, qptiff_file: Path):
+        """
+        Check that channels in channel_id column of qptiff.channels.csv
+        match channels in accompanying QPTIFF file.
+        """
+        channels = pd.read_csv(channels_csv)
+        channels_list = channels.iloc[:, 0].tolist()
+        qptf_channels = self._get_qptiff_channels(qptiff_file)
+        channels_list.sort()
+        channels_set = set(channels_list)
+        if not channels_set == qptf_channels:
+            self.errors.append(
+                f"""Channels in {self.rel_filename_str(channels_csv)} and {self.rel_filename_str(qptiff_file)} do not match.
+                    Channels in CSV that are not present in QPTIFF: {', '.join(channels_set.difference(qptf_channels))}
+                    Channels in QPTIFF that are not present in CSV: {', '.join(qptf_channels.difference(channels_set))}
+                """
+            )
+
+    def _get_qptiff_channels(self, qptiff_file: Path) -> set[str]:
+        qptf_channels = []
+        with tifffile.TiffFile(qptiff_file) as qptf:
+            for page in qptf.pages:
+                if description := page.tags.get("ImageDescription").value:
+                    """
+                    Bioformats conversion (used in pipeline) uses ImageDescription.Biomarker
+                    as the channel name if present, defaulting to ImageDescription.Name if not.
+                    https://github.com/ome/bioformats/blob/877c317e4e396381dc76e56c1539b24947f71dce/components/formats-gpl/src/loci/formats/in/VectraReader.java#L546
+                    """
+                    if (
+                        biomarker := ElementTree.fromstring(description).find("Biomarker")
+                    ) is not None:
+                        qptf_channels.append(biomarker.text)
+                    elif (
+                        channel_name := ElementTree.fromstring(description).find("Name")
+                    ) is not None:
+                        qptf_channels.append(channel_name.text)
+        return set(sorted(qptf_channels))
+
+    def _get_parent_dir_paths(self, path) -> tuple[Path | None, Path | None]:
+        channels_parent_path = Path(os.path.join(path, "lab_processed/images"))
+        if not channels_parent_path.exists():
+            channels_parent_path = None
+            self.errors.append(f"Can't find 'lab_processed/images' subdirectory in '{path.stem}'.")
+        qptiff_parent_path = Path(os.path.join(path, "raw/images"))
+        if not qptiff_parent_path.exists():
+            qptiff_parent_path = None
+            self.errors.append(f"Can't find 'raw/images' subdirectory in '{path.stem}'.")
+        return channels_parent_path, qptiff_parent_path
+
+    def _get_file_path(self, parent_dir_path: Path, search_str: str) -> Path | None:
+        files = []
+        for filename in parent_dir_path.iterdir():
+            if search_str in str(filename).lower():
+                files.append(filename)
+        if len(files) != 1:
+            self.errors.append(
+                f"Found {len(files)} {search_str} files in {parent_dir_path} directory."
+            )
+            return
+        return files[0]
