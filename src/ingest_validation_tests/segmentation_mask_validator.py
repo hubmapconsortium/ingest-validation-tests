@@ -47,10 +47,8 @@ class SegmentationMaskValidator(Validator):
     def validate_file(self, file_path: Path) -> str | list[str] | None:
         with open(file_path, "rb") as f:
             file = {"input_file": f}
-            headers = {"content-type": "multipart/form-data"}
             response = requests.post(
                 "https://api.stage.metadatavalidator.metadatacenter.org/service/validate-structured-xlsx",
-                headers=headers,
                 files=file,
             )
             try:
