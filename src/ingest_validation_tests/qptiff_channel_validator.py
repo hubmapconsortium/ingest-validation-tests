@@ -1,9 +1,11 @@
 import os
+import re
 from pathlib import Path
 from xml.etree import ElementTree
 
 import pandas as pd
 import tifffile
+from tests_utils import get_non_global_paths_by_row
 from validator import Validator
 
 
@@ -30,6 +32,7 @@ class QpTiffChannelValidator(Validator):
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
         self.errors = []
+        self.shared_upload = any([bool("global" in str(path)) for path in self.paths])
 
     def _collect_errors(self) -> list[str | None]:
         if not (file_pairs_to_test := self.get_file_pairs_to_test()):
@@ -49,6 +52,10 @@ class QpTiffChannelValidator(Validator):
         file_pairs_to_test = {}
 
         for path in self.paths:
+            if self.shared_upload and "non_global" in str(path):
+                file_pairs_to_test.update(self._get_non_global_file_pairs())
+                continue
+
             channels_parent_path, qptiff_parent_path = self._get_parent_dir_paths(path)
             if not channels_parent_path or not qptiff_parent_path:
                 continue
@@ -60,6 +67,39 @@ class QpTiffChannelValidator(Validator):
             file_pairs_to_test[channel_csv] = qptiff_file
 
         return file_pairs_to_test
+
+    def _get_non_global_file_pairs(self) -> dict:
+        """
+        non_global directory may contain multiple raw/images/.*qptiff
+        and lab_processed/images/.*channels.csv files in the same directory.
+        Read the non_global_paths field of the metadata.tsv and retrieve
+        pairs from there.
+
+        For each row, pair {qptiff.channels.csv: qptiff_file}
+        """
+        if not self.schema or not self.schema.rows:
+            raise Exception("TODO")
+        pairs = {}
+        non_global_paths = get_non_global_paths_by_row(self.schema.rows)
+        for path_list in non_global_paths.values():
+            # find qptiff and channels files in files list for row
+            qptiff_regex = r"raw\/images\/[^\/]*qptiff"
+            channels_regex = r"lab_processed\/images\/.*channels\.csv"
+            qptiff_paths = [path for path in path_list if re.match(qptiff_regex, str(path))]
+            channels_paths = [path for path in path_list if re.match(channels_regex, str(path))]
+
+            # should be exactly one of each
+            if len(qptiff_paths) != 1 or len(channels_paths) != 1:
+                self.errors.append("TODO")
+                continue
+
+            # make sure paths exist
+            for path in [channels_paths[0], qptiff_paths[0]]:
+                if not Path(path).exists():
+                    self.errors.append("TODO")
+
+            pairs[channels_paths[0]] = qptiff_paths[0]
+        return pairs
 
     def check_qptiff_channels_file(self, filename: Path):
         """
@@ -142,11 +182,17 @@ class QpTiffChannelValidator(Validator):
         channels_parent_path = Path(os.path.join(path, "lab_processed/images"))
         if not channels_parent_path.exists():
             channels_parent_path = None
-            self.errors.append(f"Can't find 'lab_processed/images' subdirectory in '{path.stem}'.")
+            # we don't know where the files will be in a shared upload, don't report if missing;
+            # directory validation should have caught a total omission
+            if not self.shared_upload:
+                self.errors.append(
+                    f"Can't find 'lab_processed/images' subdirectory in '{path.stem}'."
+                )
         qptiff_parent_path = Path(os.path.join(path, "raw/images"))
         if not qptiff_parent_path.exists():
             qptiff_parent_path = None
-            self.errors.append(f"Can't find 'raw/images' subdirectory in '{path.stem}'.")
+            if not self.shared_upload:
+                self.errors.append(f"Can't find 'raw/images' subdirectory in '{path.stem}'.")
         return channels_parent_path, qptiff_parent_path
 
     def _get_file_path(self, parent_dir_path: Path, search_str: str) -> Path | None:

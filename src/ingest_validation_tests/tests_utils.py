@@ -1,3 +1,6 @@
+from csv import DictReader
+from pathlib import Path
+
 import requests
 
 
@@ -36,3 +39,22 @@ class GetParentData:
             except requests.exceptions.HTTPError as err:
                 print(f"Error: {err}")
         return ""
+
+
+def get_non_global_paths_by_row(rows: list[dict]) -> dict[int, str]:
+    """
+    Create dict of non-global paths by row for a shared upload.
+    {0: [<path_1>, <path_2>], 1: [<path_3>, <path_4>]}
+    """
+    files_by_row = {}
+    for i, row in enumerate(rows):
+        if non_global_files := row.get("non_global_files"):
+            files_by_row[i] = [file.strip() for file in non_global_files.split(";")]
+    return files_by_row
+
+
+def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
+    with open(path, encoding=encoding) as f:
+        rows = list(DictReader(f, dialect="excel-tab"))
+        f.close()
+    return rows

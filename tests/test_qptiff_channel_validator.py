@@ -1,3 +1,4 @@
+import os
 import zipfile
 from pathlib import Path
 
@@ -144,3 +145,19 @@ class TestQpTiffChannelCsv:
             )
         for error in msg_re_list:
             assert error in validator.errors
+
+    def make_shared_upload(self, parent_dir, lab_processed_files: list[str], raw_files: list[str]):
+        os.makedirs(parent_dir / "non_global/lab_processed/images")
+        os.makedirs(parent_dir / "non_global/raw/images")
+        for file in lab_processed_files:
+            os.mknod(f"{parent_dir}/non_global/lab_processed/images/{file}")
+        for file in raw_files:
+            os.mknod(f"{parent_dir}/non_global/raw/images/{file}")
+
+    # TODO: need to patch in schema.rows
+    def test_shared_upload_good(self, tmp_path):
+        self.make_shared_upload(tmp_path, ["test.qptiff.channels.csv"], ["test.qptiff"])
+        validator = QpTiffChannelValidator(tmp_path / "non_global", "phenocycler")
+        assert validator.get_file_pairs_to_test() == {
+            "non_global/lab_processed/images/test.qptiff.channels.csv": "non_global/raw/images/test.qptiff"
+        }
