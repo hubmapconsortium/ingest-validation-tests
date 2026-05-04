@@ -72,10 +72,13 @@ class PublicationMetadataValidator(Validator):
         publication_url = self.entity_data.get("publication_url", "")
         try:
             response = self._make_request(publication_url)
-            if response.status_code == 403 and any(
-                [rxiv in publication_url for rxiv in self.supported_rxivs]
-            ):
-                self._check_rxiv_url(publication_url)
+            if response.status_code == 403:
+                if any([rxiv in publication_url for rxiv in self.supported_rxivs]):
+                    self._check_rxiv_url(publication_url)
+                else:
+                    self.errors.append(
+                        f"403: Access forbidden for Publication URL {publication_url}"
+                    )
             else:
                 response.raise_for_status()
         except Exception:
@@ -95,8 +98,6 @@ class PublicationMetadataValidator(Validator):
                 doi_regex = r"10.+\/.*"
                 if match := re.search(doi_regex, split_url.path):
                     response = self._make_request(urljoin(url_prefix, match[0]))
-                    url = urljoin(url_prefix, match[0])
-                    response = self._make_request(url)
                     if messages := response.json().get("messages"):
                         print(response.json())
                         if messages[0].get("status") == "DOI not recognizable":
