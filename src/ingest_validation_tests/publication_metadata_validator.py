@@ -73,7 +73,8 @@ class PublicationMetadataValidator(Validator):
             response = self._make_request(publication_url)
             if response.status_code == 403:
                 self._check_rxiv_url(publication_url)
-            response.raise_for_status()
+            else:
+                response.raise_for_status()
         except Exception:
             self.errors.append(f"Bad Publication URL '{publication_url}'.")
 
@@ -91,9 +92,18 @@ class PublicationMetadataValidator(Validator):
                 doi_regex = r"10.+\/.*"
                 if match := re.search(doi_regex, split_url.path):
                     response = self._make_request(urljoin(url_prefix, match[0]))
+                    url = urljoin(url_prefix, match[0])
+                    response = self._make_request(url)
                     if messages := response.json().get("messages"):
-                        if not messages[0].get("status") == "ok":
+                        print(response.json())
+                        if messages[0].get("status") == "DOI not recognizable":
+                            self.errors.append(
+                                f"{rxiv} API search failed. Check that DOI does not have appended data, e.g. version string."
+                            )
+                        elif not messages[0].get("status") == "ok":
                             self.errors.append(f"Failed {rxiv} API search: {url}.")
+            else:
+                self.errors.append(f"403: Access forbidden for Publication URL {url}")
 
     def _check_doi(self):
         """
@@ -105,6 +115,9 @@ class PublicationMetadataValidator(Validator):
         }.items():
             if not doi:
                 return
+            elif doi.startswith("http"):
+                self.errors.append(f"{doi_type} should not be in URL form: {doi}")
+                return
             try:
                 response = self._make_request(f"https://www.doi.org/{doi}")
                 if response.status_code == 403:
@@ -114,7 +127,8 @@ class PublicationMetadataValidator(Validator):
                     response = self._make_request(
                         f"https://api.crossref.org/works/doi/{doi}?mailto=help@hubmapconsortium.org"
                     )
-                response.raise_for_status()
+                else:
+                    response.raise_for_status()
             except Exception:
                 self.errors.append(f"Bad {doi_type} '{doi}'.")
 

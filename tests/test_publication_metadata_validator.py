@@ -244,6 +244,18 @@ class TestPublicationMetadataValidator:
             f"https://api.crossref.org/works/doi/10/test?mailto=help@hubmapconsortium.org"
         )
 
+    def test_catch_url_doi(self, monkeypatch):
+        doi = "https://bad_doi"
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields | {"publication_doi": doi},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v._check_doi()
+            assert v.errors == [f"Publication DOI should not be in URL form: {doi}"]
+
     def test_pub_url_parser(self, monkeypatch):
         test_url_value = "10.123/test"
         monkeypatch.setattr(
