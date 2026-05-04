@@ -20,6 +20,7 @@ class PublicationMetadataValidator(Validator):
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
         self.errors: list = []
+        self.supported_rxivs = ["biorxiv", "medrxiv"]
 
     def _collect_errors(self) -> list[str | None]:
         self.check_required()
@@ -71,7 +72,9 @@ class PublicationMetadataValidator(Validator):
         publication_url = self.entity_data.get("publication_url", "")
         try:
             response = self._make_request(publication_url)
-            if response.status_code == 403:
+            if response.status_code == 403 and any(
+                [rxiv in publication_url for rxiv in self.supported_rxivs]
+            ):
                 self._check_rxiv_url(publication_url)
             else:
                 response.raise_for_status()
@@ -84,7 +87,7 @@ class PublicationMetadataValidator(Validator):
         and try to check using biorxiv API.
         """
         split_url = urlsplit(url)
-        for rxiv in ["biorxiv", "medrxiv"]:
+        for rxiv in self.supported_rxivs:
             if rxiv in split_url.netloc:
                 url_prefix = f"https://api.biorxiv.org/details/{rxiv}/"
                 # theoretically a DOI could start with a digit other than 10 but not yet
@@ -98,7 +101,7 @@ class PublicationMetadataValidator(Validator):
                         print(response.json())
                         if messages[0].get("status") == "DOI not recognizable":
                             self.errors.append(
-                                f"{rxiv} API search failed. Check that DOI does not have appended data, e.g. version string."
+                                f"{rxiv} API search failed. Check that DOI does not have appended data, e.g. version string: {url}"
                             )
                         elif not messages[0].get("status") == "ok":
                             self.errors.append(f"Failed {rxiv} API search: {url}.")
