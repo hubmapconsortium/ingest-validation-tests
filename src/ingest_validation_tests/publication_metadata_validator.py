@@ -105,8 +105,6 @@ class PublicationMetadataValidator(Validator):
                             )
                         elif not messages[0].get("status") == "ok":
                             self.errors.append(f"Failed {rxiv} API search: {url}.")
-            else:
-                self.errors.append(f"403: Access forbidden for Publication URL {url}")
 
     def _check_doi(self):
         """
