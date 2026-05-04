@@ -1,6 +1,7 @@
 import os
+import re
 from functools import cached_property
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from validator import Validator
@@ -19,6 +20,7 @@ class PublicationMetadataValidator(Validator):
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
         self.errors: list = []
+        self.supported_rxivs = ["biorxiv", "medrxiv"]
 
     def _collect_errors(self) -> list[str | None]:
         self.check_required()
@@ -63,28 +65,77 @@ class PublicationMetadataValidator(Validator):
                 )
 
     def check_urls(self):
+        self._check_publication_url()
+        self._check_doi()
+
+    def _check_publication_url(self):
         publication_url = self.entity_data.get("publication_url", "")
         try:
-            self._make_request(publication_url)
+            response = self._make_request(publication_url)
+            if response.status_code == 403:
+                if any([rxiv in publication_url for rxiv in self.supported_rxivs]):
+                    self._check_rxiv_url(publication_url)
+                else:
+                    self.errors.append(
+                        f"403: Access forbidden for Publication URL {publication_url}"
+                    )
+            else:
+                response.raise_for_status()
         except Exception:
             self.errors.append(f"Bad Publication URL '{publication_url}'.")
-        for doi_data in [
-            [self.entity_data.get("publication_doi", ""), "Publication DOI"],
-            [self.entity_data.get("omap_doi", ""), "OMAP DOI"],
-        ]:
-            self._check_doi(*doi_data)
 
-    def _check_doi(self, doi: str, doi_type: str):
-        if not doi:
-            return
-        try:
-            self._make_request(f"https://doi.org/{doi}")
-        except Exception:
-            self.errors.append(f"Bad {doi_type} '{doi}'.")
+    def _check_rxiv_url(self, url):
+        """
+        Automated requests are blocked by biorxiv; parse URL
+        and try to check using biorxiv API.
+        """
+        split_url = urlsplit(url)
+        for rxiv in self.supported_rxivs:
+            if rxiv in split_url.netloc:
+                url_prefix = f"https://api.biorxiv.org/details/{rxiv}/"
+                # theoretically a DOI could start with a digit other than 10 but not yet
+                # https://www.doi.org/doi-handbook/html/index.html as of 04/2026
+                doi_regex = r"10.+\/.*"
+                if match := re.search(doi_regex, split_url.path):
+                    response = self._make_request(urljoin(url_prefix, match[0]))
+                    if messages := response.json().get("messages"):
+                        print(response.json())
+                        if messages[0].get("status") == "DOI not recognizable":
+                            self.errors.append(
+                                f"{rxiv} API search failed. Check that DOI does not have appended data, e.g. version string: {url}"
+                            )
+                        elif not messages[0].get("status") == "ok":
+                            self.errors.append(f"Failed {rxiv} API search: {url}.")
 
-    def _make_request(self, url: str):
-        response = requests.get(url)
-        response.raise_for_status()
+    def _check_doi(self):
+        """
+        Check provided DOI string against doi.org, fallback to crossref API.
+        """
+        for doi_type, doi in {
+            "Publication DOI": self.entity_data.get("publication_doi"),
+            "OMAP DOI": self.entity_data.get("omap_doi"),
+        }.items():
+            if not doi:
+                return
+            elif doi.startswith("http"):
+                self.errors.append(f"{doi_type} should not be in URL form: {doi}")
+                return
+            try:
+                response = self._make_request(f"https://www.doi.org/{doi}")
+                if response.status_code == 403:
+                    # automated requests may be blocked, try crossref API
+                    # (widely adopted but not universal, which is why we try
+                    # doi.org first); mailto included for "polite mode"
+                    response = self._make_request(
+                        f"https://api.crossref.org/works/doi/{doi}?mailto=help@hubmapconsortium.org"
+                    )
+                else:
+                    response.raise_for_status()
+            except Exception:
+                self.errors.append(f"Bad {doi_type} '{doi}'.")
+
+    def _make_request(self, url: str) -> requests.Response:
+        return requests.get(url)
 
     @property
     def ingest_ui_link(self) -> str:
