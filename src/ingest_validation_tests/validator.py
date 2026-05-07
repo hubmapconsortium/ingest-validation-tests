@@ -1,4 +1,5 @@
 import inspect
+import os
 import sys
 from importlib import util
 from os import cpu_count
@@ -33,6 +34,7 @@ class Validator:
         globus_token: str = "",
         app_context: dict[str, str] = {},
         coreuse: int | None = None,
+        scratch_dir: Path | None = None,
     ):
         """
         Arguments:
@@ -44,6 +46,7 @@ class Validator:
             globus_token: Globus auth token
             app_context: contains project and env-specific urls, headers
             coreuse: optionally pass in desired number of threads
+            scratch_dir: base path for scratch directories
 
         Usage:
             v = ValidatorSubclass(<base_paths>, <assay_type>, ...)
@@ -63,6 +66,7 @@ class Validator:
         self.schema = schema
         self.token = globus_token
         self.app_context = app_context
+        self.scratch_dir = scratch_dir
         num_cpus = cpu_count()
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
         self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
@@ -129,6 +133,13 @@ class Validator:
             return str(filename.relative_to(self.paths[0].parent))
         except Exception:
             return str(filename)
+
+    @property
+    def uuid(self) -> str:
+        for elt in reversed(str(self.paths[0]).split(os.sep)):
+            if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
+                return elt
+        raise Exception("no uuid was found in the path to the current working directory")
 
 
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
