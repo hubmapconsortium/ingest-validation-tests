@@ -13,8 +13,8 @@ import tifffile
 import xmlschema
 from validator import Validator
 
-BIOFORMATS2RAW_PATH = Path("/hive/users/hive/bioformats2raw-0.12.0/bin")
-RAW2OMETIFF_PATH = Path("/hive/users/hive/raw2ometiff-0.10.0/bin")
+BIOFORMATS2RAW_PATH = Path("/hive/users/hive/bioformats2raw-0.12.0/bin/bioformats2raw")
+RAW2OMETIFF_PATH = Path("/hive/users/hive/raw2ometiff-0.10.0/bin/raw2ometiff")
 
 
 class QpTiffChannelValidator(Validator):
@@ -45,7 +45,6 @@ class QpTiffChannelValidator(Validator):
 
     def _collect_errors(self) -> list[str | None]:
         try:
-            self.files_to_test
             assert (
                 self.files_to_test
             ), f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
@@ -144,6 +143,7 @@ class QpTiffChannelValidator(Validator):
 
 
 class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
+    cost = 5.0
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
@@ -161,14 +161,14 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
             len(existing_dirs := list(self.scratch_dir.glob(f"{self.uuid}*{self.tmp_suffix}")))
             == 1
         ):
-            print(f"Existing temp dir found: {existing_dirs[0]}")
-            self.tmp_dir = existing_dirs[0]
+            print(f"Existing tmp_dir found: {existing_dirs[0]}")
+            return existing_dirs[0]
         else:
-            self.tmp_dir = Path(
-                tempfile.mkdtemp(
-                    prefix=f"{self.uuid}_", suffix=self.tmp_suffix, dir=self.scratch_dir
-                )
+            tmp_dir = tempfile.mkdtemp(
+                prefix=f"{self.uuid}_", suffix=self.tmp_suffix, dir=self.scratch_dir
             )
+            print(f"Created tmp_dir {str(tmp_dir)}")
+            return tmp_dir
 
     def _collect_errors(self):
         # TODO: temp dir will not be deleted if _collect_errors not called
@@ -216,7 +216,7 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
                 "qptiff": <qptiff_path>,
                 "ome_tiff": <ome_tiff_path>}}
         """
-        assert self.tmp_dir
+        assert self.tmp_dir, "No tmp_dir found"
         files_to_test = super().files_to_test
         try:
             self.convert_files(files_to_test)
@@ -314,12 +314,16 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
         return files[0]
 
     def check_dependencies(self):
-        msg = ""
+        msg = []
         if not BIOFORMATS2RAW_PATH.exists():
-            msg += "bioformats2raw not installed"
+            msg.append("bioformats2raw not installed")
+        elif not BIOFORMATS2RAW_PATH.is_file():
+            msg.append(f"bioformats2raw path is not a file: {BIOFORMATS2RAW_PATH}")
         if not RAW2OMETIFF_PATH.exists():
-            msg += "raw2ometiff not installed" if not msg else "; raw2ometiff not installed"
-        return msg
+            msg.append("raw2ometiff not installed")
+        elif not RAW2OMETIFF_PATH.is_file():
+            msg.append(f"raw2ometiff path is not a file: {RAW2OMETIFF_PATH}")
+        return "; ".join(msg)
 
     def convert_files(self, files_to_test: dict[Path, dict[str, Path]]):
         # keys are filepaths, get data_path dirname (path.stem) to construct output path
@@ -358,6 +362,7 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
                 msg += f" Retaining temp dir {self.tmp_dir}"
             else:
                 msg += " No tmp_dir found."
+            print(msg)
         # no errors but also no tmp_dir?
         elif not self.tmp_dir:
             self.errors.append("Validation passed but no tmp_dir found?")
