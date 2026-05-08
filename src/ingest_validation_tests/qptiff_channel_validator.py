@@ -13,13 +13,14 @@ import tifffile
 import xmlschema
 from validator import Validator
 
-BIOFORMATS2RAW_PATH = Path("")
-RAW2OMETIFF_PATH = Path("")
+BIOFORMATS2RAW_PATH = Path("/hive/users/hive/bioformats2raw-0.12.0/bin")
+RAW2OMETIFF_PATH = Path("/hive/users/hive/raw2ometiff-0.10.0/bin")
 
 
 class QpTiffChannelValidator(Validator):
-    description = """Check qptiff.channels.csv for cell/nuclei segmentation markers;
-    check channels in QPTIFF against channels in qptiff.channels.csv"""
+    description = (
+        "Check qptiff.channels.csv for cell/nuclei segmentation markers, correct column order"
+    )
     cost = 1.0
     version = "1.0"
     required = ["phenocycler"]
@@ -41,77 +42,34 @@ class QpTiffChannelValidator(Validator):
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
         self.errors = []
-        if not self.scratch_dir:
-            raise Exception("No base path for scratch directory provided.")
-        # to avoid re-converting files in subsequent validation runs,
-        # check if a tmp_dir has already been created for this upload
-        # (tmp_dir can be manually deleted if necessary)
-        if (
-            len(existing_dirs := list(self.scratch_dir.glob(f"{self.uuid}*{self.tmp_suffix}")))
-            == 1
-        ):
-            print(f"Existing temp dir found: {existing_dirs[0]}")
-            self.tmp_dir = existing_dirs[0]
-        else:
-            self.tmp_dir = Path(
-                tempfile.mkdtemp(
-                    prefix=f"{self.uuid}_", suffix=self.tmp_suffix, dir=self.scratch_dir
-                )
-            )
 
     def _collect_errors(self) -> list[str | None]:
-        # TODO: temp dir will not be deleted if _collect_errors not called
         try:
-            # compile test files, including converted OME-TIFFs
-            try:
+            self.files_to_test
+            assert (
                 self.files_to_test
-            except Exception as e:
-                if not self.errors:
-                    self.errors.append(f"Error retrieving files to test: {e}")
-                raise
-
-            if self.files_to_test:
-                for files_dict in self.files_to_test.values():
-                    # check channels CSV format
-                    self.check_qptiff_channels_file(files_dict["csv"])
-                    # verify channels against converted QPTIFF
-                    self.check_channels(files_dict)
-            else:
-                self.errors.append(
-                    f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
-                )
+            ), f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
         except Exception as e:
-            self.errors.append(f"Error testing files: {e}")
-        finally:
-            self._cleanup()
-            return self._return_result(self.errors, bool(self.files_to_test))
-
-    def _cleanup(self):
-        # if validation was successful, delete tmp_dir;
-        # otherwise, retain to avoid re-converting files
-        if self.errors:
-            print(f"Errors found, retaining temp dir {self.tmp_dir}")
-        # make sure this is the right directory
-        elif not (self.uuid in str(self.tmp_dir)) and not (
-            self.tmp_dir.stem.endswith(self.tmp_suffix)
-        ):
-            print(f"Unexpected temp dir name (found {self.tmp_dir}), not deleting")
+            if not self.errors:
+                self.errors.append(f"Error retrieving files to test: {e}")
         else:
-            print(f"Validation passed, removing temp dir {self.tmp_dir}")
-            shutil.rmtree(self.tmp_dir)
+            self._run_validation()
+        return self._return_result(self.errors, bool(self.files_to_test))
+
+    def _run_validation(self):
+        for files_dict in self.files_to_test.values():
+            # check channels CSV format
+            self.check_qptiff_channels_file(files_dict["csv"])
 
     @cached_property
     def files_to_test(self) -> dict[Path, dict[str, Path]]:
         """
         For each data path, locate channels CSV and QPTIFF file.
-        Parallelize convering QPTIFF -> OME.TIFF, adding to
-        tmp_dir/data_dir.
-        Retrieve converted files.
         Returns:
             {<data_path>: {
                 "csv": <csv_path>,
                 "qptiff": <qptiff_path>,
-                "ome_tiff": <ome_tiff_path>}}
+                }}
         """
         files_to_test = {}
 
@@ -121,20 +79,6 @@ class QpTiffChannelValidator(Validator):
             if not (channel_csv and qptiff_file):
                 continue
             files_to_test[path] = {"csv": channel_csv, "qptiff": qptiff_file}
-
-        try:
-            self.convert_files(files_to_test)
-        except Exception as e:
-            self.errors.append(f"Error converting QPTIFFs to OME-TIFFs: {e}")
-            raise
-
-        for path, files in files_to_test.items():
-            ome_tiff_path = output_filename_template(self.tmp_dir, path, files["qptiff"])
-            if not ome_tiff_path.exists():
-                self.errors.append(
-                    f"Error with converted OME-TIFF file '{self.rel_filename_str(ome_tiff_path)}': does not exist"
-                )
-            files_to_test[path]["ome_tiff"] = ome_tiff_path
 
         return files_to_test
 
@@ -162,6 +106,23 @@ class QpTiffChannelValidator(Validator):
                     f"{self.rel_filename_str(filename)} must have at least one 'Yes' value in column '{column}'"
                 )
 
+    def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
+        if not parent_path.exists():
+            self.errors.append(
+                f"Did not find expected directory {self.rel_filename_str(parent_path)}"
+            )
+            return
+        files = []
+        for filename in parent_path.iterdir():
+            if str(filename).lower().endswith(extension):
+                files.append(filename)
+        if len(files) != 1:
+            self.errors.append(
+                f"Found {len(files)} {extension} files in {self.rel_filename_str(parent_path)} directory."
+            )
+            return
+        return files[0]
+
     def _check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
         column_order_errors = []
         for index, columns in enumerate(self.ordered_columns):
@@ -181,6 +142,89 @@ class QpTiffChannelValidator(Validator):
                     column_order_errors.append(f"{self.rel_filename_str(filename)}: {e}")
         return column_order_errors
 
+
+class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
+    description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
+
+    def __init__(self, base_paths, assay_type, *args, **kwargs):
+        super().__init__(base_paths, assay_type, *args, **kwargs)
+        if not self.scratch_dir:
+            raise Exception("No base path for scratch directory provided.")
+        # to avoid re-converting files in subsequent validation runs,
+        # check if a tmp_dir has already been created for this upload
+        # (tmp_dir can be manually deleted if necessary)
+        if (
+            len(existing_dirs := list(self.scratch_dir.glob(f"{self.uuid}*{self.tmp_suffix}")))
+            == 1
+        ):
+            print(f"Existing temp dir found: {existing_dirs[0]}")
+            self.tmp_dir = existing_dirs[0]
+        else:
+            self.tmp_dir = Path(
+                tempfile.mkdtemp(
+                    prefix=f"{self.uuid}_", suffix=self.tmp_suffix, dir=self.scratch_dir
+                )
+            )
+
+    def _collect_errors(self):
+        # TODO: temp dir will not be deleted if _collect_errors not called
+        try:
+            super()._collect_errors()
+        except Exception as e:
+            self.errors.append(f"Error testing files: {e}")
+        finally:
+            self._cleanup()
+            return self._return_result(self.errors, bool(self.files_to_test))
+
+    def _run_validation(self):
+        # verify channels against converted QPTIFF
+        pool = Pool(self.threads)
+        try:
+            rslt_list: list[str] = list(
+                rslt
+                for rslt in pool.imap_unordered(
+                    self.check_channels,
+                    list(self.files_to_test.values()),
+                )
+                if rslt is not None
+            )
+            self.errors.extend(rslt_list)
+        except Exception as e:
+            self._log(f"Error {e}")
+            raise
+        finally:
+            pool.close()
+            pool.join()
+
+    @cached_property
+    def files_to_test(self):
+        """
+        For each data path, locate channels CSV and QPTIFF file.
+        Parallelize convering QPTIFF -> OME.TIFF, adding to
+        tmp_dir/data_dir.
+        Retrieve converted files.
+        Returns:
+            {<data_path>: {
+                "csv": <csv_path>,
+                "qptiff": <qptiff_path>,
+                "ome_tiff": <ome_tiff_path>}}
+        """
+        files_to_test = super().files_to_test
+        try:
+            self.convert_files(files_to_test)
+        except Exception as e:
+            self.errors.append(f"Error converting QPTIFFs to OME-TIFFs: {e}")
+            raise
+
+        for path, files in files_to_test.items():
+            ome_tiff_path = output_filename_template(self.tmp_dir, path, files["qptiff"])
+            if not ome_tiff_path.exists():
+                self.errors.append(
+                    f"Error with converted OME-TIFF file '{self.rel_filename_str(ome_tiff_path)}': does not exist"
+                )
+            files_to_test[path]["ome_tiff"] = ome_tiff_path
+        return files_to_test
+
     #######################
     # Channels validation #
     #######################
@@ -199,12 +243,10 @@ class QpTiffChannelValidator(Validator):
         try:
             tiff_channels = self._get_tiff_channels(file_dict["ome_tiff"])
         except Exception as e:
-            self.errors.append(f"Error with {self.rel_filename_str(file_dict['qptiff'])}: {e}")
-            return
+            return f"Error with {self.rel_filename_str(file_dict['qptiff'])}: {e}"
         if channels_set.difference(tiff_channels):
-            self.errors.append(
-                dedent(
-                    f"""Channels in {self.rel_filename_str(file_dict["csv"])}
+            return dedent(
+                f"""Channels in {self.rel_filename_str(file_dict["csv"])}
                     don't match those in QPTIFF {self.rel_filename_str(file_dict["qptiff"])}
                     (as converted to OME-TIFF).
 
@@ -214,8 +256,7 @@ class QpTiffChannelValidator(Validator):
                     QPTIFF channels:
                     {', '.join(tiff_channels)}
                 """
-                ).strip()
-            )
+            ).strip()
 
     def _get_tiff_channels(self, tiff_file: Path) -> set[str]:
         print(f"({timestamp()}) Retrieving channels from {tiff_file}...")
@@ -240,9 +281,11 @@ class QpTiffChannelValidator(Validator):
                     ]
                 )
         except AttributeError:
-            raise Exception(f"Error retrieving channels from converted file {tiff_file}.")
+            raise Exception(
+                f"Error retrieving channels from converted file {self.rel_filename_str(tiff_file)}."
+            )
         channel_names_and_ids.sort()
-        print(f"({timestamp()}) Channels found for {tiff_file}")
+        print(f"({timestamp()}) Channels found for {self.rel_filename_str(tiff_file)}")
         return set(channel_names_and_ids)
 
     def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
@@ -262,10 +305,21 @@ class QpTiffChannelValidator(Validator):
             return
         return files[0]
 
-    def convert_files(self, files_to_test: dict[str, dict[str, Path]]):
+    def check_dependencies(self):
+        msg = ""
+        if not BIOFORMATS2RAW_PATH.exists():
+            msg += "bioformats2raw not installed"
+        if not RAW2OMETIFF_PATH.exists():
+            msg += "raw2ometiff not installed" if not msg else "; raw2ometiff not installed"
+        return msg
+
+    def convert_files(self, files_to_test: dict[Path, dict[str, Path]]):
         # keys are filepaths, get data_path dirname (path.stem) to construct output path
         # parallelize file conversion, write to tmp_dir/path.stem/ for each file
         # collect any errors in rslt_list
+        if error := self.check_dependencies():
+            self.errors.append(error)
+            return
         pool = Pool(self.threads)
         try:
             rslt_list: list[str] = list(
@@ -283,6 +337,20 @@ class QpTiffChannelValidator(Validator):
         finally:
             pool.close()
             pool.join()
+
+    def _cleanup(self):
+        # if validation was successful, delete tmp_dir;
+        # otherwise, retain to avoid re-converting files
+        if self.errors:
+            print(f"Errors found, retaining temp dir {self.tmp_dir}")
+        # make sure this is the right directory
+        elif not (self.uuid in str(self.tmp_dir)) and not (
+            self.tmp_dir.stem.endswith(self.tmp_suffix)
+        ):
+            print(f"Unexpected temp dir name (found {self.tmp_dir}), not deleting")
+        else:
+            print(f"Validation passed, removing temp dir {self.tmp_dir}")
+            shutil.rmtree(self.tmp_dir)
 
 
 def output_filename_template(

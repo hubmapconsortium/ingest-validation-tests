@@ -7,10 +7,6 @@ from qptiff_channel_validator import QpTiffChannelValidator
 
 class TestQpTiffChannelCsv:
 
-    @pytest.fixture(autouse=True)
-    def _mock_validator_good(self, monkeypatch):
-        monkeypatch.setattr(QpTiffChannelValidator, "uuid", "test_uuid")
-
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),
         (
@@ -83,24 +79,27 @@ class TestQpTiffChannelCsv:
         errors = validator.collect_errors()[:]
         errors.sort()
         for err in [
-            "Could not find qptiff.channels.csv and associated QPTIFF files (required for phenocycler).",
             "Did not find expected directory test_missing_required_dir0/lab_processed/images",
             "Did not find expected directory test_missing_required_dir0/raw/images",
         ]:
             assert err in errors
 
     def test_missing_channels_csv(self, tmp_path):
-        dir1 = tmp_path / "lab_processed"
-        dir1.mkdir()
-        dir2 = dir1 / "images"
-        dir2.mkdir()
+        lab_dir = tmp_path / "lab_processed"
+        lab_dir.mkdir()
+        lab_images_dir = lab_dir / "images"
+        lab_images_dir.mkdir()
+        raw_dir = tmp_path / "raw"
+        raw_dir.mkdir()
+        raw_images_dir = raw_dir / "images"
+        raw_images_dir.mkdir()
         validator = QpTiffChannelValidator(tmp_path, "phenocycler", scratch_dir=tmp_path)
         errors = validator.collect_errors()[:]
         errors.sort()
-        assert (
-            "Could not find qptiff.channels.csv and associated QPTIFF files (required for phenocycler)."
-            in errors
-        )
+        for err in [
+            "Found 0 .channels.csv files in test_missing_channels_csv0/lab_processed/images directory.",
+        ]:
+            assert err in errors
 
     @pytest.mark.parametrize(
         ("test_data_fnames", "msg_re_list"),
@@ -151,3 +150,10 @@ class TestQpTiffChannelCsv:
             )
         for error in msg_re_list:
             assert error in validator.errors
+
+
+# TODO
+class TestQptiffChannelComparisonValidator:
+    @pytest.fixture(autouse=True)
+    def _mock_validator_good(self, monkeypatch):
+        monkeypatch.setattr(QpTiffChannelValidator, "uuid", "test_uuid")
