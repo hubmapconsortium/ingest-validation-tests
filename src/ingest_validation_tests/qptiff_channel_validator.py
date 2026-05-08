@@ -146,8 +146,7 @@ class QpTiffChannelValidator(Validator):
 class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
 
-    def __init__(self, base_paths, assay_type, *args, **kwargs):
-        super().__init__(base_paths, assay_type, *args, **kwargs)
+    def get_tmp_dir(self):
         if not self.scratch_dir:
             raise Exception("No base path for scratch directory provided.")
         # to avoid re-converting files in subsequent validation runs,
@@ -169,6 +168,7 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     def _collect_errors(self):
         # TODO: temp dir will not be deleted if _collect_errors not called
         try:
+            self.get_tmp_dir()
             super()._collect_errors()
         except Exception as e:
             self.errors.append(f"Error testing files: {e}")
