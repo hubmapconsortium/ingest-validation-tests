@@ -173,7 +173,9 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     def _collect_errors(self):
         # TODO: temp dir will not be deleted if _collect_errors not called
         try:
-            assert not self.errors, "Errors found!"
+            assert (
+                not self.errors
+            ), "Errors found while fetching files to test, unable to validate."
             super()._collect_errors()
         except Exception as e:
             self.errors.append(f"Error testing files: {e}")
