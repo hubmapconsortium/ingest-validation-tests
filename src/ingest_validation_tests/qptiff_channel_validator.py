@@ -148,7 +148,6 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
-        self.tmp_dir = self.get_tmp_dir()
 
     def get_tmp_dir(self):
         if not self.scratch_dir:
@@ -173,13 +172,13 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     def _collect_errors(self):
         # TODO: temp dir will not be deleted if _collect_errors not called
         try:
-            assert not self.errors, "Errors found!"
+            self.get_tmp_dir()
             super()._collect_errors()
         except Exception as e:
             self.errors.append(f"Error testing files: {e}")
         finally:
             self._cleanup()
-            return self._return_result(self.errors, bool(self.files_to_test))
+            return self._return_result(self.errors, True)
 
     def _run_validation(self):
         # verify channels against converted QPTIFF
