@@ -146,9 +146,14 @@ class QpTiffChannelValidator(Validator):
 class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
 
+    def __init__(self, base_paths, assay_type, *args, **kwargs):
+        super().__init__(base_paths, assay_type, *args, **kwargs)
+        self.tmp_dir = self.get_tmp_dir()
+
     def get_tmp_dir(self):
         if not self.scratch_dir:
-            raise Exception("No base path for scratch directory provided.")
+            self.errors.append("No base path for scratch directory provided.")
+            return
         # to avoid re-converting files in subsequent validation runs,
         # check if a tmp_dir has already been created for this upload
         # (tmp_dir can be manually deleted if necessary)
@@ -168,7 +173,7 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     def _collect_errors(self):
         # TODO: temp dir will not be deleted if _collect_errors not called
         try:
-            self.get_tmp_dir()
+            assert not self.errors, "Errors found!"
             super()._collect_errors()
         except Exception as e:
             self.errors.append(f"Error testing files: {e}")
@@ -209,6 +214,7 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
                 "qptiff": <qptiff_path>,
                 "ome_tiff": <ome_tiff_path>}}
         """
+        assert self.tmp_dir
         files_to_test = super().files_to_test
         try:
             self.convert_files(files_to_test)
@@ -340,9 +346,19 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
 
     def _cleanup(self):
         # if validation was successful, delete tmp_dir;
-        # otherwise, retain to avoid re-converting files
+        # otherwise, retain to avoid re-converting files.
+        # handle case where tmp_dir was not created in the
+        # first place.
+        msg = ""
         if self.errors:
-            print(f"Errors found, retaining temp dir {self.tmp_dir}")
+            msg = "Errors found!"
+            if self.tmp_dir:
+                msg += f" Retaining temp dir {self.tmp_dir}"
+            else:
+                msg += " No tmp_dir found."
+        # no errors but also no tmp_dir?
+        elif not self.tmp_dir:
+            self.errors.append("Validation passed but no tmp_dir found?")
         # make sure this is the right directory
         elif not (self.uuid in str(self.tmp_dir)) and not (
             self.tmp_dir.stem.endswith(self.tmp_suffix)
