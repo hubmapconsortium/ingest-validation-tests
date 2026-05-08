@@ -247,14 +247,18 @@ class QpTiffChannelValidator(Validator):
 
     def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
         if not parent_path.exists():
-            self.errors.append(f"Did not find expected directory {parent_path}")
+            self.errors.append(
+                f"Did not find expected directory {self.rel_filename_str(parent_path)}"
+            )
             return
         files = []
         for filename in parent_path.iterdir():
             if str(filename).lower().endswith(extension):
                 files.append(filename)
         if len(files) != 1:
-            self.errors.append(f"Found {len(files)} {extension} files in {parent_path} directory.")
+            self.errors.append(
+                f"Found {len(files)} {extension} files in {self.rel_filename_str(parent_path)} directory."
+            )
             return
         return files[0]
 
