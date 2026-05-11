@@ -143,18 +143,19 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     cost = 5.0
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
 
+    def __init__(self, base_paths, assay_type, *args, **kwargs):
+        super().__init__(base_paths, assay_type, *args, **kwargs)
+        self.tmp_dir = Path("/tmp")
+
     def _collect_errors(self):
-        if not self.scratch_dir:
-            self.errors.append("No base path for scratch directory provided.")
-        else:
-            with tempfile.TemporaryDirectory(
-                dir=self.scratch_dir, prefix=self.uuid, suffix="_ome_xml"
-            ) as td:
-                self.tmp_dir = Path(td)
-                try:
-                    super()._collect_errors()
-                except Exception as e:
-                    self.errors.append(f"Error testing files: {e}")
+        with tempfile.TemporaryDirectory(
+            dir=self.tmp_dir, prefix=self.uuid, suffix="_ome_xml"
+        ) as td:
+            self.tmp_dir = Path(td)
+            try:
+                super()._collect_errors()
+            except Exception as e:
+                self.errors.append(f"Error testing files: {e}")
         return self._return_result(self.errors, True)
 
     def _run_validation(self):

@@ -34,7 +34,6 @@ class Validator:
         globus_token: str = "",
         app_context: dict[str, str] = {},
         coreuse: int | None = None,
-        scratch_dir: Path | None = None,
         **kwargs,
     ):
         """
@@ -47,7 +46,6 @@ class Validator:
             globus_token: Globus auth token
             app_context: contains project and env-specific urls, headers
             coreuse: optionally pass in desired number of threads
-            scratch_dir: base path for scratch directories
 
         Usage:
             v = ValidatorSubclass(<base_paths>, <assay_type>, ...)
@@ -67,7 +65,6 @@ class Validator:
         self.schema = schema
         self.token = globus_token
         self.app_context = app_context
-        self.scratch_dir = scratch_dir
         num_cpus = cpu_count()
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
         self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
