@@ -61,9 +61,7 @@ class TestQpTiffChannelCsv:
         test_data_path = Path(test_data_fname)
         zfile = zipfile.ZipFile(test_data_path)
         zfile.extractall(tmp_path)
-        validator = QpTiffChannelValidator(
-            tmp_path / test_data_path.stem, assay_type, scratch_dir=tmp_path
-        )
+        validator = QpTiffChannelValidator(tmp_path / test_data_path.stem, assay_type)
         validator.check_qptiff_channels_file(
             Path(
                 tmp_path
@@ -75,7 +73,7 @@ class TestQpTiffChannelCsv:
             assert error in validator.errors
 
     def test_missing_required_dir(self, tmp_path):
-        validator = QpTiffChannelValidator(tmp_path, "phenocycler", scratch_dir=tmp_path)
+        validator = QpTiffChannelValidator(tmp_path, "phenocycler")
         errors = validator.collect_errors()[:]
         errors.sort()
         for err in [
@@ -93,7 +91,7 @@ class TestQpTiffChannelCsv:
         raw_dir.mkdir()
         raw_images_dir = raw_dir / "images"
         raw_images_dir.mkdir()
-        validator = QpTiffChannelValidator(tmp_path, "phenocycler", scratch_dir=tmp_path)
+        validator = QpTiffChannelValidator(tmp_path, "phenocycler")
         errors = validator.collect_errors()[:]
         errors.sort()
         for err in [
@@ -143,7 +141,7 @@ class TestQpTiffChannelCsv:
             zfile = zipfile.ZipFile(test_data_path)
             zfile.extractall(tmp_path)
         test_data_paths = [tmp_path / test_data_path.stem for test_data_path in test_data_fnames]
-        validator = QpTiffChannelValidator(test_data_paths, "phenocycler", scratch_dir=tmp_path)
+        validator = QpTiffChannelValidator(test_data_paths, "phenocycler")
         for data_path in test_data_paths:
             validator.check_qptiff_channels_file(
                 data_path / f"lab_processed/images/{data_path.stem}.qptiff.channels.csv"
