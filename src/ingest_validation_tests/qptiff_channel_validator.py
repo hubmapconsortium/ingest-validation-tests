@@ -9,7 +9,7 @@ import pandas as pd
 import xmlschema
 from validator import Validator, get_rel_filename_str
 
-BIOFORMATS2RAW_PATH = Path("/home/gesina/Downloads/bioformats2raw-0.12.0/bin/bioformats2raw")
+BIOFORMATS2RAW_PATH = Path("/hive/users/hive/bioformats2raw-0.12.0/bin/bioformats2raw")
 
 
 class QptiffBaseValidator(Validator):
