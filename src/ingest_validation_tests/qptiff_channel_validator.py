@@ -12,14 +12,26 @@ from validator import Validator, get_rel_filename_str
 BIOFORMATS2RAW_PATH = Path("/hive/users/hive/bioformats2raw-0.12.0/bin/bioformats2raw")
 
 
-class QptiffBaseValidator(Validator):
-    """
-    Shared file-finding, error collection, and validation logic for QPTIFF validators.
-    """
-
+class QpTiffChannelValidator(Validator):
     version = "1.0"
     cost = 1.0
     required = ["phenocycler"]
+    description = (
+        "Check qptiff.channels.csv for cell/nuclei segmentation markers, correct column order"
+    )
+
+    ordered_columns = [
+        ["channel_id", "channel id"],
+        [
+            "is_channel_used_for_nuclei_segmentation",
+            "is channel used for nuclei segmentation",
+        ],
+        [
+            "is_channel_used_for_cell_segmentation",
+            "is channel used for cell segmentation",
+        ],
+        ["is_antibody", "is antibody"],
+    ]
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
@@ -38,7 +50,13 @@ class QptiffBaseValidator(Validator):
         return self._return_result(self.errors, bool(self.files_to_test))
 
     def _run_validation(self):
-        raise NotImplementedError
+        for files_dict in self.files_to_test.values():
+            # check channels CSV format
+            self.check_qptiff_channels_file(files_dict["csv"])
+
+    ###################
+    # File collection #
+    ###################
 
     @cached_property
     def files_to_test(self) -> dict[Path, dict[str, Path]]:
@@ -77,29 +95,9 @@ class QptiffBaseValidator(Validator):
             return
         return files[0]
 
-
-class QpTiffChannelValidator(QptiffBaseValidator):
-    description = (
-        "Check qptiff.channels.csv for cell/nuclei segmentation markers, correct column order"
-    )
-
-    ordered_columns = [
-        ["channel_id", "channel id"],
-        [
-            "is_channel_used_for_nuclei_segmentation",
-            "is channel used for nuclei segmentation",
-        ],
-        [
-            "is_channel_used_for_cell_segmentation",
-            "is channel used for cell segmentation",
-        ],
-        ["is_antibody", "is antibody"],
-    ]
-
-    def _run_validation(self):
-        for files_dict in self.files_to_test.values():
-            # check channels CSV format
-            self.check_qptiff_channels_file(files_dict["csv"])
+    ##################
+    # CSV Validation #
+    ##################
 
     def check_qptiff_channels_file(self, filename: Path):
         """
@@ -141,7 +139,7 @@ class QpTiffChannelValidator(QptiffBaseValidator):
         return column_order_errors
 
 
-class QpTiffChannelComparisonValidator(QptiffBaseValidator):
+class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     cost = 5.0
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
 
