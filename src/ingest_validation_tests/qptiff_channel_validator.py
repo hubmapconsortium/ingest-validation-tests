@@ -101,10 +101,6 @@ class QpTiffChannelValidator(QptiffBaseValidator):
             # check channels CSV format
             self.check_qptiff_channels_file(files_dict["csv"])
 
-    ##################
-    # CSV validation #
-    ##################
-
     def check_qptiff_channels_file(self, filename: Path):
         """
         Check for presence of at least one "Yes" value in
@@ -114,7 +110,7 @@ class QpTiffChannelValidator(QptiffBaseValidator):
 
         df = pd.read_csv(filename)
         # pipeline uses column position to determine channel & cell/nucleus segmentation
-        if column_order_errors := self._check_column_order(df, filename):
+        if column_order_errors := self.check_column_order(df, filename):
             # validation can't continue if columns out of order
             self.errors.extend(column_order_errors)
             return
@@ -125,7 +121,7 @@ class QpTiffChannelValidator(QptiffBaseValidator):
                     f"{self.rel_filename_str(filename)} must have at least one 'Yes' value in column '{column}'"
                 )
 
-    def _check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
+    def check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
         column_order_errors = []
         for index, columns in enumerate(self.ordered_columns):
             try:
