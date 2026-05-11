@@ -126,11 +126,8 @@ class Validator:
             print(message)
             return message
 
-    def rel_filename_str(self, filename: Path) -> str:
-        try:
-            return str(filename.relative_to(self.paths[0].parent))
-        except Exception:
-            return str(filename)
+    def rel_filename_str(self, filename: Path):
+        return get_rel_filename_str(self.paths[0], filename)
 
     @property
     def uuid(self) -> str:
@@ -188,3 +185,10 @@ def validation_class_iter() -> list[Validator]:
     for _, _, val_class in sort_me:
         sorted_classes.append(val_class)
     return sorted_classes
+
+
+def get_rel_filename_str(comparison_path: Path, filename: Path) -> str:
+    try:
+        return str(filename.relative_to(comparison_path.parent))
+    except Exception:
+        return str(filename)
