@@ -218,7 +218,7 @@ class Engine:
         channels = pd.read_csv(csv_path)
         channels_list = channels.iloc[:, 0].tolist()
         channels_list.sort()
-        return set(channels_list)
+        return set([str(channel) for channel in channels_list])
 
     def get_qptiff_channels(self, data_path: Path, qptiff_path: Path):
         # get OME-XML
@@ -273,7 +273,7 @@ class Engine:
             raise Exception(f"Error retrieving channels from converted file {ome_xml_file}.")
         channel_names_and_ids.sort()
         print(f"Channels found for {ome_xml_file}")
-        return set(channel_names_and_ids)
+        return set([str(channel) for channel in channel_names_and_ids])
 
     def check_dependencies(self):
         if not BIOFORMATS2RAW_PATH.exists():
