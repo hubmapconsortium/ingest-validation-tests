@@ -144,25 +144,28 @@ class QpTiffChannelValidator(Validator):
 class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     cost = 5.0
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
+    tmp_dir_base = Path("/tmp")
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
-        self.tmp_dir_base = Path("/tmp")
 
     def _collect_errors(self):
         try:
-            self.tmp_dir = Path(self.tmp_dir_base / f"{self.uuid}_ome_xml")
-            # may exist from previous run
-            if not self.tmp_dir.exists():
-                os.mkdir(self.tmp_dir)
-            else:
-                # note: any bad conversions will need to be removed manually
-                print(f"Found existing temp directory {self.tmp_dir}")
-            assert self.tmp_dir, f"Temp dir {self.tmp_dir} not created"
+            self._check_tmp_dir()
             super()._collect_errors()
         except Exception as e:
             self.errors.append(f"Error testing files: {e}")
         return self._return_result(self.errors, True)
+
+    def _check_tmp_dir(self):
+        self.tmp_dir = Path(self.tmp_dir_base / f"{self.uuid}_ome_xml")
+        # may exist from previous run
+        if not self.tmp_dir.exists():
+            os.mkdir(self.tmp_dir)
+        else:
+            # note: any bad conversions will need to be removed manually
+            print(f"Found existing temp directory {self.tmp_dir}")
+        assert self.tmp_dir, f"Temp dir {self.tmp_dir} not created"
 
     def _run_validation(self):
         pool = Pool(self.threads)
@@ -200,15 +203,11 @@ class Engine:
             qptiff_channels = self.get_qptiff_channels(data_path, file_dict["qptiff"])
             if csv_channels.difference(qptiff_channels):
                 return dedent(
-                    f"""Channels in {get_rel_filename_str(data_path, file_dict["csv"])}
-                        don't match those in QPTIFF {get_rel_filename_str(data_path, file_dict["qptiff"])}
-                        (from converted OME-XML).
+                    f"""Channels in {get_rel_filename_str(data_path, file_dict["csv"])} don't match those in QPTIFF {get_rel_filename_str(data_path, file_dict["qptiff"])} (from converted OME-XML).
 
-                        Channels in CSV not present in QPTIFF:
-                        {', '.join(csv_channels.difference(qptiff_channels))}
+                        Channels in CSV not present in QPTIFF: {', '.join(csv_channels.difference(qptiff_channels))}
 
-                        QPTIFF channels:
-                        {', '.join(qptiff_channels)}
+                        QPTIFF channels: {', '.join(qptiff_channels)}
                     """
                 ).strip()
         except Exception as e:
