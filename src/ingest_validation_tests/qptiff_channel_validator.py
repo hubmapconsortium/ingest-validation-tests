@@ -289,10 +289,18 @@ class Engine:
             .decode("utf-8")
             .splitlines()
         )
-        if len(docker_images) > 2:
+        if len(docker_images) == 2:
+            print(f"Found docker image {docker_images[1]}.")
+        elif len(docker_images) > 2:
+            # found header and more than one image result
             raise Exception(f"More than one '{self.image_name}': {docker_images}")
-        elif len(docker_images) == 0:
+        elif len(docker_images) == 1:
+            # only found header
             self.build_image()
+        else:
+            raise Exception(
+                f"Error retrieving docker image {self.image_name}. Results: {docker_images}"
+            )
 
     def build_image(self):
         docker_dir = Path(__file__).resolve().parent / "docker"
@@ -300,8 +308,19 @@ class Engine:
             raise Exception(f"Missing Docker directory ({docker_dir}) or Dockerfile")
         cmd = ["docker", "build", f"--tag={self.image_name}", docker_dir]
         try:
-            print(f"Building docker container {self.image_name}...")
-            subprocess.check_call(cmd)
+            print(f"Building docker image {self.image_name}...")
+            # print progress line by line
+            build_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+            try:
+                while build_process.poll() is None:
+                    print(
+                        build_process.stdout.readline()
+                        if build_process.stdout
+                        else "waiting for output..."
+                    )
+                print(build_process.stdout.read() if build_process.stdout else "")
+            except Exception as e:
+                print(e)
         except subprocess.CalledProcessError:
             raise Exception("Failed to create Docker image.")
 

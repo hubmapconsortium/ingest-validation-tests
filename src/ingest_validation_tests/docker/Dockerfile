@@ -1,7 +1,7 @@
 # building mirrors ome-tiff-pyramid pipeline, with slightly upgraded bioformats2raw version
 ARG BUILD_IMAGE=gradle:6.9-jdk8
 
-FROM ${BUILD_IMAGE} as build
+FROM ${BUILD_IMAGE} AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
