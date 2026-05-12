@@ -192,6 +192,9 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
 
 
 class Engine:
+    def __init__(self):
+        self.check_dependencies()
+
     def __call__(self, data_path: Path, file_dict: dict[str, Path], tmp_dir: Path) -> str | None:
         """
         Check that channels in channel_id column of qptiff.channels.csv
@@ -325,7 +328,6 @@ class Engine:
             raise Exception("Failed to create Docker image.")
 
     def run_docker_bioformats2raw(self, qptiff_path: Path, output_dirname: str):
-        self.check_dependencies()
         docker_input_mount = "/input"
         docker_output_mount = "/output"
         bioformats2raw_command = [
