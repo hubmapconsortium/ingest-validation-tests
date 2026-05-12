@@ -1,5 +1,5 @@
+import os
 import subprocess
-import tempfile
 from functools import cached_property
 from multiprocessing import Pool
 from pathlib import Path
@@ -9,7 +9,8 @@ import pandas as pd
 import xmlschema
 from validator import Validator, get_rel_filename_str
 
-BIOFORMATS2RAW_PATH = Path("/hive/users/hive/bioformats2raw-0.12.0/bin/bioformats2raw")
+# pipeline uses 0.9.2 but that does not include no-tiles arg
+BIOFORMATS2RAW_RELEASE = "0.10.0"
 
 
 class QpTiffChannelValidator(Validator):
@@ -47,7 +48,8 @@ class QpTiffChannelValidator(Validator):
                 self.errors.append(f"Error retrieving files to test: {e}")
         else:
             self._run_validation()
-        return self._return_result(self.errors, bool(self.files_to_test))
+        finally:
+            return self._return_result(self.errors, bool(self.files_to_test))
 
     def _run_validation(self):
         for files_dict in self.files_to_test.values():
@@ -145,17 +147,21 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
-        self.tmp_dir = Path("/tmp")
+        self.tmp_dir_base = Path("/tmp")
 
     def _collect_errors(self):
-        with tempfile.TemporaryDirectory(
-            dir=self.tmp_dir, prefix=self.uuid, suffix="_ome_xml"
-        ) as td:
-            self.tmp_dir = Path(td)
-            try:
-                super()._collect_errors()
-            except Exception as e:
-                self.errors.append(f"Error testing files: {e}")
+        try:
+            self.tmp_dir = Path(self.tmp_dir_base / f"{self.uuid}_ome_xml")
+            # may exist from previous run
+            if not self.tmp_dir.exists():
+                os.mkdir(self.tmp_dir)
+            else:
+                # note: any bad conversions will need to be removed manually
+                print(f"Found existing temp directory {self.tmp_dir}")
+            assert self.tmp_dir, f"Temp dir {self.tmp_dir} not created"
+            super()._collect_errors()
+        except Exception as e:
+            self.errors.append(f"Error testing files: {e}")
         return self._return_result(self.errors, True)
 
     def _run_validation(self):
@@ -188,7 +194,7 @@ class Engine:
         Check that channels in channel_id column of qptiff.channels.csv
         match channels in accompanying OME-XML file (generated from QPTIFF).
         """
-        self.tmp_dir = tmp_dir
+        self.tmp_dir = tmp_dir  # stays the same at the upload level
         try:
             csv_channels = self.get_csv_channels(file_dict["csv"])
             qptiff_channels = self.get_qptiff_channels(data_path, file_dict["qptiff"])
@@ -229,20 +235,18 @@ class Engine:
         phenocycler pipeline (v1.4.8); major changes to how QPTIFFs are converted
         in the pipeline may desync this validation.
         """
-        raw_output_path = Path(self.tmp_dir / f"{data_path.stem}_{qptiff_path.stem}_converted")
-        bioformats2raw_command = [
-            BIOFORMATS2RAW_PATH,
-            "--resolutions",
-            "1",
-            "--series",
-            "0",
-            "--no-tiles",  # do not convert image
-            qptiff_path,  # input file
-            raw_output_path,  # output file
-        ]
-        print(f"Running {bioformats2raw_command}")
-        subprocess.check_call(bioformats2raw_command)
-        ome_xml_path = Path(raw_output_path / "OME/METADATA.ome.xml")
+        output_dirname = f"{data_path.stem}_{qptiff_path.stem}_converted"
+        ome_xml_path = Path(self.tmp_dir / output_dirname / "OME/METADATA.ome.xml")
+        if Path(self.tmp_dir / output_dirname).exists():
+            if ome_xml_path.exists():
+                print(f"Found existing OME-XML file {ome_xml_path}.")
+                return ome_xml_path  # all good unless converted file is somehow incorrect
+            else:
+                raise Exception(
+                    f"Curation: Output dir {output_dirname} exists but does not include OME-XML; it must be removed manually."
+                )
+        # note: files created by docker need to be removed from /tmp manually with sudo
+        self.run_docker_bioformats2raw(qptiff_path, output_dirname)
         if not ome_xml_path.exists():
             raise Exception(f"Error with OME-XML file '{ome_xml_path}': does not exist")
         return ome_xml_path
@@ -270,8 +274,61 @@ class Engine:
         print(f"Channels found for {ome_xml_file}")
         return set([str(channel) for channel in channel_names_and_ids])
 
+    ##########
+    # Docker #
+    ##########
+
+    image_name = f"bioformats2raw:{BIOFORMATS2RAW_RELEASE}"
+
     def check_dependencies(self):
-        if not BIOFORMATS2RAW_PATH.exists():
-            raise Exception("bioformats2raw not installed")
-        elif not BIOFORMATS2RAW_PATH.is_file():
-            raise Exception(f"bioformats2raw path is not a file: {BIOFORMATS2RAW_PATH}")
+        docker_images = (
+            subprocess.check_output(
+                f'docker image ls --filter "reference={self.image_name}"',
+                stderr=subprocess.STDOUT,
+                shell=True,
+            )
+            .decode("utf-8")
+            .splitlines()
+        )
+        if len(docker_images) > 2:
+            raise Exception(f"More than one '{self.image_name}': {docker_images}")
+        elif len(docker_images) == 0:
+            self.build_image()
+
+    def build_image(self):
+        docker_dir = Path(__file__).resolve().parent / "docker"
+        if not docker_dir.exists() or not Path(docker_dir / "Dockerfile").exists():
+            raise Exception(f"Missing Docker directory ({docker_dir}) or Dockerfile")
+        cmd = ["docker", "build", f"--tag={self.image_name}", docker_dir]
+        try:
+            print(f"Building docker container {self.image_name}...")
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError:
+            raise Exception("Failed to create Docker image.")
+
+    def run_docker_bioformats2raw(self, qptiff_path: Path, output_dirname: str):
+        self.check_dependencies()
+        docker_input_mount = "/input"
+        docker_output_mount = "/output"
+        bioformats2raw_command = [
+            "docker",
+            "run",
+            "--rm",  # automatically remove container when stopped
+            "--mount",
+            f"type=bind,src={qptiff_path.parent},dst={docker_input_mount},readonly",  # mount qptiff dir (readonly) as /input
+            "--mount",
+            f"type=bind,src={self.tmp_dir},dst={docker_output_mount}",  # mount tmp_dir (writeable) as /output
+            self.image_name,
+            "bioformats2raw/bin/bioformats2raw",
+            "--resolutions",  # resolutions and series are mirrored from pipeline conversion
+            "1",
+            "--series",
+            "0",
+            "--no-tiles",  # do not convert image
+            f"{docker_input_mount}/{qptiff_path.name}",  # input file
+            f"{docker_output_mount}/{output_dirname}",  # output file
+            "--memo-directory",  # silence warnings about memo file creation (auto-deleted)
+            "/tmp",
+        ]
+        print(f"Running {bioformats2raw_command}")
+        subprocess.check_call(bioformats2raw_command)
