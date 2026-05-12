@@ -1,11 +1,17 @@
 import zipfile
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
-from qptiff_channel_validator import QpTiffChannelValidator
+from qptiff_channel_validator import (
+    Engine,
+    QpTiffChannelComparisonValidator,
+    QpTiffChannelValidator,
+)
 
 
 class TestQpTiffChannelCsv:
+
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),
         (
@@ -76,24 +82,27 @@ class TestQpTiffChannelCsv:
         errors = validator.collect_errors()[:]
         errors.sort()
         for err in [
-            "Can't find 'lab_processed/images' subdirectory in 'test_missing_required_dir0'.",
-            "Can't find 'raw/images' subdirectory in 'test_missing_required_dir0'.",
-            "Could not find qptiff.channels.csv and associated QPTIFF files (required for phenocycler).",
+            "Did not find expected directory test_missing_required_dir0/lab_processed/images",
+            "Did not find expected directory test_missing_required_dir0/raw/images",
         ]:
             assert err in errors
 
     def test_missing_channels_csv(self, tmp_path):
-        dir1 = tmp_path / "lab_processed"
-        dir1.mkdir()
-        dir2 = dir1 / "images"
-        dir2.mkdir()
+        lab_dir = tmp_path / "lab_processed"
+        lab_dir.mkdir()
+        lab_images_dir = lab_dir / "images"
+        lab_images_dir.mkdir()
+        raw_dir = tmp_path / "raw"
+        raw_dir.mkdir()
+        raw_images_dir = raw_dir / "images"
+        raw_images_dir.mkdir()
         validator = QpTiffChannelValidator(tmp_path, "phenocycler")
         errors = validator.collect_errors()[:]
         errors.sort()
-        assert (
-            "Could not find qptiff.channels.csv and associated QPTIFF files (required for phenocycler)."
-            in errors
-        )
+        for err in [
+            "Found 0 .channels.csv files in test_missing_channels_csv0/lab_processed/images directory.",
+        ]:
+            assert err in errors
 
     @pytest.mark.parametrize(
         ("test_data_fnames", "msg_re_list"),
@@ -144,3 +153,66 @@ class TestQpTiffChannelCsv:
             )
         for error in msg_re_list:
             assert error in validator.errors
+
+
+class TestQptiffChannelComparisonValidator:
+    @pytest.fixture(autouse=True)
+    def _mock_validator_good(self, monkeypatch):
+        monkeypatch.setattr(QpTiffChannelComparisonValidator, "uuid", "test_uuid")
+
+    def test_check_tmp_dir(self, monkeypatch, _mock_validator_good, tmp_path):
+        v = QpTiffChannelComparisonValidator(tmp_path, "phenocycler")
+        monkeypatch.setattr(QpTiffChannelComparisonValidator, "tmp_dir_base", tmp_path)
+        tmp_dir = Path(v.tmp_dir_base / "test_uuid_ome_xml")
+        assert not tmp_dir.exists()
+        v._check_tmp_dir()
+        assert tmp_dir.exists()
+        v._check_tmp_dir()  # should pass
+
+    def test_engine_get_ome_xml_channels(self):
+        e = Engine()
+        channels = e.get_ome_xml_channels("test_data/minimal.ome.xml")
+        assert channels == {"Channel:0:0"}
+
+    def test_engine_get_csv_channels(self):
+        e = Engine()
+        channels = e.get_csv_channels("test_data/qptiff_good.qptiff.channels.csv")
+        assert channels == {"Channel:0:0", "Channel:0:1", "Channel:0:2", "Channel:0:3"}
+
+    def test_engine_compare_channels_good(self, monkeypatch):
+        mock_qptiff_channels = Mock(
+            return_value={"Channel:0:0", "Channel:0:1", "Channel:0:2", "Channel:0:3"}
+        )
+        monkeypatch.setattr(Engine, "get_qptiff_channels", mock_qptiff_channels)
+        e = Engine()
+        assert (
+            e(
+                Path("data_path"),
+                {
+                    "csv": Path("test_data/qptiff_good.qptiff.channels.csv"),
+                    "qptiff": Path("qptiff_path"),
+                },
+                Path("tmp_dir_path"),
+            )
+            == None
+        )
+
+    def test_engine_compare_channels_bad(self, monkeypatch):
+        mock_qptiff_channels = Mock(return_value={"Channel:0:0", "Channel:0:1", "Channel:0:2"})
+        monkeypatch.setattr(Engine, "get_qptiff_channels", mock_qptiff_channels)
+        e = Engine()
+        errors = e(
+            Path("data_path"),
+            {
+                "csv": Path("test_data/qptiff_good.qptiff.channels.csv"),
+                "qptiff": Path("qptiff_path"),
+            },
+            Path("tmp_dir_path"),
+        ).splitlines()
+        cleaned_err = [err.strip() for err in errors if err != ""]
+        expected_err = [
+            "Channels in test_data/qptiff_good.qptiff.channels.csv don't match those in QPTIFF qptiff_path (from converted OME-XML).",
+            "Channels in CSV not present in QPTIFF: Channel:0:3",
+        ]
+        for err in expected_err:
+            assert err in cleaned_err

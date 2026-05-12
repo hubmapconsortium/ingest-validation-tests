@@ -1,18 +1,25 @@
 import os
+import subprocess
+from functools import cached_property
+from multiprocessing import Pool
 from pathlib import Path
-from xml.etree import ElementTree
+from textwrap import dedent
 
 import pandas as pd
-import tifffile
-from validator import Validator
+import xmlschema
+from validator import Validator, get_rel_filename_str
+
+# pipeline uses 0.9.2 but that does not include no-tiles arg
+BIOFORMATS2RAW_RELEASE = "0.10.0"
 
 
 class QpTiffChannelValidator(Validator):
-    description = """Check qptiff.channels.csv for cell/nuclei segmentation markers;
-    check channels in QPTIFF against channels in qptiff.channels.csv"""
-    cost = 1.0
     version = "1.0"
+    cost = 1.0
     required = ["phenocycler"]
+    description = (
+        "Check qptiff.channels.csv for cell/nuclei segmentation markers, correct column order"
+    )
 
     ordered_columns = [
         ["channel_id", "channel id"],
@@ -32,34 +39,67 @@ class QpTiffChannelValidator(Validator):
         self.errors = []
 
     def _collect_errors(self) -> list[str | None]:
-        if not (file_pairs_to_test := self.get_file_pairs_to_test()):
-            self.errors.append(
-                f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
-            )
-            return self._return_result(self.errors, False)
-        for channels_csv, qptiff_file in file_pairs_to_test.items():
-            self.check_qptiff_channels_file(channels_csv)
-            self.check_channels(channels_csv, qptiff_file)
-        return self._return_result(self.errors, bool(file_pairs_to_test))
+        try:
+            assert (
+                self.files_to_test
+            ), f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
+        except Exception as e:
+            if not self.errors:
+                self.errors.append(f"Error retrieving files to test: {e}")
+        else:
+            self._run_validation()
+        finally:
+            return self._return_result(self.errors, bool(self.files_to_test))
 
-    def get_file_pairs_to_test(self) -> dict:
+    def _run_validation(self):
+        for files_dict in self.files_to_test.values():
+            # check channels CSV format
+            self.check_qptiff_channels_file(files_dict["csv"])
+
+    ###################
+    # File collection #
+    ###################
+
+    @cached_property
+    def files_to_test(self) -> dict[Path, dict[str, Path]]:
         """
-        For each data path, pair {qptiff.channels.csv: qptiff_file}
+        For each data path, locate channels CSV and QPTIFF file.
+        Returns:
+            {<data_path>: {
+                "csv": <csv_path>,
+                "qptiff": <qptiff_path>}}
         """
-        file_pairs_to_test = {}
+        files_to_test = {}
 
         for path in self.paths:
-            channels_parent_path, qptiff_parent_path = self._get_parent_dir_paths(path)
-            if not channels_parent_path or not qptiff_parent_path:
-                continue
-
-            channel_csv = self._get_file_path(channels_parent_path, "qptiff.channels.csv")
-            qptiff_file = self._get_file_path(qptiff_parent_path, ".qptiff")
+            channel_csv = self._get_file_path(path / "lab_processed/images", ".channels.csv")
+            qptiff_file = self._get_file_path(path / "raw/images", ".qptiff")
             if not (channel_csv and qptiff_file):
                 continue
-            file_pairs_to_test[channel_csv] = qptiff_file
+            files_to_test[path] = {"csv": channel_csv, "qptiff": qptiff_file}
 
-        return file_pairs_to_test
+        return files_to_test
+
+    def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
+        if not parent_path.exists():
+            self.errors.append(
+                f"Did not find expected directory {self.rel_filename_str(parent_path)}"
+            )
+            return
+        files = []
+        for filename in parent_path.iterdir():
+            if str(filename).lower().endswith(extension):
+                files.append(filename)
+        if len(files) != 1:
+            self.errors.append(
+                f"Found {len(files)} {extension} files in {self.rel_filename_str(parent_path)} directory."
+            )
+            return
+        return files[0]
+
+    ##################
+    # CSV Validation #
+    ##################
 
     def check_qptiff_channels_file(self, filename: Path):
         """
@@ -100,63 +140,215 @@ class QpTiffChannelValidator(Validator):
                     column_order_errors.append(f"{self.rel_filename_str(filename)}: {e}")
         return column_order_errors
 
-    def check_channels(self, channels_csv: Path, qptiff_file: Path):
+
+class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
+    cost = 5.0
+    description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
+    tmp_dir_base = Path("/tmp")
+
+    def __init__(self, base_paths, assay_type, *args, **kwargs):
+        super().__init__(base_paths, assay_type, *args, **kwargs)
+
+    def _collect_errors(self):
+        try:
+            self._check_tmp_dir()
+            super()._collect_errors()
+        except Exception as e:
+            self.errors.append(f"Error testing files: {e}")
+        return self._return_result(self.errors, True)
+
+    def _check_tmp_dir(self):
+        self.tmp_dir = Path(self.tmp_dir_base / f"{self.uuid}_ome_xml")
+        # may exist from previous run
+        if not self.tmp_dir.exists():
+            os.mkdir(self.tmp_dir)
+        else:
+            # note: any bad conversions will need to be removed manually
+            print(f"Found existing temp directory {self.tmp_dir}")
+        assert self.tmp_dir, f"Temp dir {self.tmp_dir} not created"
+
+    def _run_validation(self):
+        pool = Pool(self.threads)
+        engine = Engine()
+        try:
+            rslt_list: list[str] = list(
+                rslt
+                for rslt in pool.starmap(
+                    engine,
+                    [
+                        (data_path, file_dict, self.tmp_dir)
+                        for data_path, file_dict in self.files_to_test.items()
+                    ],
+                )
+                if rslt is not None
+            )
+            self.errors.extend(rslt_list)
+        except Exception as e:
+            self._log(f"Error {e}")
+            raise
+        finally:
+            pool.close()
+            pool.join()
+
+
+class Engine:
+    def __init__(self):
+        self.check_dependencies()
+
+    def __call__(self, data_path: Path, file_dict: dict[str, Path], tmp_dir: Path) -> str | None:
         """
         Check that channels in channel_id column of qptiff.channels.csv
-        match channels in accompanying QPTIFF file.
+        match channels in accompanying OME-XML file (generated from QPTIFF).
         """
-        channels = pd.read_csv(channels_csv)
+        self.tmp_dir = tmp_dir  # stays the same at the upload level
+        try:
+            csv_channels = self.get_csv_channels(file_dict["csv"])
+            qptiff_channels = self.get_qptiff_channels(data_path, file_dict["qptiff"])
+            if csv_channels.difference(qptiff_channels):
+                return dedent(
+                    f"""Channels in {get_rel_filename_str(data_path, file_dict["csv"])} don't match those in QPTIFF {get_rel_filename_str(data_path, file_dict["qptiff"])} (from converted OME-XML).
+
+                        Channels in CSV not present in QPTIFF: {', '.join(csv_channels.difference(qptiff_channels))}
+
+                        QPTIFF channels: {', '.join(qptiff_channels)}
+                    """
+                ).strip()
+        except Exception as e:
+            return str(e)
+
+    def get_csv_channels(self, csv_path: Path) -> set[str]:
+        # get channels from CSV channel_id field
+        channels = pd.read_csv(csv_path)
         channels_list = channels.iloc[:, 0].tolist()
-        qptf_channels = self._get_qptiff_channels(qptiff_file)
         channels_list.sort()
-        channels_set = set([str(channel) for channel in channels_list])
-        if not channels_set == qptf_channels:
-            self.errors.append(
-                f"""Channels in {self.rel_filename_str(channels_csv)} and {self.rel_filename_str(qptiff_file)} do not match.
-                    Channels in CSV that are not present in QPTIFF: {', '.join(channels_set.difference(qptf_channels))}
-                    Channels in QPTIFF that are not present in CSV: {', '.join(channels.difference(channels_set))}
-                """
+        return set([str(channel) for channel in channels_list])
+
+    def get_qptiff_channels(self, data_path: Path, qptiff_path: Path):
+        # get OME-XML
+        ome_xml_path = self.extract_ome_xml(data_path, qptiff_path)
+        try:
+            return self.get_ome_xml_channels(ome_xml_path)
+        except Exception as e:
+            raise Exception(f"Error with {get_rel_filename_str(data_path, qptiff_path)}: {e}")
+
+    def extract_ome_xml(self, data_path: Path, qptiff_path) -> Path:
+        """
+        The bioformats2raw params (except for no-tiles) are borrowed from the
+        phenocycler pipeline (v1.4.8); major changes to how QPTIFFs are converted
+        in the pipeline may desync this validation.
+        """
+        output_dirname = f"{data_path.stem}_{qptiff_path.stem}_converted"
+        ome_xml_path = Path(self.tmp_dir / output_dirname / "OME/METADATA.ome.xml")
+        if Path(self.tmp_dir / output_dirname).exists():
+            if ome_xml_path.exists():
+                print(f"Found existing OME-XML file {ome_xml_path}.")
+                return ome_xml_path  # all good unless converted file is somehow incorrect
+            else:
+                raise Exception(
+                    f"Curation: Output dir {output_dirname} exists but does not include OME-XML; it must be removed manually."
+                )
+        # note: files created by docker need to be removed from /tmp manually with sudo
+        self.run_docker_bioformats2raw(qptiff_path, output_dirname)
+        if not ome_xml_path.exists():
+            raise Exception(f"Error with OME-XML file '{ome_xml_path}': does not exist")
+        return ome_xml_path
+
+    def get_ome_xml_channels(self, ome_xml_file: Path) -> set[str]:
+        print(f"Retrieving channels from {ome_xml_file}...")
+        if not (ome_xml := xmlschema.XmlDocument(ome_xml_file)) or not ome_xml.schema:
+            raise Exception(f"Error retrieving OME-XML for converted file {ome_xml_file}.")
+        channel_names_and_ids = []
+        try:
+            ome_channels = (
+                ome_xml.schema.to_dict(ome_xml).get("Image")[0].get("Pixels").get("Channel")  # type: ignore
+            )
+            for channel in ome_channels:
+                channel_names_and_ids.extend(
+                    [
+                        channel_attr
+                        for channel_attr in [channel.get("@ID"), channel.get("@Name")]
+                        if channel_attr is not None
+                    ]
+                )
+        except AttributeError:
+            raise Exception(f"Error retrieving channels from converted file {ome_xml_file}.")
+        channel_names_and_ids.sort()
+        print(f"Channels found for {ome_xml_file}")
+        return set([str(channel) for channel in channel_names_and_ids])
+
+    ##########
+    # Docker #
+    ##########
+
+    image_name = f"bioformats2raw:{BIOFORMATS2RAW_RELEASE}"
+
+    def check_dependencies(self):
+        docker_images = (
+            subprocess.check_output(
+                f'docker image ls --filter "reference={self.image_name}"',
+                stderr=subprocess.STDOUT,
+                shell=True,
+            )
+            .decode("utf-8")
+            .splitlines()
+        )
+        if len(docker_images) == 2:
+            print(f"Found docker image {docker_images[1]}.")
+        elif len(docker_images) > 2:
+            # found header and more than one image result
+            raise Exception(f"More than one '{self.image_name}': {docker_images}")
+        elif len(docker_images) == 1:
+            # only found header
+            self.build_image()
+        else:
+            raise Exception(
+                f"Error retrieving docker image {self.image_name}. Results: {docker_images}"
             )
 
-    def _get_qptiff_channels(self, qptiff_file: Path) -> set[str]:
-        qptf_channels = []
-        with tifffile.TiffFile(qptiff_file) as qptf:
-            for page in qptf.pages:
-                if description := page.tags.get("ImageDescription").value:
-                    """
-                    Bioformats conversion (used in pipeline) uses ImageDescription.Biomarker
-                    as the channel name if present, defaulting to ImageDescription.Name if not.
-                    https://github.com/ome/bioformats/blob/877c317e4e396381dc76e56c1539b24947f71dce/components/formats-gpl/src/loci/formats/in/VectraReader.java#L546
-                    """
-                    if (
-                        biomarker := ElementTree.fromstring(description).find("Biomarker")
-                    ) is not None:
-                        qptf_channels.append(biomarker.text)
-                    elif (
-                        channel_name := ElementTree.fromstring(description).find("Name")
-                    ) is not None:
-                        qptf_channels.append(channel_name.text)
-        return set(sorted([str(channel) for channel in qptf_channels]))
+    def build_image(self):
+        docker_dir = Path(__file__).resolve().parent / "docker"
+        if not docker_dir.exists() or not Path(docker_dir / "Dockerfile").exists():
+            raise Exception(f"Missing Docker directory ({docker_dir}) or Dockerfile")
+        cmd = ["docker", "build", f"--tag={self.image_name}", docker_dir]
+        try:
+            print(f"Building docker image {self.image_name}...")
+            # print progress line by line
+            build_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+            try:
+                while build_process.poll() is None:
+                    print(
+                        build_process.stdout.readline()
+                        if build_process.stdout
+                        else "waiting for output..."
+                    )
+                print(build_process.stdout.read() if build_process.stdout else "")
+            except Exception as e:
+                print(e)
+        except subprocess.CalledProcessError:
+            raise Exception("Failed to create Docker image.")
 
-    def _get_parent_dir_paths(self, path) -> tuple[Path | None, Path | None]:
-        channels_parent_path = Path(os.path.join(path, "lab_processed/images"))
-        if not channels_parent_path.exists():
-            channels_parent_path = None
-            self.errors.append(f"Can't find 'lab_processed/images' subdirectory in '{path.stem}'.")
-        qptiff_parent_path = Path(os.path.join(path, "raw/images"))
-        if not qptiff_parent_path.exists():
-            qptiff_parent_path = None
-            self.errors.append(f"Can't find 'raw/images' subdirectory in '{path.stem}'.")
-        return channels_parent_path, qptiff_parent_path
-
-    def _get_file_path(self, parent_dir_path: Path, search_str: str) -> Path | None:
-        files = []
-        for filename in parent_dir_path.iterdir():
-            if search_str in str(filename).lower():
-                files.append(filename)
-        if len(files) != 1:
-            self.errors.append(
-                f"Found {len(files)} {search_str} files in {parent_dir_path} directory."
-            )
-            return
-        return files[0]
+    def run_docker_bioformats2raw(self, qptiff_path: Path, output_dirname: str):
+        docker_input_mount = "/input"
+        docker_output_mount = "/output"
+        bioformats2raw_command = [
+            "docker",
+            "run",
+            "--rm",  # automatically remove container when stopped
+            "--mount",
+            f"type=bind,src={qptiff_path.parent},dst={docker_input_mount},readonly",  # mount qptiff dir (readonly) as /input
+            "--mount",
+            f"type=bind,src={self.tmp_dir},dst={docker_output_mount}",  # mount tmp_dir (writeable) as /output
+            self.image_name,
+            "bioformats2raw/bin/bioformats2raw",
+            "--resolutions",  # resolutions and series are mirrored from pipeline conversion
+            "1",
+            "--series",
+            "0",
+            "--no-tiles",  # do not convert image
+            f"{docker_input_mount}/{qptiff_path.name}",  # input file
+            f"{docker_output_mount}/{output_dirname}",  # output file
+            "--memo-directory",  # silence warnings about memo file creation (auto-deleted)
+            "/tmp",
+        ]
+        print(f"Running {bioformats2raw_command}")
+        subprocess.check_call(bioformats2raw_command)

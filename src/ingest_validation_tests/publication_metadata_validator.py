@@ -1,4 +1,3 @@
-import os
 import re
 from functools import cached_property
 from urllib.parse import urljoin, urlsplit
@@ -156,13 +155,6 @@ class PublicationMetadataValidator(Validator):
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         return response.json()
-
-    @property
-    def uuid(self) -> str:
-        for elt in reversed(str(self.paths[0]).split(os.sep)):
-            if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
-                return elt
-        raise Exception("no uuid was found in the path to the current working directory")
 
     @property
     def project(self) -> str:

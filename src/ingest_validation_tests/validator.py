@@ -1,4 +1,5 @@
 import inspect
+import os
 import sys
 from importlib import util
 from os import cpu_count
@@ -33,6 +34,7 @@ class Validator:
         globus_token: str = "",
         app_context: dict[str, str] = {},
         coreuse: int | None = None,
+        **kwargs,
     ):
         """
         Arguments:
@@ -67,17 +69,14 @@ class Validator:
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
         self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
 
-    def collect_errors(self, **kwargs) -> list[str | None]:
+    def collect_errors(self) -> list[str | None]:
         """
         Ensure plugin is valid, and if so, collect errors
         according to the subclass's _collect_errors method.
         """
         if not self.plugin_valid:
             return []
-        # kwargs and coreuse included here for backward compatibility.
-        if coreuse := kwargs.get("coreuse"):
-            self.threads = coreuse
-            self._log(f"Update: threading at {self.__class__.__name__} with {self.threads}")
+        self._log(f"Update: threading at {self.__class__.__name__} with {self.threads}")
         return self._collect_errors()
 
     @property
@@ -124,11 +123,15 @@ class Validator:
             print(message)
             return message
 
-    def rel_filename_str(self, filename: Path) -> str:
-        try:
-            return str(filename.relative_to(self.paths[0].parent))
-        except Exception:
-            return str(filename)
+    def rel_filename_str(self, filename: Path):
+        return get_rel_filename_str(self.paths[0], filename)
+
+    @property
+    def uuid(self) -> str:
+        for elt in reversed(str(self.paths[0]).split(os.sep)):
+            if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
+                return elt
+        raise Exception("no uuid was found in the path to the current working directory")
 
 
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
@@ -179,3 +182,10 @@ def validation_class_iter() -> list[Validator]:
     for _, _, val_class in sort_me:
         sorted_classes.append(val_class)
     return sorted_classes
+
+
+def get_rel_filename_str(comparison_path: Path, filename: Path) -> str:
+    try:
+        return str(filename.relative_to(comparison_path.parent))
+    except Exception:
+        return str(filename)
