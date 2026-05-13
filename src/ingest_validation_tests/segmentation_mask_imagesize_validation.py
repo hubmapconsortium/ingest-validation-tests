@@ -51,11 +51,11 @@ class ImageSizeValidator(Validator):
     ]
 
     def _collect_errors(self) -> list[str | None]:
-        if not self.schema:
-            return ["No schema found."]
+        if not self.schema_rows:
+            return ["No metadata rows found."]
         files_tested = False
         output = []
-        for row in self.schema.rows:
+        for row in self.schema_rows:
             filenames_to_test = []
             parent_filenames_to_test = []
             try:

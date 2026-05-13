@@ -1,7 +1,6 @@
 import csv
 import os
 import zipfile
-from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -11,12 +10,6 @@ from qptiff_channel_validator import (  # type: ignore
     QpTiffChannelComparisonValidator,
     QpTiffChannelValidator,
 )
-
-
-@dataclass
-class MySchemaVersion:
-    def __init__(self, rows):
-        self.rows = rows
 
 
 class TestQpTiffChannelCsv:
@@ -199,7 +192,7 @@ class TestQpTiffChannelCsv:
         return QpTiffChannelValidator(
             [Path(tmp_path / "global"), Path(tmp_path / "non_global")],
             "phenocycler",
-            schema=MySchemaVersion(rows),
+            schema_rows=rows,
         )
 
     def _set_up_shared_upload_test(self, tmp_path, csv_in_global: bool, qptiff_in_global: bool):
@@ -292,18 +285,16 @@ class TestQpTiffChannelCsv:
         validator = QpTiffChannelValidator(
             [Path(tmp_path / "global"), Path(tmp_path / "non_global")],
             "phenocycler",
-            schema=MySchemaVersion(
-                [
-                    {
-                        "data_path": "./data_path_1",
-                        "non_global_files": f"./lab_processed/images/{self.test_csv_filename}",
-                    }
-                ]
-            ),
+            schema_rows=[
+                {
+                    "data_path": "./data_path_1",
+                    "non_global_files": f"./lab_processed/images/{self.test_csv_filename}",
+                }
+            ],
         )
         validator.files_to_test
         assert validator.errors == [
-            "Found 0 qptiffs and 1 channels.csv paths for dataset ./data_path_1 in shared upload."
+            "File(s) non_global/raw/images/test.qptiff found but missing from non_global_files column in metadata.tsv."
         ]
 
     def test_shared_upload_bad_extra_file_in_tsv(self, tmp_path):
@@ -314,14 +305,12 @@ class TestQpTiffChannelCsv:
         validator = QpTiffChannelValidator(
             [Path(tmp_path / "global"), Path(tmp_path / "non_global")],
             "phenocycler",
-            schema=MySchemaVersion(
-                [
-                    {
-                        "data_path": "./data_path_1",
-                        "non_global_files": f"./lab_processed/images/{self.test_csv_filename}",
-                    }
-                ]
-            ),
+            schema_rows=[
+                {
+                    "data_path": "./data_path_1",
+                    "non_global_files": f"./lab_processed/images/{self.test_csv_filename}",
+                }
+            ],
         )
         validator.files_to_test
         assert validator.errors == [
@@ -340,14 +329,12 @@ class TestQpTiffChannelCsv:
         validator = QpTiffChannelValidator(
             [Path(tmp_path / "global"), Path(tmp_path / "non_global")],
             "phenocycler",
-            schema=MySchemaVersion(
-                [
-                    {
-                        "data_path": "./data_path_1",
-                        "non_global_files": f"/something/else",
-                    }
-                ]
-            ),
+            schema_rows=[
+                {
+                    "data_path": "./data_path_1",
+                    "non_global_files": f"/something/else",
+                }
+            ],
         )
         validator.files_to_test
         assert validator.errors == [

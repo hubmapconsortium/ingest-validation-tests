@@ -31,7 +31,7 @@ class Validator:
         assay_type: str,
         contains: list = [],
         verbose: bool = True,
-        schema=None,
+        schema_rows: list = [],
         globus_token: str = "",
         app_context: dict[str, str] = {},
         coreuse: int | None = None,
@@ -43,7 +43,7 @@ class Validator:
             assay_type: assay type string to be checked against self.required and self.contains
             contains: information from upstream SchemaVersion, only provided by multi-assay uploads
             verbose: controls printing in self._log
-            schema: SchemaVersion object from ingest-validation-tools
+            schema_rows: SchemaVersion.rows data from ingest-validation-tools
             globus_token: Globus auth token
             app_context: contains project and env-specific urls, headers
             coreuse: optionally pass in desired number of threads
@@ -63,18 +63,19 @@ class Validator:
         self.assay_type = assay_type
         self.contains = contains
         self.verbose = verbose
-        self.schema = schema
+        self.schema_rows = schema_rows
         self.token = globus_token
         self.app_context = app_context
         num_cpus = cpu_count()
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
         self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
 
-    def collect_errors(self) -> list[str | None]:
+    def collect_errors(self, **kwargs) -> list[str | None]:
         """
         Ensure plugin is valid, and if so, collect errors
         according to the subclass's _collect_errors method.
         """
+        # TODO: remove kwargs after plugin_kwargs logic is fixed upstream
         if not self.plugin_valid:
             return []
         self._log(f"Update: threading at {self.__class__.__name__} with {self.threads}")
