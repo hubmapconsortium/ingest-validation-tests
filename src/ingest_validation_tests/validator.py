@@ -136,21 +136,19 @@ class Validator:
         raise Exception("no uuid was found in the path to the current working directory")
 
 
-def get_non_global_paths_by_row(
-    rows: list[dict], base_path: Path, data_path_keys: bool = True
-) -> dict[str | int, str]:
+def get_non_global_paths_by_row(rows: list[dict], base_path: Path) -> dict[str | int, str]:
     """
     Create dict of non-global paths by row for a shared upload.
-    {<data_path_1 or 0>: [<path_1>, <path_2>], <data_path_2 or 1>: [<path_3>, <path_4>]}
+    {<data_path_1>: [<path_1>, <path_2>], <data_path_2>: [<path_3>, <path_4>]}
     """
     files_by_row = {}
-    for i, row in enumerate(rows):
+    for row in rows:
         non_global_files = row.get("non_global_files", "")
         # data_path is not a real path, but is necessary to distinguish files per dataset
         data_path = row["data_path"]
         if data_path in [".", "./"]:
             data_path = base_path
-        key = row if data_path_keys else i
+        key = data_path
         files_by_row[key] = [
             Path(f"non_global/{file.strip()}") for file in non_global_files.split(";")
         ]
