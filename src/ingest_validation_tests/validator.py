@@ -137,7 +137,7 @@ class Validator:
 
 
 def get_non_global_paths_by_row(
-    rows: list[dict], data_path_keys: bool = True
+    rows: list[dict], base_path: Path, data_path_keys: bool = True
 ) -> dict[str | int, str]:
     """
     Create dict of non-global paths by row for a shared upload.
@@ -147,7 +147,10 @@ def get_non_global_paths_by_row(
     for i, row in enumerate(rows):
         non_global_files = row.get("non_global_files", "")
         # data_path is not a real path, but is necessary to distinguish files per dataset
-        key = row["data_path"] if data_path_keys else i
+        data_path = row["data_path"]
+        if data_path in [".", "./"]:
+            data_path = base_path
+        key = row if data_path_keys else i
         files_by_row[key] = [
             Path(f"non_global/{file.strip()}") for file in non_global_files.split(";")
         ]

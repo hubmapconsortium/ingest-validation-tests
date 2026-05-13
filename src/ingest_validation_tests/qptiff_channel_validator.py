@@ -79,7 +79,6 @@ class QpTiffChannelValidator(Validator):
             if self.shared_upload:
                 files_to_test.update(self._get_shared_upload_file_pairs(path.parent))
                 break
-            # TODO: test case where files are all in non_global or global, and where files are mixed
             channel_csv = self._get_file_path(path / "lab_processed/images", ".channels.csv")
             qptiff_file = self._get_file_path(path / "raw/images", ".qptiff")
             if not (channel_csv and qptiff_file):
@@ -100,7 +99,7 @@ class QpTiffChannelValidator(Validator):
             raise Exception("Row data from metadata.tsv is required to validate shared uploads.")
         files = {}
         # check non_global files identified in metadata.tsv
-        non_global_paths = get_non_global_paths_by_row(self.schema_rows)
+        non_global_paths = get_non_global_paths_by_row(self.schema_rows, base_path)
         for data_path, row_paths in non_global_paths.items():
             # find qptiff and channels files in non_global/
             qptiff_paths = [
@@ -310,7 +309,7 @@ class Engine:
         except Exception as e:
             raise Exception(f"Error with {get_rel_filename_str(data_path, qptiff_path)}: {e}")
 
-    def extract_ome_xml(self, data_path: Path, qptiff_path) -> Path:
+    def extract_ome_xml(self, data_path: Path, qptiff_path: Path) -> Path:
         """
         The bioformats2raw params (except for no-tiles) are borrowed from the
         phenocycler pipeline (v1.4.8); major changes to how QPTIFFs are converted
