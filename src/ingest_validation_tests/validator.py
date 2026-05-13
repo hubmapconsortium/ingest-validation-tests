@@ -64,6 +64,8 @@ class Validator:
         self.contains = contains
         self.verbose = verbose
         self.schema_rows = schema_rows
+        if not self.schema_rows and (schema := kwargs.get("schema")):
+            self.schema_rows = schema.rows
         self.token = globus_token
         self.app_context = app_context
         num_cpus = cpu_count()
