@@ -1,6 +1,7 @@
 import inspect
 import os
 import sys
+from csv import DictReader
 from importlib import util
 from os import cpu_count
 from pathlib import Path
@@ -132,6 +133,31 @@ class Validator:
             if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
                 return elt
         raise Exception("no uuid was found in the path to the current working directory")
+
+
+def get_non_global_paths_by_row(
+    rows: list[dict], data_path_keys: bool = True
+) -> dict[str | int, str]:
+    """
+    Create dict of non-global paths by row for a shared upload.
+    {<data_path_1 or 0>: [<path_1>, <path_2>], <data_path_2 or 1>: [<path_3>, <path_4>]}
+    """
+    files_by_row = {}
+    for i, row in enumerate(rows):
+        non_global_files = row.get("non_global_files", "")
+        # data_path is not a real path, but is necessary to distinguish files per dataset
+        key = row["data_path"] if data_path_keys else i
+        files_by_row[key] = [
+            Path(f"non_global/{file.strip()}") for file in non_global_files.split(";")
+        ]
+    return files_by_row
+
+
+def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
+    with open(path, encoding=encoding) as f:
+        rows = list(DictReader(f, dialect="excel-tab"))
+        f.close()
+    return rows
 
 
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:

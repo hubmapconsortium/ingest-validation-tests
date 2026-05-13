@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 from functools import cached_property
 from multiprocessing import Pool
@@ -7,7 +8,7 @@ from textwrap import dedent
 
 import pandas as pd
 import xmlschema
-from validator import Validator, get_rel_filename_str
+from validator import Validator, get_non_global_paths_by_row, get_rel_filename_str
 
 # pipeline uses 0.9.2 but that does not include no-tiles arg
 BIOFORMATS2RAW_RELEASE = "0.10.0"
@@ -36,6 +37,9 @@ class QpTiffChannelValidator(Validator):
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
+        self.shared_upload = any(
+            [bool(path.stem in ["global", "non_global"]) for path in self.paths]
+        )
         self.errors = []
 
     def _collect_errors(self) -> list[str | None]:
@@ -72,6 +76,10 @@ class QpTiffChannelValidator(Validator):
         files_to_test = {}
 
         for path in self.paths:
+            if self.shared_upload:
+                files_to_test.update(self._get_shared_upload_file_pairs(path.parent))
+                break
+            # TODO: test case where files are all in non_global or global, and where files are mixed
             channel_csv = self._get_file_path(path / "lab_processed/images", ".channels.csv")
             qptiff_file = self._get_file_path(path / "raw/images", ".qptiff")
             if not (channel_csv and qptiff_file):
@@ -79,6 +87,63 @@ class QpTiffChannelValidator(Validator):
             files_to_test[path] = {"csv": channel_csv, "qptiff": qptiff_file}
 
         return files_to_test
+
+    def _get_shared_upload_file_pairs(self, base_path: Path) -> dict:
+        """
+        non_global directory may contain multiple raw/images/.*qptiff
+        and lab_processed/images/.*channels.csv files.
+        Read the non_global_paths field of the metadata.tsv and retrieve
+        files from there. Check global directory if not found.
+        Return {"data_path": {"csv": qptiff.channels.csv, "qptiff": qptiff_file}}
+        """
+        if not self.schema or not self.schema.rows:
+            raise Exception(
+                "SchemaVersion with rows attribute is required to validate shared uploads."
+            )
+        files = {}
+        # check non_global files identified in metadata.tsv
+        non_global_paths = get_non_global_paths_by_row(self.schema.rows)
+        for data_path, row_paths in non_global_paths.items():
+            # find qptiff and channels files in files list for row
+            qptiff_regex = r"raw\/images\/[^\/]*qptiff"
+            channels_regex = r"lab_processed\/images\/.*channels\.csv"
+            qptiff_paths = [
+                Path(base_path / path) for path in row_paths if re.search(qptiff_regex, str(path))
+            ]
+            channels_paths = [
+                Path(base_path / path)
+                for path in row_paths
+                if re.search(channels_regex, str(path))
+            ]
+
+            if len(qptiff_paths) == 0:
+                # try in global directory
+                qptiff_paths = [
+                    file for file in Path(base_path / "global").glob("raw/images/*qptiff")
+                ]
+            if len(channels_paths) == 0:
+                # try in global directory
+                channels_paths = [
+                    file
+                    for file in Path(base_path / "global").glob(
+                        "lab_processed/images/*channels.csv"
+                    )
+                ]
+            # should be exactly one of each
+            if len(qptiff_paths) != 1 or len(channels_paths) != 1:
+                self.errors.append(
+                    f"Found {len(qptiff_paths)} qptiffs and {len(channels_paths)} channels.csv paths for dataset {data_path} in shared upload."
+                )
+                continue
+
+            full_channel_path = channels_paths[0]
+            full_qptiff_path = qptiff_paths[0]
+            # make sure paths exist
+            for path in [full_channel_path, full_qptiff_path]:
+                if not Path(path).exists():
+                    self.errors.append(f"Path {self.rel_filename_str(path)} doesn't exist.")
+            files[data_path] = {"csv": full_channel_path, "qptiff": full_qptiff_path}
+        return files
 
     def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
         if not parent_path.exists():
