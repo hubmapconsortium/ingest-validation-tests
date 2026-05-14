@@ -274,7 +274,7 @@ class TestQpTiffChannelCsv:
         os.remove(Path(tmp_path / f"global/lab_processed/images/{self.test_csv_filename}"))
         validator.files_to_test
         assert validator.errors == [
-            "Found 1 qptiffs and 0 channels.csv paths for dataset ./data_path_1 in shared upload."
+            "Found 1 qptiff(s) (global/raw/images/test.qptiff) and 0 channels.csv(s) for dataset ./data_path_1 in shared upload."
         ]
 
     def test_shared_upload_bad_file_missing_in_tsv(self, tmp_path):
@@ -294,7 +294,7 @@ class TestQpTiffChannelCsv:
         )
         validator.files_to_test
         assert validator.errors == [
-            "File(s) non_global/raw/images/test.qptiff found but missing from non_global_files column in metadata.tsv."
+            "Found 0 qptiff(s) and 1 channels.csv(s) (non_global/lab_processed/images/test.qptiff.channels.csv) for dataset ./data_path_1 in shared upload.",
         ]
 
     def test_shared_upload_bad_extra_file_in_tsv(self, tmp_path):
@@ -338,7 +338,7 @@ class TestQpTiffChannelCsv:
         )
         validator.files_to_test
         assert validator.errors == [
-            "Found 1 qptiffs and 2 channels.csv paths for dataset ./data_path_1 in shared upload."
+            "Found 1 qptiff(s) (global/raw/images/test.qptiff) and 2 channels.csv(s) (global/lab_processed/images/test.qptiff.channels.csv, global/lab_processed/images/2nd_test.qptiff.channels.csv) for dataset ./data_path_1 in shared upload.",
         ]
 
 

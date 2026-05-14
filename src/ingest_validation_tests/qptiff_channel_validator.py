@@ -107,7 +107,7 @@ class QpTiffChannelValidator(Validator):
                 for path in row_paths
                 if re.search(r"raw\/images\/[^\/]*qptiff", str(path))
             ]
-            channels_paths = [
+            channel_paths = [
                 Path(base_path / path)
                 for path in row_paths
                 if re.search(r"lab_processed\/images\/.*channels\.csv", str(path))
@@ -118,28 +118,31 @@ class QpTiffChannelValidator(Validator):
             channels_glob = "lab_processed/images/*channels.csv"
             if len(qptiff_paths) == 0:
                 qptiff_paths = [file for file in Path(base_path / "global").glob(qptiff_glob)]
-            if len(channels_paths) == 0:
-                channels_paths = [file for file in Path(base_path / "global").glob(channels_glob)]
+            if len(channel_paths) == 0:
+                channel_paths = [file for file in Path(base_path / "global").glob(channels_glob)]
 
-            # there should be exactly one of each, but if not...
-            if len(qptiff_paths) != 1 or len(channels_paths) != 1:
-                # give descriptive error message if a file is in the wrong place
-                if bad_non_global_paths := self._get_error_for_bad_non_global_paths(
-                    (qptiff_paths, qptiff_glob), (channels_paths, channels_glob), base_path
-                ):
-                    for error in bad_non_global_paths:
-                        self.errors.append(error)
-                else:
-                    self.errors.append(
-                        f"Found {len(qptiff_paths)} qptiffs and {len(channels_paths)} channels.csv paths for dataset {data_path} in shared upload."
-                    )
+            # there should be exactly one of each, but if not, log error with found files and continue to next path
+            if len(qptiff_paths) != 1 or len(channel_paths) != 1:
+                qptiff_paths_str = (
+                    f"({', '.join([self.rel_filename_str(path) for path in qptiff_paths])}) "
+                    if qptiff_paths
+                    else ""
+                )
+                channel_paths_str = (
+                    f"({', '.join([self.rel_filename_str(path) for path in channel_paths])}) "
+                    if channel_paths
+                    else ""
+                )
+                self.errors.append(
+                    f"Found {len(qptiff_paths)} qptiff(s) {qptiff_paths_str}and {len(channel_paths)} channels.csv(s) {channel_paths_str}for dataset {data_path} in shared upload."
+                )
                 continue
 
             # make sure paths exist
-            for path in [channels_paths[0], qptiff_paths[0]]:
+            for path in [channel_paths[0], qptiff_paths[0]]:
                 if not Path(path).exists():
                     self.errors.append(f"Path {self.rel_filename_str(path)} doesn't exist.")
-            files[data_path] = {"csv": channels_paths[0], "qptiff": qptiff_paths[0]}
+            files[data_path] = {"csv": channel_paths[0], "qptiff": qptiff_paths[0]}
         return files
 
     def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
@@ -158,22 +161,6 @@ class QpTiffChannelValidator(Validator):
             )
             return
         return files[0]
-
-    def _get_error_for_bad_non_global_paths(
-        self,
-        qptiff_pair: tuple[list[Path], str],
-        channels_paths: tuple[list[Path], str],
-        base_path: Path,
-    ) -> list[str]:
-        errors = []
-        for found_paths, filepath_glob in [qptiff_pair, channels_paths]:
-            if len(found_paths) == 0:
-                paths = [file for file in Path(base_path / "non_global").glob(filepath_glob)]
-                if paths:
-                    errors.append(
-                        f"File(s) {', '.join([self.rel_filename_str(path) for path in paths])} found but missing from non_global_files column in metadata.tsv."
-                    )
-        return errors
 
     ##################
     # CSV Validation #
