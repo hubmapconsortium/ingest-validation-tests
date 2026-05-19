@@ -127,7 +127,7 @@ class Validator:
             print(message)
             return message
 
-    def rel_filename_str(self, filename: Path):
+    def rel_filename_str(self, filename: Path) -> str:
         return get_rel_filename_str(self.paths[0], filename)
 
     @property
@@ -141,19 +141,27 @@ class Validator:
 def get_non_global_paths_by_row(rows: list[dict], base_path: Path) -> dict[str | int, str]:
     """
     Create dict of non-global paths by row for a shared upload.
-    {<data_path_1>: [<path_1>, <path_2>], <data_path_2>: [<path_3>, <path_4>]}
+    {<row_index_0>: [<path_1>, <path_2>], <row_index_1>: [<path_3>, <path_4>]}
+    Return only if all paths exist, else raise.
     """
     files_by_row = {}
-    for row in rows:
+    errors = []
+    for i, row in enumerate(rows):
+        files = []
         non_global_files = row.get("non_global_files", "")
-        # data_path is not a real path, but is necessary to distinguish files per dataset
-        data_path = row["data_path"]
-        if data_path in [".", "./"]:
-            data_path = base_path
-        key = data_path
-        files_by_row[key] = [
-            Path(f"non_global/{file.strip()}") for file in non_global_files.split(";")
+        filepaths = [
+            Path(base_path / f"non_global/{file.strip()}") for file in non_global_files.split(";")
         ]
+        for file in filepaths:
+            if not file.exists():
+                errors.append(get_rel_filename_str(base_path, file))
+            else:
+                files.append(file)
+        files_by_row[i] = files
+    if errors:
+        raise Exception(
+            f"Files listed in non_global_files field do not exist: {', '.join(errors)}"
+        )
     return files_by_row
 
 

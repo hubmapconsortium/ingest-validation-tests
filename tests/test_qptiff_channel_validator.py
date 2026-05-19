@@ -184,10 +184,10 @@ class TestQpTiffChannelCsv:
             mock_qptiff.write("good")
 
     def _create_shared_upload_validator(
-        self, tmp_path: Path, data_path_to_non_global: dict[str, str]
+        self, tmp_path: Path, data_row_to_non_global: dict[int, str]
     ) -> QpTiffChannelValidator:
         rows = []
-        for data_path, non_global_files in data_path_to_non_global.items():
+        for data_path, non_global_files in data_row_to_non_global.items():
             rows.append({"data_path": data_path, "non_global_files": non_global_files})
         return QpTiffChannelValidator(
             [Path(tmp_path / "global"), Path(tmp_path / "non_global")],
@@ -195,7 +195,9 @@ class TestQpTiffChannelCsv:
             schema_rows=rows,
         )
 
-    def _set_up_shared_upload_test(self, tmp_path, csv_in_global: bool, qptiff_in_global: bool):
+    def _set_up_shared_upload_test_dirs(
+        self, tmp_path: Path, csv_in_global: bool, qptiff_in_global: bool
+    ):
         self._create_shared_upload_dirs(tmp_path)
         csv_path = (
             "global/lab_processed/images" if csv_in_global else "non_global/lab_processed/images"
@@ -203,14 +205,15 @@ class TestQpTiffChannelCsv:
         qptiff_path = "global/raw/images" if qptiff_in_global else "non_global/raw/images"
         self._create_channels_csv_good(Path(tmp_path / csv_path))
         self._create_qptiff(Path(tmp_path / qptiff_path))
+
+    def _set_up_shared_upload_test(self, tmp_path, csv_in_global: bool, qptiff_in_global: bool):
+        self._set_up_shared_upload_test_dirs(tmp_path, csv_in_global, qptiff_in_global)
         non_global_files = []
         if not csv_in_global:
             non_global_files.append(f"./lab_processed/images/{self.test_csv_filename}")
         if not qptiff_in_global:
             non_global_files.append(f"./raw/images/{self.test_qptiff_filename}")
-        return self._create_shared_upload_validator(
-            tmp_path, {"./data_path_1": "; ".join(non_global_files)}
-        )
+        return self._create_shared_upload_validator(tmp_path, {0: "; ".join(non_global_files)})
 
     ######################
     # Test shared upload #
@@ -221,7 +224,7 @@ class TestQpTiffChannelCsv:
             tmp_path, csv_in_global=False, qptiff_in_global=False
         )
         assert validator.files_to_test == {
-            "./data_path_1": {
+            0: {
                 "csv": Path(
                     f"{tmp_path}/non_global/lab_processed/images/{self.test_csv_filename}"
                 ),
@@ -234,7 +237,7 @@ class TestQpTiffChannelCsv:
             tmp_path, csv_in_global=True, qptiff_in_global=False
         )
         assert validator.files_to_test == {
-            "./data_path_1": {
+            0: {
                 "csv": Path(f"{tmp_path}/global/lab_processed/images/{self.test_csv_filename}"),
                 "qptiff": Path(f"{tmp_path}/non_global/raw/images/{self.test_qptiff_filename}"),
             }
@@ -245,7 +248,7 @@ class TestQpTiffChannelCsv:
             tmp_path, csv_in_global=False, qptiff_in_global=True
         )
         assert validator.files_to_test == {
-            "./data_path_1": {
+            0: {
                 "csv": Path(
                     f"{tmp_path}/non_global/lab_processed/images/{self.test_csv_filename}"
                 ),
@@ -258,7 +261,7 @@ class TestQpTiffChannelCsv:
             tmp_path, csv_in_global=True, qptiff_in_global=True
         )
         assert validator.files_to_test == {
-            "./data_path_1": {
+            0: {
                 "csv": Path(f"{tmp_path}/global/lab_processed/images/{self.test_csv_filename}"),
                 "qptiff": Path(f"{tmp_path}/global/raw/images/{self.test_qptiff_filename}"),
             }
@@ -273,9 +276,7 @@ class TestQpTiffChannelCsv:
         )
         os.remove(Path(tmp_path / f"global/lab_processed/images/{self.test_csv_filename}"))
         validator.files_to_test
-        assert validator.errors == [
-            "Found 1 qptiff(s) (global/raw/images/test.qptiff) and 0 channels.csv(s) for dataset ./data_path_1 in shared upload."
-        ]
+        assert validator.errors == ["Unable to find csv for dataset row 0 in shared upload."]
 
     def test_shared_upload_bad_file_missing_in_tsv(self, tmp_path):
         """
@@ -287,15 +288,12 @@ class TestQpTiffChannelCsv:
             "phenocycler",
             schema_rows=[
                 {
-                    "data_path": "./data_path_1",
                     "non_global_files": f"./lab_processed/images/{self.test_csv_filename}",
                 }
             ],
         )
         validator.files_to_test
-        assert validator.errors == [
-            "Found 0 qptiff(s) and 1 channels.csv(s) (non_global/lab_processed/images/test.qptiff.channels.csv) for dataset ./data_path_1 in shared upload.",
-        ]
+        assert validator.errors == ["Unable to find qptiff for dataset row 0 in shared upload."]
 
     def test_shared_upload_bad_extra_file_in_tsv(self, tmp_path):
         """
@@ -307,14 +305,13 @@ class TestQpTiffChannelCsv:
             "phenocycler",
             schema_rows=[
                 {
-                    "data_path": "./data_path_1",
                     "non_global_files": f"./lab_processed/images/{self.test_csv_filename}",
                 }
             ],
         )
         validator.files_to_test
         assert validator.errors == [
-            "Path non_global/lab_processed/images/test.qptiff.channels.csv doesn't exist."
+            "Files listed in non_global_files field do not exist: test_shared_upload_bad_extra_f0/non_global/lab_processed/images/test.qptiff.channels.csv"
         ]
 
     def test_shared_upload_bad_multiple_global(self, tmp_path):
@@ -329,17 +326,39 @@ class TestQpTiffChannelCsv:
         validator = QpTiffChannelValidator(
             [Path(tmp_path / "global"), Path(tmp_path / "non_global")],
             "phenocycler",
-            schema_rows=[
-                {
-                    "data_path": "./data_path_1",
-                    "non_global_files": f"/something/else",
-                }
-            ],
+            schema_rows=[{}],
         )
         validator.files_to_test
         assert validator.errors == [
-            "Found 1 qptiff(s) (global/raw/images/test.qptiff) and 2 channels.csv(s) (global/lab_processed/images/test.qptiff.channels.csv, global/lab_processed/images/2nd_test.qptiff.channels.csv) for dataset ./data_path_1 in shared upload.",
+            "Found 2 csvs (global/lab_processed/images/test.qptiff.channels.csv, global/lab_processed/images/2nd_test.qptiff.channels.csv) for dataset in row 0 in shared upload."
         ]
+
+    def test_shared_upload_mixed_outcome(self, monkeypatch, tmp_path):
+        """
+        One file pair is fine, the other is missing a file.
+        Make sure the good pair is validated and the error is logged for the bad pair.
+        """
+        self._set_up_shared_upload_test_dirs(tmp_path, csv_in_global=False, qptiff_in_global=False)
+        self._create_channels_csv_good(
+            Path(tmp_path / "non_global/lab_processed/images/"),
+            filename=f"2nd_{self.test_csv_filename}",
+        )
+        mock = Mock()
+        monkeypatch.setattr(QpTiffChannelValidator, "check_qptiff_channels_file", mock)
+        validator = self._create_shared_upload_validator(
+            tmp_path,
+            {
+                0: f"raw/images/{self.test_qptiff_filename}; lab_processed/images/{self.test_csv_filename}",
+                1: f"lab_processed/images/2nd_{self.test_csv_filename}",
+            },
+        )
+        validator.files_to_test
+        assert validator.errors == ["Unable to find qptiff for dataset row 1 in shared upload."]
+        csv_path = Path(tmp_path / f"non_global/lab_processed/images/{self.test_csv_filename}")
+        assert len(validator.files_to_test) == 1
+        assert validator.files_to_test[0]["csv"] == csv_path
+        validator.collect_errors()
+        mock.assert_called_with(csv_path)
 
 
 class TestQptiffChannelComparisonValidator:
