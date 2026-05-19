@@ -92,72 +92,85 @@ class QpTiffChannelValidator(Validator):
         non_global directory may contain multiple raw/images/.*qptiff
         and lab_processed/images/.*channels.csv files.
         Read the non_global_paths field of the metadata.tsv and retrieve
-        files from there. Check global directory if not found.
+        files from there. Fill with value from /global if not found.
         If any rows are missing one or more files, log error and omit; test others.
         Return {<data_row>: {"csv": qptiff.channels.csv, "qptiff": qptiff_file}}
         """
         if not self.schema_rows:
             raise Exception("Row data from metadata.tsv is required to validate shared uploads.")
-        files = defaultdict(dict)
-        # check non_global files identified in metadata.tsv; return if any do not exist
+        non_global_files = defaultdict(dict)
         try:
+            # get global values
+            global_files = self._shared_upload_get_global_files(base_path)
+            # retrieve non_global files identified in metadata.tsv
             non_global_paths = get_non_global_paths_by_row(self.schema_rows, base_path)
         except Exception as e:
+            # if too many global files or any expected non_global path not found, return
             self.errors.append(str(e))
             return {}
-        # find files in non_global/
+        # find relevant files in non_global/
         for row_num, row_paths in non_global_paths.items():
             for file_type, regex in {
                 "csv": r"lab_processed\/images\/.*channels\.csv",
                 "qptiff": r"raw\/images\/[^\/]*qptiff",
             }.items():
                 paths_for_type = [Path(path) for path in row_paths if re.search(regex, str(path))]
-                files[row_num][file_type] = paths_for_type
-        # fill in any missing files or log errors
-        all_files = self._shared_upload_find_missing(files, base_path)
-        return all_files
-
-    def _shared_upload_find_missing(
-        self, non_global_files: dict[int, dict[str, list]], base_path: Path
-    ) -> dict[int, dict[str, Path]]:
-        """
-        After finding files in non_global_files, check for any incomplete file pairs.
-        Fill in values from /global if present, otherwise log error.
-        """
+                non_global_files[row_num][file_type] = paths_for_type
+        # fill in any missing files with global values or log errors
         all_files = {}
         for row, files_dict in non_global_files.items():
-            csv_path = self._check_global(
-                "csv",
-                "lab_processed/images/*channels.csv",
-                files_dict.get("csv", []),
-                base_path,
-                row,
-            )
-            qptiff_path = self._check_global(
-                "qptiff", "raw/images/*qptiff", files_dict.get("qptiff", []), base_path, row
-            )
-            if csv_path and qptiff_path:
-                all_files[row] = {"csv": csv_path, "qptiff": qptiff_path}
+            if (
+                csv := self._fill_missing("csv", global_files["csv"], files_dict["csv"], row)
+            ) and (
+                qptiff := self._fill_missing(
+                    "qptiff", global_files["qptiff"], files_dict["qptiff"], row
+                )
+            ):
+                # only include dataset rows with both values; omitted rows will log errors
+                all_files[row] = {"csv": csv, "qptiff": qptiff}
         return all_files
 
-    def _check_global(
-        self, file_type: str, file_glob: str, files_list: list[Path], base_path: Path, row: int
+    def _shared_upload_get_global_files(self, base_path: Path) -> dict[str, Path | None]:
+        errors = []
+        csv_list = [
+            file for file in Path(base_path / "global").glob("lab_processed/images/*channels.csv")
+        ]
+        qptiff_list = [file for file in Path(base_path / "global").glob("raw/images/*qptiff")]
+        for file_type, file_list in {"csv": csv_list, "qptiff": qptiff_list}.items():
+            if len(file_list) > 1:
+                paths_str = ", ".join([self.rel_filename_str(path) for path in csv_list])
+                errors.append(f"Found {len(file_list)} global {file_type}s ({paths_str}).")
+        if errors:
+            raise Exception(" ".join(errors))
+        return {
+            "csv": csv_list[0] if csv_list else None,
+            "qptiff": qptiff_list[0] if qptiff_list else None,
+        }
+
+    def _fill_missing(
+        self,
+        file_type: str,
+        global_file: Path | None,
+        files_list: list[Path],
+        row: int,
     ) -> Path | None:
-        if not files_list:
-            # files have not been found, check in global/
-            if not (files_list := [file for file in Path(base_path / "global").glob(file_glob)]):
-                self.errors.append(
-                    f"Unable to find {file_type} for dataset row {row} in shared upload."
-                )
-                return
         if len(files_list) == 1:
-            # good, no further checks needed
+            # already correct, return single path
             return files_list[0]
-        # more than one path found, error
-        paths_str = ", ".join([self.rel_filename_str(path) for path in files_list])
-        self.errors.append(
-            f"Found {len(files_list)} {file_type}s ({paths_str}) for dataset in row {row} in shared upload."
-        )
+        if not files_list:
+            # no paths found, fill from global if possible or log error
+            if global_file:
+                return global_file
+            else:
+                self.errors.append(
+                    f"Unable to find {file_type} file for dataset row {row} in shared upload."
+                )
+        elif len(files_list) > 1:
+            # more than one path found, error
+            paths_str = ", ".join([self.rel_filename_str(path) for path in files_list])
+            self.errors.append(
+                f"Found {len(files_list)} {file_type}s ({paths_str}) for dataset in row {row} in shared upload."
+            )
 
     def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
         if not parent_path.exists():

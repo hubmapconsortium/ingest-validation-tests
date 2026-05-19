@@ -276,7 +276,7 @@ class TestQpTiffChannelCsv:
         )
         os.remove(Path(tmp_path / f"global/lab_processed/images/{self.test_csv_filename}"))
         validator.files_to_test
-        assert validator.errors == ["Unable to find csv for dataset row 0 in shared upload."]
+        assert validator.errors == ["Unable to find csv file for dataset row 0 in shared upload."]
 
     def test_shared_upload_bad_file_missing_in_tsv(self, tmp_path):
         """
@@ -293,7 +293,9 @@ class TestQpTiffChannelCsv:
             ],
         )
         validator.files_to_test
-        assert validator.errors == ["Unable to find qptiff for dataset row 0 in shared upload."]
+        assert validator.errors == [
+            "Unable to find qptiff file for dataset row 0 in shared upload."
+        ]
 
     def test_shared_upload_bad_extra_file_in_tsv(self, tmp_path):
         """
@@ -330,7 +332,7 @@ class TestQpTiffChannelCsv:
         )
         validator.files_to_test
         assert validator.errors == [
-            "Found 2 csvs (global/lab_processed/images/test.qptiff.channels.csv, global/lab_processed/images/2nd_test.qptiff.channels.csv) for dataset in row 0 in shared upload."
+            "Found 2 global csvs (global/lab_processed/images/test.qptiff.channels.csv, global/lab_processed/images/2nd_test.qptiff.channels.csv)."
         ]
 
     def test_shared_upload_mixed_outcome(self, monkeypatch, tmp_path):
@@ -353,7 +355,9 @@ class TestQpTiffChannelCsv:
             },
         )
         validator.files_to_test
-        assert validator.errors == ["Unable to find qptiff for dataset row 1 in shared upload."]
+        assert validator.errors == [
+            "Unable to find qptiff file for dataset row 1 in shared upload."
+        ]
         csv_path = Path(tmp_path / f"non_global/lab_processed/images/{self.test_csv_filename}")
         assert len(validator.files_to_test) == 1
         assert validator.files_to_test[0]["csv"] == csv_path
