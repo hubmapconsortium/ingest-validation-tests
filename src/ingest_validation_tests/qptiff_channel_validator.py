@@ -92,7 +92,7 @@ class QpTiffChannelValidator(Validator):
         non_global directory may contain multiple raw/images/.*qptiff
         and lab_processed/images/.*channels.csv files.
         Read the non_global_paths field of the metadata.tsv and retrieve
-        files from there. Fill with value from /global if not found.
+        files from there. Fill with value from global/ if not found.
         If any rows are missing one or more files, log error and omit; test others.
         Return {<data_row>: {"csv": qptiff.channels.csv, "qptiff": qptiff_file}}
         """
@@ -137,6 +137,7 @@ class QpTiffChannelValidator(Validator):
         ]
         qptiff_list = [file for file in Path(base_path / "global").glob("raw/images/*qptiff")]
         for file_type, file_list in {"csv": csv_list, "qptiff": qptiff_list}.items():
+            # should not be more than one of each file
             if len(file_list) > 1:
                 paths_str = ", ".join([self.rel_filename_str(path) for path in csv_list])
                 errors.append(f"Found {len(file_list)} global {file_type}s ({paths_str}).")
