@@ -1,17 +1,10 @@
 import re
 import zipfile
-from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd  # to parse metadata.tsv
 import pytest
-
-
-@dataclass
-class MySchemaVersion:
-    def __init__(self, rows):
-        self.rows = rows
 
 
 @pytest.mark.parametrize(
@@ -64,9 +57,11 @@ def test_segmentation_mask_imagesize_validator(
     tsv_path_l = list((tmp_seg_path / test_data_path.stem).glob("*metadata.tsv"))
     assert len(tsv_path_l) == 1, "Failed to find one metadata file"
     recs_df = pd.read_csv(tsv_path_l[0], sep="\t")
-    sv = MySchemaVersion(rows=recs_df.to_dict("records"))
     validator = ImageSizeValidator(
-        tmp_seg_path / test_data_path.stem, assay_type, schema=sv, coreuse=4
+        tmp_seg_path / test_data_path.stem,
+        assay_type,
+        schema_rows=recs_df.to_dict("records"),
+        coreuse=4,
     )
     errors = validator.collect_errors()[:]
     assert len(msg_re_list) == len(errors)

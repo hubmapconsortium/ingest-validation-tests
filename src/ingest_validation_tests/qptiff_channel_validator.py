@@ -1,5 +1,7 @@
 import os
+import re
 import subprocess
+from collections import defaultdict
 from functools import cached_property
 from multiprocessing import Pool
 from pathlib import Path
@@ -7,7 +9,7 @@ from textwrap import dedent
 
 import pandas as pd
 import xmlschema
-from validator import Validator, get_rel_filename_str
+from validator import Validator, get_non_global_paths_by_row, get_rel_filename_str
 
 # pipeline uses 0.9.2 but that does not include no-tiles arg
 BIOFORMATS2RAW_RELEASE = "0.10.0"
@@ -36,6 +38,9 @@ class QpTiffChannelValidator(Validator):
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
+        self.shared_upload = any(
+            [bool(path.stem in ["global", "non_global"]) for path in self.paths]
+        )
         self.errors = []
 
     def _collect_errors(self) -> list[str | None]:
@@ -72,13 +77,101 @@ class QpTiffChannelValidator(Validator):
         files_to_test = {}
 
         for path in self.paths:
+            if self.shared_upload:
+                files_to_test.update(self._get_shared_upload_file_pairs(path.parent))
+                break
             channel_csv = self._get_file_path(path / "lab_processed/images", ".channels.csv")
             qptiff_file = self._get_file_path(path / "raw/images", ".qptiff")
             if not (channel_csv and qptiff_file):
                 continue
             files_to_test[path] = {"csv": channel_csv, "qptiff": qptiff_file}
-
         return files_to_test
+
+    def _get_shared_upload_file_pairs(self, base_path: Path) -> dict[int, dict[str, Path]]:
+        """
+        non_global directory may contain multiple raw/images/.*qptiff
+        and lab_processed/images/.*channels.csv files.
+        Read the non_global_paths field of the metadata.tsv and retrieve
+        files from there. Fill with value from global/ if not found.
+        If any rows are missing one or more files, log error and omit; test others.
+        Return {<data_row>: {"csv": qptiff.channels.csv, "qptiff": qptiff_file}}
+        """
+        if not self.schema_rows:
+            raise Exception("Row data from metadata.tsv is required to validate shared uploads.")
+        non_global_files = defaultdict(dict)
+        try:
+            # get global values
+            global_files = self._shared_upload_get_global_files(base_path)
+            # retrieve non_global files identified in metadata.tsv
+            non_global_paths = get_non_global_paths_by_row(self.schema_rows, base_path)
+        except Exception as e:
+            # if too many global files or any expected non_global path not found, return
+            self.errors.append(str(e))
+            return {}
+        # find relevant files in non_global/
+        for row_num, row_paths in non_global_paths.items():
+            for file_type, regex in {
+                "csv": r"lab_processed\/images\/.*channels\.csv",
+                "qptiff": r"raw\/images\/[^\/]*qptiff",
+            }.items():
+                paths_for_type = [Path(path) for path in row_paths if re.search(regex, str(path))]
+                non_global_files[row_num][file_type] = paths_for_type
+        # fill in any missing files with global values or log errors
+        all_files = {}
+        for row, files_dict in non_global_files.items():
+            if (
+                csv := self._fill_missing("csv", global_files["csv"], files_dict["csv"], row)
+            ) and (
+                qptiff := self._fill_missing(
+                    "qptiff", global_files["qptiff"], files_dict["qptiff"], row
+                )
+            ):
+                # only include dataset rows with both values; omitted rows will log errors
+                all_files[row] = {"csv": csv, "qptiff": qptiff}
+        return all_files
+
+    def _shared_upload_get_global_files(self, base_path: Path) -> dict[str, Path | None]:
+        errors = []
+        csv_list = [
+            file for file in Path(base_path / "global").glob("lab_processed/images/*channels.csv")
+        ]
+        qptiff_list = [file for file in Path(base_path / "global").glob("raw/images/*qptiff")]
+        for file_type, file_list in {"csv": csv_list, "qptiff": qptiff_list}.items():
+            # should not be more than one of each file
+            if len(file_list) > 1:
+                paths_str = ", ".join([self.rel_filename_str(path) for path in csv_list])
+                errors.append(f"Found {len(file_list)} global {file_type}s ({paths_str}).")
+        if errors:
+            raise Exception(" ".join(errors))
+        return {
+            "csv": csv_list[0] if csv_list else None,
+            "qptiff": qptiff_list[0] if qptiff_list else None,
+        }
+
+    def _fill_missing(
+        self,
+        file_type: str,
+        global_file: Path | None,
+        files_list: list[Path],
+        row: int,
+    ) -> Path | None:
+        if len(files_list) == 1:
+            # already correct, return single path
+            return files_list[0]
+        if not files_list:
+            # no paths found, fill from global if possible or log error
+            if global_file:
+                return global_file
+            else:
+                self.errors.append(
+                    f"Unable to find {file_type} file for dataset row {row} in shared upload."
+                )
+        elif len(files_list) > 1:
+            # more than one path found, error
+            paths_str = ", ".join([self.rel_filename_str(path) for path in files_list])
+            self.errors.append(
+                f"Found {len(files_list)} {file_type}s ({paths_str}) for dataset in row {row} in shared upload."
+            )
 
     def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
         if not parent_path.exists():
@@ -110,7 +203,7 @@ class QpTiffChannelValidator(Validator):
 
         df = pd.read_csv(filename)
         # pipeline uses column position to determine channel & cell/nucleus segmentation
-        if column_order_errors := self.check_column_order(df, filename):
+        if column_order_errors := self._check_column_order(df, filename):
             # validation can't continue if columns out of order
             self.errors.extend(column_order_errors)
             return
@@ -121,7 +214,7 @@ class QpTiffChannelValidator(Validator):
                     f"{self.rel_filename_str(filename)} must have at least one 'Yes' value in column '{column}'"
                 )
 
-    def check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
+    def _check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
         column_order_errors = []
         for index, columns in enumerate(self.ordered_columns):
             try:
@@ -231,7 +324,7 @@ class Engine:
         except Exception as e:
             raise Exception(f"Error with {get_rel_filename_str(data_path, qptiff_path)}: {e}")
 
-    def extract_ome_xml(self, data_path: Path, qptiff_path) -> Path:
+    def extract_ome_xml(self, data_path: Path, qptiff_path: Path) -> Path:
         """
         The bioformats2raw params (except for no-tiles) are borrowed from the
         phenocycler pipeline (v1.4.8); major changes to how QPTIFFs are converted

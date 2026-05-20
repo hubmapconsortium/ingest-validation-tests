@@ -1,6 +1,7 @@
 import inspect
 import os
 import sys
+from csv import DictReader
 from importlib import util
 from os import cpu_count
 from pathlib import Path
@@ -30,7 +31,7 @@ class Validator:
         assay_type: str,
         contains: list = [],
         verbose: bool = True,
-        schema=None,
+        schema_rows: list = [],
         globus_token: str = "",
         app_context: dict[str, str] = {},
         coreuse: int | None = None,
@@ -42,7 +43,7 @@ class Validator:
             assay_type: assay type string to be checked against self.required and self.contains
             contains: information from upstream SchemaVersion, only provided by multi-assay uploads
             verbose: controls printing in self._log
-            schema: SchemaVersion object from ingest-validation-tools
+            schema_rows: SchemaVersion.rows data from ingest-validation-tools
             globus_token: Globus auth token
             app_context: contains project and env-specific urls, headers
             coreuse: optionally pass in desired number of threads
@@ -62,18 +63,21 @@ class Validator:
         self.assay_type = assay_type
         self.contains = contains
         self.verbose = verbose
-        self.schema = schema
+        self.schema_rows = schema_rows
+        if not self.schema_rows and (schema := kwargs.get("schema")):
+            self.schema_rows = schema.rows
         self.token = globus_token
         self.app_context = app_context
         num_cpus = cpu_count()
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
         self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
 
-    def collect_errors(self) -> list[str | None]:
+    def collect_errors(self, **kwargs) -> list[str | None]:
         """
         Ensure plugin is valid, and if so, collect errors
         according to the subclass's _collect_errors method.
         """
+        # TODO: remove kwargs after plugin_kwargs logic is fixed upstream
         if not self.plugin_valid:
             return []
         self._log(f"Update: threading at {self.__class__.__name__} with {self.threads}")
@@ -123,7 +127,7 @@ class Validator:
             print(message)
             return message
 
-    def rel_filename_str(self, filename: Path):
+    def rel_filename_str(self, filename: Path) -> str:
         return get_rel_filename_str(self.paths[0], filename)
 
     @property
@@ -132,6 +136,40 @@ class Validator:
             if len(elt) == 32 and all([c in "0123456789abcdef" for c in list(elt)]):
                 return elt
         raise Exception("no uuid was found in the path to the current working directory")
+
+
+def get_non_global_paths_by_row(rows: list[dict], base_path: Path) -> dict[str | int, str]:
+    """
+    Create dict of non-global paths by row for a shared upload.
+    {<row_index_0>: [<path_1>, <path_2>], <row_index_1>: [<path_3>, <path_4>]}
+    Return only if all paths exist, else raise.
+    """
+    files_by_row = {}
+    errors = []
+    for i, row in enumerate(rows):
+        files = []
+        non_global_files = row.get("non_global_files", "")
+        filepaths = [
+            Path(base_path / f"non_global/{file.strip()}") for file in non_global_files.split(";")
+        ]
+        for file in filepaths:
+            if not file.exists():
+                errors.append(get_rel_filename_str(base_path, file))
+            else:
+                files.append(file)
+        files_by_row[i] = files
+    if errors:
+        raise Exception(
+            f"Files listed in non_global_files field do not exist: {', '.join(errors)}"
+        )
+    return files_by_row
+
+
+def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
+    with open(path, encoding=encoding) as f:
+        rows = list(DictReader(f, dialect="excel-tab"))
+        f.close()
+    return rows
 
 
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
