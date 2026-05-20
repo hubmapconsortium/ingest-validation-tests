@@ -1,14 +1,16 @@
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from ome_tiff_field_validator import OmeTiffFieldValidator
 from test_tiff_validators_base_class import TestTiffValidators
+from validator import BASE_OME_XML_SCHEMA
 
 
 class TestOmeTiffFieldValidator(TestTiffValidators):
 
     def validator(self, test_data_fname, assay_type, tmp_path, coreuse):
-        from ome_tiff_field_validator import OmeTiffFieldValidator
 
         test_data_path = Path(test_data_fname)
         zfile = zipfile.ZipFile(test_data_path)
@@ -22,8 +24,8 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
                 "test_data/codex_tree_ometiff_bad.zip",
                 [
                     ".*/codex_tree_ometiff_bad/tubhiswt_C0_bad.ome.tif is not a valid OME.TIFF file: 'NoneType' object has no attribute 'getroot'",
-                    ".*/codex_tree_ometiff_bad/sample1.ome.tif is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
-                    ".*/codex_tree_ometiff_bad/sample2.ome.tif is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
+                    ".*/codex_tree_ometiff_bad/sample1.ome.tif is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_require_physicalsizexy.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
+                    ".*/codex_tree_ometiff_bad/sample2.ome.tif is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_require_physicalsizexy.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
                 ],
                 "CODEX",
             ),
@@ -32,7 +34,7 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
             (
                 "test_data/complex_small_ome_tiff.zip",
                 [
-                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
+                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_require_physicalsizexy.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
                 ],
                 "PAS",
             ),
@@ -50,8 +52,8 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
             (
                 "test_data/complex_small_ome_tiff.zip",
                 [
-                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
-                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'test_ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'; missing required attribute 'PhysicalSizeZ'",
+                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_require_physicalsizexy.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
+                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'test_ome_tiff_field_schema.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'; missing required attribute 'PhysicalSizeZ'",
                 ],
                 "test_dataset_type",
             ),
@@ -59,7 +61,7 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
             (
                 "test_data/complex_small_ome_tiff.zip",
                 [
-                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_default.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
+                    ".*complex_small_ome_tiff/917_cropped_0_Z0_C3_T0.ome.tiff is not a valid OME.TIFF file per schema 'ome_tiff_field_schema_require_physicalsizexy.xsd': missing required attribute 'PhysicalSizeX'; missing required attribute 'PhysicalSizeY'",
                 ],
                 "PAS",
             ),
@@ -70,14 +72,26 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
         Make optional fields in default schema required for `test_dataset_type`.
         Make sure PAS fixture from previous test still passes.
         """
-        from ome_tiff_field_validator import OmeTiffFieldValidator
 
         validator = self.validator(test_data_fname, assay_type, tmp_path, coreuse=4)
         validator.schema_regex_mapping[
-            Path(__file__).parent.parent / "test_data/test_ome_tiff_field_schema_default.xsd"
+            Path(__file__).parent.parent / "test_data/test_ome_tiff_field_schema.xsd"
         ] = ["test_dataset_type"]
         validator.get_schemas()
         errors = validator.collect_errors()[:]
         validator.schema_regex_mapping = OmeTiffFieldValidator.schema_regex_mapping
         validator.get_schemas()
         self.check_errors(msg_re_list, errors)
+
+    def test_retrieve_ome_xml_schema(self, tmp_path):
+        """
+        Make sure that retrieving BASE_OME_XML_SCHEMA works.
+        """
+        validator = self.validator(
+            "test_data/codex_tree_ometiff_good.zip", "test_dataset_type", tmp_path, coreuse=4
+        )
+        validator.schema_regex_mapping[BASE_OME_XML_SCHEMA] = ["test_dataset_type"]
+        validator.get_schemas()
+        assert BASE_OME_XML_SCHEMA in validator.schemas
+        errors = validator.collect_errors()[:]
+        self.check_errors([None], errors)

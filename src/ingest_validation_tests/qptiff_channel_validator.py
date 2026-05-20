@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import xmlschema
 from validator import (
+    BASE_OME_XML_SCHEMA,
     Validator,
     csv_to_df,
     get_non_global_paths_by_row,
@@ -372,7 +373,15 @@ class Engine:
 
     def get_ome_xml_channels(self, ome_xml_file: Path) -> set[str]:
         print(f"Retrieving channels from {ome_xml_file}...")
-        if not (ome_xml := xmlschema.XmlDocument(ome_xml_file)) or not ome_xml.schema:
+        if (
+            not (
+                ome_xml := xmlschema.XmlDocument(
+                    ome_xml_file,
+                    schema=BASE_OME_XML_SCHEMA,
+                )
+            )
+            or not ome_xml.schema
+        ):
             raise Exception(f"Error retrieving OME-XML for converted file {ome_xml_file}.")
         channel_names_and_ids = []
         try:

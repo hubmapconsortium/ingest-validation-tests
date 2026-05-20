@@ -10,6 +10,8 @@ import pandas as pd
 import tifffile
 import xmlschema
 
+BASE_OME_XML_SCHEMA = Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd"
+
 
 class Validator:
     description: str = "This is a human-readable description"
@@ -176,7 +178,7 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     try:
         with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd")  # type: ignore
+            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=BASE_OME_XML_SCHEMA)  # type: ignore
             if xml_document.schema and not xml_document.schema.is_valid(xml_document):
                 raise Exception(f"{file} is not a valid OME.TIFF file: schema not valid")
             elif not xml_document.schema:
