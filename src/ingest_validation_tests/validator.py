@@ -222,7 +222,12 @@ def validation_class_iter() -> list[Validator]:
     return sorted_classes
 
 
-def get_rel_filename_str(comparison_path: Path, filename: Path) -> str:
+def get_rel_filename_str(comparison_path: Path | int, filename: Path) -> str:
+    """
+    In the case of shared uploads, comparison_path may be an int (row number).
+    """
+    if isinstance(comparison_path, int):
+        return str(filename)
     try:
         return str(filename.relative_to(comparison_path.parent))
     except Exception:
