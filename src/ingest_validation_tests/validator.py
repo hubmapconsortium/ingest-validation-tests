@@ -175,7 +175,7 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     try:
         with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata)  # type: ignore
+            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd")  # type: ignore
             if xml_document.schema and not xml_document.schema.is_valid(xml_document):
                 raise Exception(f"{file} is not a valid OME.TIFF file: schema not valid")
             elif not xml_document.schema:
@@ -222,7 +222,12 @@ def validation_class_iter() -> list[Validator]:
     return sorted_classes
 
 
-def get_rel_filename_str(comparison_path: Path, filename: Path) -> str:
+def get_rel_filename_str(comparison_path: Path | int, filename: Path) -> str:
+    """
+    In the case of shared uploads, comparison_path may be an int (row number).
+    """
+    if isinstance(comparison_path, int):
+        return str(filename)
     try:
         return str(filename.relative_to(comparison_path.parent))
     except Exception:

@@ -288,7 +288,9 @@ class Engine:
     def __init__(self):
         self.check_dependencies()
 
-    def __call__(self, data_path: Path, file_dict: dict[str, Path], tmp_dir: Path) -> str | None:
+    def __call__(
+        self, data_path: Path | int, file_dict: dict[str, Path], tmp_dir: Path
+    ) -> str | None:
         """
         Check that channels in channel_id column of qptiff.channels.csv
         match channels in accompanying OME-XML file (generated from QPTIFF).
@@ -316,21 +318,29 @@ class Engine:
         channels_list.sort()
         return set([str(channel) for channel in channels_list])
 
-    def get_qptiff_channels(self, data_path: Path, qptiff_path: Path):
+    def get_qptiff_channels(self, data_path: Path | int, qptiff_path: Path):
         # get OME-XML
         ome_xml_path = self.extract_ome_xml(data_path, qptiff_path)
         try:
             return self.get_ome_xml_channels(ome_xml_path)
         except Exception as e:
-            raise Exception(f"Error with {get_rel_filename_str(data_path, qptiff_path)}: {e}")
+            if isinstance(data_path, Path):
+                data_desc = get_rel_filename_str(data_path, qptiff_path)
+            else:
+                data_desc = f"data row {data_path}"
+            raise Exception(f"Error with {data_desc}: {e}")
 
-    def extract_ome_xml(self, data_path: Path, qptiff_path: Path) -> Path:
+    def extract_ome_xml(self, data_path: Path | int, qptiff_path) -> Path:
         """
         The bioformats2raw params (except for no-tiles) are borrowed from the
         phenocycler pipeline (v1.4.8); major changes to how QPTIFFs are converted
         in the pipeline may desync this validation.
         """
-        output_dirname = f"{data_path.stem}_{qptiff_path.stem}_converted"
+        if isinstance(data_path, Path):
+            prefix = data_path.stem
+        else:
+            prefix = str(data_path)
+        output_dirname = f"{prefix}_{qptiff_path.stem}_converted"
         ome_xml_path = Path(self.tmp_dir / output_dirname / "OME/METADATA.ome.xml")
         if Path(self.tmp_dir / output_dirname).exists():
             if ome_xml_path.exists():
