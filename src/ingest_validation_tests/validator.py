@@ -137,7 +137,7 @@ class Validator:
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     try:
         with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata)  # type: ignore
+            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd")  # type: ignore
             if xml_document.schema and not xml_document.schema.is_valid(xml_document):
                 raise Exception(f"{file} is not a valid OME.TIFF file: schema not valid")
             elif not xml_document.schema:
