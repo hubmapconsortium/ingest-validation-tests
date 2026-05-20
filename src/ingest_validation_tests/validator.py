@@ -6,6 +6,7 @@ from importlib import util
 from os import cpu_count
 from pathlib import Path
 
+import pandas as pd
 import tifffile
 import xmlschema
 
@@ -232,3 +233,10 @@ def get_rel_filename_str(comparison_path: Path | int, filename: Path) -> str:
         return str(filename.relative_to(comparison_path.parent))
     except Exception:
         return str(filename)
+
+
+def csv_to_df(path: Path, **kwargs) -> pd.DataFrame:
+    try:
+        return pd.read_csv(path, **kwargs)
+    except Exception as e:
+        raise Exception(f"Unexpected error reading {str(path)}: {e}")

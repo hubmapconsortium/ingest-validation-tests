@@ -1,5 +1,4 @@
-import pandas as pd
-from validator import Validator
+from validator import Validator, csv_to_df
 
 
 class QuitNowException(Exception):
@@ -102,9 +101,9 @@ class CodexCommonErrorsValidator(Validator):
 
                 # Parse channelnames.txt into a dataframe
                 try:
-                    cn_df = pd.read_csv(str(channelnames_txt_path), header=None)
-                except Exception:
-                    rslt.append(f"Unexpected error reading {channelnames_txt_path}")
+                    cn_df = csv_to_df(channelnames_txt_path, header=None)
+                except Exception as e:
+                    rslt.append(str(e))
                     raise QuitNowException()
                 if len(cn_df.columns) != 1:
                     rslt.append(f"Unexpected format for {channelnames_txt_path}")
@@ -115,16 +114,16 @@ class CodexCommonErrorsValidator(Validator):
                 if report_csv_path.is_file():
                     # Parse channelnames_report.txt into a dataframe
                     try:
-                        rpt_df = pd.read_csv(str(report_csv_path), sep=",", header=None)
-                    except Exception:
-                        rslt.append(f"Unexpected error reading {report_csv_path}")
+                        rpt_df = csv_to_df(report_csv_path, sep=",", header=None)
+                    except Exception as e:
+                        rslt.append(str(e))
                         raise QuitNowException()
                     if len(rpt_df) == len(cn_df) + 1:
                         # channelnames_report.csv appears to have a header
                         try:
-                            rpt_df = pd.read_csv(str(report_csv_path), sep=",")
-                        except Exception:
-                            rslt.append(f"Unexpected error reading {report_csv_path}")
+                            rpt_df = csv_to_df(report_csv_path, sep=",")
+                        except Exception as e:
+                            rslt.append(str(e))
                             raise QuitNowException()
                     if len(rpt_df.columns) != 2:
                         rslt.append(
