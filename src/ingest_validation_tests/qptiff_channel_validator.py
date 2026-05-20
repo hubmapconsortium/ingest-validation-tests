@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import subprocess
@@ -6,10 +8,19 @@ from functools import cached_property
 from multiprocessing import Pool
 from pathlib import Path
 from textwrap import dedent
+from typing import TYPE_CHECKING
 
-import pandas as pd
 import xmlschema
-from validator import Validator, get_non_global_paths_by_row, get_rel_filename_str
+from validator import (
+    BASE_OME_XML_SCHEMA,
+    Validator,
+    csv_to_df,
+    get_non_global_paths_by_row,
+    get_rel_filename_str,
+)
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 # pipeline uses 0.9.2 but that does not include no-tiles arg
 BIOFORMATS2RAW_RELEASE = "0.10.0"
@@ -201,7 +212,11 @@ class QpTiffChannelValidator(Validator):
         and make sure columns are in order.
         """
 
-        df = pd.read_csv(filename)
+        try:
+            df = csv_to_df(filename)
+        except Exception as e:
+            self.errors.append(str(e))
+            return
         # pipeline uses column position to determine channel & cell/nucleus segmentation
         if column_order_errors := self._check_column_order(df, filename):
             # validation can't continue if columns out of order
@@ -313,7 +328,7 @@ class Engine:
 
     def get_csv_channels(self, csv_path: Path) -> set[str]:
         # get channels from CSV channel_id field
-        channels = pd.read_csv(csv_path)
+        channels = csv_to_df(csv_path)
         channels_list = channels.iloc[:, 0].tolist()
         channels_list.sort()
         return set([str(channel) for channel in channels_list])
@@ -358,7 +373,15 @@ class Engine:
 
     def get_ome_xml_channels(self, ome_xml_file: Path) -> set[str]:
         print(f"Retrieving channels from {ome_xml_file}...")
-        if not (ome_xml := xmlschema.XmlDocument(ome_xml_file)) or not ome_xml.schema:
+        if (
+            not (
+                ome_xml := xmlschema.XmlDocument(
+                    ome_xml_file,
+                    schema=BASE_OME_XML_SCHEMA,
+                )
+            )
+            or not ome_xml.schema
+        ):
             raise Exception(f"Error retrieving OME-XML for converted file {ome_xml_file}.")
         channel_names_and_ids = []
         try:

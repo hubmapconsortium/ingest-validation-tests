@@ -29,7 +29,7 @@ class OmeTiffFieldValidator(Validator):
     schema_regex_mapping = {
         # Required PhysicalSizeX/Y
         Path(__file__).parent
-        / "ome_tiff_schemas/ome_tiff_field_schema_default.xsd": [".*"],
+        / "ome_tiff_schemas/ome_tiff_field_schema_require_physicalsizexy.xsd": [".*"],
     }
 
     def __init__(self, *args, **kwargs):
