@@ -1,0 +1,35 @@
+import zipfile
+from pathlib import Path
+
+import pytest
+from test_tiff_validators_base_class import TestTiffValidators
+
+
+class TestGeoJsonTiffValidator(TestTiffValidators):
+
+    @pytest.mark.parametrize(
+        ("test_data_fname", "msg_re_list", "assay_type"),
+        (
+            # GeoJSON intersects TIFF bounds → no errors
+            ("test_data/geojson_tiff_good.zip", [None], "visium"),
+            # GeoJSON outside TIFF bounds → error
+            (
+                "test_data/geojson_tiff_bad.zip",
+                [
+                    r".*tissue_boundary\.geojson: GeoJSON boundaries do not intersect any TIFF pixel dimensions.*",
+                ],
+                "visium",
+            ),
+            # No GeoJSON files → validator skips, returns []
+            ("test_data/geojson_tiff_no_geojson.zip", [], "visium"),
+        ),
+    )
+    def test_geojson_tiff_validator(self, test_data_fname, msg_re_list, assay_type, tmp_path):
+        from geojson_tiff_validator import GeoJsonTiffValidator
+
+        test_data_path = Path(test_data_fname)
+        zfile = zipfile.ZipFile(test_data_path)
+        zfile.extractall(tmp_path)
+        validator = GeoJsonTiffValidator(tmp_path / test_data_path.stem, assay_type)
+        errors = validator.collect_errors()[:]
+        self.check_errors(msg_re_list, errors)

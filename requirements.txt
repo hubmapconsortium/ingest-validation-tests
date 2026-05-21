@@ -4,5 +4,6 @@ jsonschema==4.23.0
 pandas==2.2.3
 python-frontmatter>=1.1.0
 requests==2.32.3
+shapely==2.1.2
 tifffile==2024.6.18
 xmlschema==3.4.5
