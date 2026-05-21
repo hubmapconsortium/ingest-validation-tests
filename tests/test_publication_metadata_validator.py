@@ -1,4 +1,7 @@
+from unittest.mock import Mock, call
+
 import pytest
+import requests
 from publication_metadata_validator import PublicationMetadataValidator
 
 
@@ -32,9 +35,13 @@ class TestPublicationMetadataValidator:
     }
 
     @staticmethod
-    def mock_raise(url):
+    def get_mock_response(url: str, status_code: int = 200, response_data: bytes = b""):
         if "bad" in url:
-            raise Exception
+            status_code = 404
+        mock_resp = requests.models.Response()
+        mock_resp.status_code = status_code
+        mock_resp._content = response_data
+        return mock_resp
 
     @pytest.fixture
     def _mock_validator_good(self, monkeypatch):
@@ -42,13 +49,17 @@ class TestPublicationMetadataValidator:
         monkeypatch.setattr(PublicationMetadataValidator, "entity_data", self.required_fields)
         monkeypatch.setattr(PublicationMetadataValidator, "uuid", "test_uuid")
         monkeypatch.setattr(
-            PublicationMetadataValidator, "_make_request", lambda a, url: self.mock_raise(url)
+            PublicationMetadataValidator,
+            "_make_request",
+            lambda _, url: self.get_mock_response(url),
         )
 
     def test_collect_errors(self, monkeypatch):
         with monkeypatch.context() as m:
             m.setattr(
-                PublicationMetadataValidator, "_make_request", lambda a, url: self.mock_raise(url)
+                PublicationMetadataValidator,
+                "_make_request",
+                lambda _, url: self.get_mock_response(url),
             )
             m.setattr(
                 PublicationMetadataValidator,
@@ -218,3 +229,93 @@ class TestPublicationMetadataValidator:
             "Bad Publication DOI 'pub_doi_bad_value'.",
             "Bad OMAP DOI 'omap_doi_bad_value'.",
         ]
+
+    def test_doi_normal_path(self, monkeypatch):
+        monkeypatch.setattr(
+            PublicationMetadataValidator,
+            "entity_data",
+            self.required_fields | {"publication_doi": "10/test", "omap_doi": "omap_doi"},
+        )
+        mock_response = Mock(return_value=self.get_mock_response("", 200))
+        monkeypatch.setattr(PublicationMetadataValidator, "_make_request", mock_response)
+        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+        v._check_doi()
+        mock_response.assert_has_calls(
+            [call("https://www.doi.org/10/test"), call("https://www.doi.org/omap_doi")]
+        )
+        assert (
+            call("https://api.crossref.org/works/doi/10/test?mailto=help@hubmapconsortium.org")
+            not in mock_response.call_args_list
+        )
+        assert not v.errors
+
+    def test_doi_fallback_activates(self, monkeypatch):
+        monkeypatch.setattr(
+            PublicationMetadataValidator,
+            "entity_data",
+            self.required_fields | {"publication_doi": "10/test", "omap_doi": None},
+        )
+        mock_response = Mock(return_value=self.get_mock_response("", 403))
+        monkeypatch.setattr(PublicationMetadataValidator, "_make_request", mock_response)
+        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+        v._check_doi()
+        mock_response.assert_called_with(
+            f"https://api.crossref.org/works/doi/10/test?mailto=help@hubmapconsortium.org"
+        )
+
+    def test_catch_url_doi(self, monkeypatch):
+        doi = "https://bad_doi"
+        with monkeypatch.context() as m:
+            m.setattr(
+                PublicationMetadataValidator,
+                "entity_data",
+                self.required_fields | {"publication_doi": doi},
+            )
+            v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+            v._check_doi()
+            assert v.errors == [f"Publication DOI should not be in URL form: {doi}"]
+
+    def test_pub_url_normal_path(self, monkeypatch):
+        monkeypatch.setattr(
+            PublicationMetadataValidator,
+            "entity_data",
+            self.required_fields | {"publication_url": f"i_am_good_url"},
+        )
+        mock_response = Mock(return_value=self.get_mock_response("", 200))
+        mock_rxiv = Mock()
+        monkeypatch.setattr(PublicationMetadataValidator, "_make_request", mock_response)
+        monkeypatch.setattr(PublicationMetadataValidator, "_check_rxiv_url", mock_rxiv)
+        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+        v._check_publication_url()
+        mock_response.assert_called_with(f"i_am_good_url")
+        mock_rxiv.assert_not_called()
+        assert not v.errors
+
+    def test_pub_url_parser_403_rxiv(self, monkeypatch):
+        test_url_value = "10.123/test"
+        monkeypatch.setattr(
+            PublicationMetadataValidator,
+            "entity_data",
+            self.required_fields
+            | {"publication_url": f"https://www.biorxiv.org/content/{test_url_value}"},
+        )
+        mock_response = Mock(return_value=self.get_mock_response("", 403))
+        monkeypatch.setattr(PublicationMetadataValidator, "_make_request", mock_response)
+        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+        v._check_publication_url()
+        mock_response.assert_called_with(
+            f"https://api.biorxiv.org/details/biorxiv/{test_url_value}"
+        )
+
+    def test_pub_url_parser_403_other(self, monkeypatch):
+        url = "www.test.com"
+        monkeypatch.setattr(
+            PublicationMetadataValidator,
+            "entity_data",
+            self.required_fields | {"publication_url": url},
+        )
+        mock_response = Mock(return_value=self.get_mock_response("", 403))
+        monkeypatch.setattr(PublicationMetadataValidator, "_make_request", mock_response)
+        v = PublicationMetadataValidator(*self.default_args, **self.default_kwargs)
+        v._check_publication_url()
+        assert v.errors == [f"403: Access forbidden for Publication URL {url}"]

@@ -1,0 +1,5 @@
+channel_id,is_channel_used_for_nuclei_segmentation,is_channel_used_for_cell_segmentation,is_antibody,extra_column
+Channel:0:0,Yes,No,No,doesn’t matter
+Channel:0:1,No,No,Yes,doesn’t matter
+Channel:0:2,No,No,Yes,doesn’t matter
+Channel:0:3,No,No,Yes,doesn’t matter
