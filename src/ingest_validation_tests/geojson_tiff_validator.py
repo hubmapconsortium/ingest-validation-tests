@@ -5,7 +5,6 @@ import tifffile
 from shapely.geometry import box, shape
 from validator import Validator
 
-
 tiff_globs = [
     "**/*.[tT][iI][fF]",
     "**/*.[tT][iI][fF][fF]",
@@ -29,9 +28,7 @@ def _get_tiff_bounds(path: Path) -> tuple[int, int] | str:
         return f"{path}: could not read dimensions: {e}"
 
 
-def _check_geojson_intersects_tiffs(
-    geojson_path: Path, tiff_paths: list[Path]
-) -> str | None:
+def _check_geojson_intersects_tiffs(geojson_path: Path, tiff_paths: list[Path]) -> str | None:
     try:
         with open(geojson_path) as f:
             gj = json.load(f)
@@ -64,9 +61,7 @@ def _check_geojson_intersects_tiffs(
             if tiff_box.intersects(geom):
                 return None  # at least one intersection found
 
-    tiff_dims_str = "; ".join(
-        f"{tp.name} ({w}x{h})" for tp, (w, h) in tiff_dims
-    )
+    tiff_dims_str = "; ".join(f"{tp.name} ({w}x{h})" for tp, (w, h) in tiff_dims)
     return (
         f"{geojson_path.name}: GeoJSON boundaries do not intersect any TIFF "
         f"pixel dimensions ({tiff_dims_str})"
