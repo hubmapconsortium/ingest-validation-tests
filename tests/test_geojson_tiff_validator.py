@@ -40,6 +40,16 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
             ("test_data/geojson_count_one_qptiff.zip", [None], "visium"),
             # OME-TIFF in extras/ excluded from count → no error
             ("test_data/geojson_count_extras_excluded.zip", [None], "visium"),
+            # GeoJSON intersects QPTIFF pixel bounds → no error
+            ("test_data/geojson_qptiff_good.zip", [None], "visium"),
+            # GeoJSON outside QPTIFF pixel bounds → error
+            (
+                "test_data/geojson_qptiff_bad.zip",
+                [
+                    r".*tissue_boundary\.geojson: GeoJSON boundaries do not intersect any TIFF pixel dimensions.*",
+                ],
+                "visium",
+            ),
         ),
     )
     def test_geojson_tiff_validator(self, test_data_fname, msg_re_list, assay_type, tmp_path):
