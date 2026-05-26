@@ -41,7 +41,9 @@ class GeoJsonTiffValidator(Validator):
     def _run_validation(self):
         for files_dict in self.files_to_test.values():
             tiff_files = files_dict["ome_tiff"] + files_dict["qptiff"]
-            self.errors.extend(self._check_tiff_counts(files_dict["ome_tiff"], files_dict["qptiff"]))
+            self.errors.extend(
+                self._check_tiff_counts(files_dict["ome_tiff"], files_dict["qptiff"])
+            )
             result = self._check_geojson_intersects_tiffs(files_dict["geojson"], tiff_files)
             if result is not None:
                 self.errors.append(result)
@@ -76,9 +78,7 @@ class GeoJsonTiffValidator(Validator):
                     if not self._is_in_extras(f)
                 )
             )
-            qptiffs = list(
-                set(f for f in path.glob(qptiff_glob) if not self._is_in_extras(f))
-            )
+            qptiffs = list(set(f for f in path.glob(qptiff_glob) if not self._is_in_extras(f)))
             files_to_test[path] = {
                 "geojson": geojson_file,
                 "ome_tiff": ome_tiffs,
@@ -125,9 +125,7 @@ class GeoJsonTiffValidator(Validator):
                 )
             )
             global_qptiffs = list(
-                set(
-                    f for f in global_path.glob(qptiff_glob) if not self._is_in_extras(f)
-                )
+                set(f for f in global_path.glob(qptiff_glob) if not self._is_in_extras(f))
             )
 
         all_files: dict[int, dict[str, Path | list[Path]]] = {}
