@@ -6,8 +6,11 @@ from importlib import util
 from os import cpu_count
 from pathlib import Path
 
+import pandas as pd
 import tifffile
 import xmlschema
+
+BASE_OME_XML_SCHEMA = Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd"
 
 
 class Validator:
@@ -175,7 +178,7 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     try:
         with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd")  # type: ignore
+            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=BASE_OME_XML_SCHEMA)  # type: ignore
             if xml_document.schema and not xml_document.schema.is_valid(xml_document):
                 raise Exception(f"{file} is not a valid OME.TIFF file: schema not valid")
             elif not xml_document.schema:
@@ -232,3 +235,10 @@ def get_rel_filename_str(comparison_path: Path | int, filename: Path) -> str:
         return str(filename.relative_to(comparison_path.parent))
     except Exception:
         return str(filename)
+
+
+def csv_to_df(path: Path, **kwargs) -> pd.DataFrame:
+    try:
+        return pd.read_csv(path, **kwargs)
+    except Exception as e:
+        raise Exception(f"Unexpected error reading {str(path)}: {e}")
