@@ -139,7 +139,7 @@ class QpTiffChannelValidator(Validator):
         for file_type, file_list in {"csv": csv_list, "qptiff": qptiff_list}.items():
             # should not be more than one of each file
             if len(file_list) > 1:
-                paths_str = ", ".join([self.rel_filename_str(path) for path in csv_list])
+                paths_str = ", ".join(sorted([self.rel_filename_str(path) for path in csv_list]))
                 errors.append(f"Found {len(file_list)} global {file_type}s ({paths_str}).")
         if errors:
             raise Exception(" ".join(errors))

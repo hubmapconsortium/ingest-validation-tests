@@ -332,7 +332,7 @@ class TestQpTiffChannelCsv:
         )
         validator.files_to_test
         assert validator.errors == [
-            "Found 2 global csvs (global/lab_processed/images/test.qptiff.channels.csv, global/lab_processed/images/2nd_test.qptiff.channels.csv)."
+            "Found 2 global csvs (global/lab_processed/images/2nd_test.qptiff.channels.csv, global/lab_processed/images/test.qptiff.channels.csv)."
         ]
 
     def test_shared_upload_mixed_outcome(self, monkeypatch, tmp_path):
