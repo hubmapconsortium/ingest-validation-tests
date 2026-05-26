@@ -5,11 +5,48 @@ import tifffile
 from shapely.geometry import box, shape
 from validator import Validator
 
-tiff_globs = [
-    "**/*.[tT][iI][fF]",
-    "**/*.[tT][iI][fF][fF]",
-    "**/*.[qQ][pP][tT][iI][fF][fF]",
+ome_tiff_globs = [
+    "**/*.[oO][mM][eE].[tT][iI][fF]",
+    "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
 ]
+
+qptiff_glob = "**/*.[qQ][pP][tT][iI][fF][fF]"
+
+all_globs = ome_tiff_globs + [qptiff_glob]
+
+
+def _is_in_extras(path: Path) -> bool:
+    return "extras" in path.parts
+
+
+def _check_tiff_counts(paths: list[Path]) -> list[str]:
+    ome_tiffs = []
+    qptiffs = []
+
+    for path in paths:
+        for glob_expr in ome_tiff_globs:
+            for f in path.glob(glob_expr):
+                if not _is_in_extras(f):
+                    ome_tiffs.append(f)
+        for f in path.glob(qptiff_glob):
+            if not _is_in_extras(f):
+                qptiffs.append(f)
+
+    ome_tiffs = list(set(ome_tiffs))
+    qptiffs = list(set(qptiffs))
+
+    errors = []
+    if len(ome_tiffs) > 1:
+        names = ", ".join(f.name for f in ome_tiffs)
+        errors.append(
+            f"GeoJSON present but found {len(ome_tiffs)} OME-TIFFs (expected 1): {names}"
+        )
+    elif len(ome_tiffs) == 0 and len(qptiffs) > 1:
+        names = ", ".join(f.name for f in qptiffs)
+        errors.append(
+            f"GeoJSON present but found {len(qptiffs)} QPTIFFs and no OME-TIFFs (expected 1 QPTIFF): {names}"
+        )
+    return errors
 
 
 def _get_tiff_bounds(path: Path) -> tuple[int, int] | str:
@@ -80,14 +117,14 @@ class GeoJsonTiffValidator(Validator):
         for path in self.paths:
             for f in path.glob("**/*.geojson"):
                 geojson_files.append(f)
-            for glob_expr in tiff_globs:
+            for glob_expr in all_globs:
                 for f in path.glob(glob_expr):
                     tiff_files.append(f)
 
         if not geojson_files:
             return []
 
-        errors = []
+        errors = list(_check_tiff_counts(self.paths))
         for gj_path in geojson_files:
             result = _check_geojson_intersects_tiffs(gj_path, tiff_files)
             if result is not None:

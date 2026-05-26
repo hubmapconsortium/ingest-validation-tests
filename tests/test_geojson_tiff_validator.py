@@ -22,6 +22,24 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
             ),
             # No GeoJSON files → validator skips, returns []
             ("test_data/geojson_tiff_no_geojson.zip", [], "visium"),
+            # GeoJSON + >1 OME-TIFF → error
+            (
+                "test_data/geojson_count_multi_ome.zip",
+                [r"GeoJSON present but found 2 OME-TIFFs \(expected 1\):.*"],
+                "visium",
+            ),
+            # GeoJSON + 0 OME-TIFF + >1 QPTIFF → error
+            (
+                "test_data/geojson_count_multi_qptiff.zip",
+                [r"GeoJSON present but found 2 QPTIFFs and no OME-TIFFs \(expected 1 QPTIFF\):.*"],
+                "visium",
+            ),
+            # GeoJSON + 1 OME-TIFF → no error
+            ("test_data/geojson_count_one_ome.zip", [None], "visium"),
+            # GeoJSON + 1 QPTIFF, no OME-TIFF → no error
+            ("test_data/geojson_count_one_qptiff.zip", [None], "visium"),
+            # OME-TIFF in extras/ excluded from count → no error
+            ("test_data/geojson_count_extras_excluded.zip", [None], "visium"),
         ),
     )
     def test_geojson_tiff_validator(self, test_data_fname, msg_re_list, assay_type, tmp_path):
