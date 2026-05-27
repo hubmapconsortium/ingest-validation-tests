@@ -4,12 +4,7 @@ from pathlib import Path
 
 import tifffile
 from shapely.geometry import box, shape
-from validator import Validator, get_non_global_paths_by_row
-
-ome_tiff_globs = [
-    "**/*.[oO][mM][eE].[tT][iI][fF]",
-    "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
-]
+from validator import Validator, get_non_global_paths_by_row, ome_tiff_globs
 
 qptiff_glob = "**/*.[qQ][pP][tT][iI][fF][fF]"
 
