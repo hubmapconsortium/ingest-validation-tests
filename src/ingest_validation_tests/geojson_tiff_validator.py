@@ -193,7 +193,7 @@ class GeoJsonTiffValidator(Validator):
                 height = shape_[axes.index("Y")]
                 return (width, height)
         except Exception as e:
-            return f"{path}: could not read dimensions: {e}"
+            return f"{path.stem}: could not read dimensions: {e}"
 
     def _check_geojson_intersects_tiffs(
         self, geojson_path: Path, tiff_paths: list[Path]
