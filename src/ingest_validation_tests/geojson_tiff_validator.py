@@ -213,7 +213,8 @@ class GeoJsonTiffValidator(Validator):
             result = self._get_tiff_bounds(tp)
             if not isinstance(result, str):
                 tiff_dims.append((tp, result))
-
+            else:
+                self.errors.append(result)
         if not tiff_dims:
             return None  # no readable TIFFs, skip
 
