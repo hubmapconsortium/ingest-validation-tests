@@ -4,30 +4,33 @@ from tests_utils import GetParentData
 from validator import Validator, check_ome_tiff_file
 
 
-def get_ometiff_size(file) -> str | dict:
+def get_ometiff_sizes(file) -> str | list[dict]:
     try:
         try:
             xml_document = check_ome_tiff_file(file)
         except Exception as e:
             return str(e)
-        xml_image_data = (
-            xml_document.schema.to_dict(xml_document).get("Image")[0].get("Pixels")  # type: ignore | xmlschema.DecodeType causing issues
-        )
+        images = xml_document.schema.to_dict(xml_document).get("Image")  # type: ignore | xmlschema.DecodeType causing issues
     except Exception as e:
         return f"{file} is not a valid OME.TIFF file: {e}"
     try:
-        rst = {
-            "X": xml_image_data.get("@PhysicalSizeX"),
-            "XUnits": xml_image_data.get("@PhysicalSizeXUnit"),
-            "XPix": xml_image_data.get("@SizeX"),
-            "Y": xml_image_data.get("@PhysicalSizeY"),
-            "YUnits": xml_image_data.get("@PhysicalSizeYUnit"),
-            "YPix": xml_image_data.get("@SizeY"),
-            "Z": xml_image_data.get("@PhysicalSizeZ"),
-            "ZUnits": xml_image_data.get("@PhysicalSizeZUnit"),
-            "ZPix": xml_image_data.get("@SizeZ"),
-        }
-        return rst
+        sizes = []
+        for image in images:
+            xml_image_data = image.get("Pixels")
+            sizes.append(
+                {
+                    "X": xml_image_data.get("@PhysicalSizeX"),
+                    "XUnits": xml_image_data.get("@PhysicalSizeXUnit"),
+                    "XPix": xml_image_data.get("@SizeX"),
+                    "Y": xml_image_data.get("@PhysicalSizeY"),
+                    "YUnits": xml_image_data.get("@PhysicalSizeYUnit"),
+                    "YPix": xml_image_data.get("@SizeY"),
+                    "Z": xml_image_data.get("@PhysicalSizeZ"),
+                    "ZUnits": xml_image_data.get("@PhysicalSizeZUnit"),
+                    "ZPix": xml_image_data.get("@SizeZ"),
+                }
+            )
+        return sizes
     except Exception as excp:
         return f"{file} is not a valid OME.TIFF file: {excp}"
 
@@ -82,11 +85,13 @@ class ImageSizeValidator(Validator):
                     len(parent_filenames_to_test) == 1
                 ), f"Too many or too few files Base Images ({[self.rel_filename_str(path) for path in parent_filenames_to_test]})"
 
-                segmentation_mask_size = get_ometiff_size(filenames_to_test[0])
-                base_image_size = get_ometiff_size(parent_filenames_to_test[0])
-                assert (
-                    segmentation_mask_size == base_image_size
-                ), "Files and base image size do not match"
+                segmentation_mask_sizes = get_ometiff_sizes(filenames_to_test[0])
+                base_image_sizes = get_ometiff_sizes(parent_filenames_to_test[0])
+                assert not isinstance(segmentation_mask_sizes, str), segmentation_mask_sizes
+                assert not isinstance(base_image_sizes, str), base_image_sizes
+                assert any(
+                    mask_size in base_image_sizes for mask_size in segmentation_mask_sizes
+                ), "No segmentation mask image matches any base image size"
                 files_tested = True
 
             except AssertionError as e:
