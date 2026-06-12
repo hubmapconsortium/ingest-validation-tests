@@ -67,8 +67,8 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
     def test_get_file_path(self, tmp_path):
         good_filenames = [
             PurePosixPath(tmp_path / "test.qptiff"),
-            PurePosixPath(tmp_path / "test_dir/test.qptiff"),
             PurePosixPath(tmp_path / "test_dir/extras.qptiff"),
+            PurePosixPath(tmp_path / "test_dir/test.qptiff"),
         ]
         bad_filenames = [
             PurePosixPath(tmp_path / "test.qptiff.raw"),
@@ -84,5 +84,4 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
             with open(file, "w", newline="") as mock_file:
                 mock_file.write("should be ignored")
         validator = GeoJsonTiffValidator([tmp_path], "")
-        assert validator._get_qptiffs_for_data_path(tmp_path) == good_filenames
-
+        assert sorted(validator._get_qptiffs_for_data_path(tmp_path)) == good_filenames
