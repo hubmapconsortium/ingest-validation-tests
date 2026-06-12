@@ -58,7 +58,7 @@ class ImageSizeValidator(Validator):
             return ["No metadata rows found."]
         files_tested = False
         output = []
-        for row in self.schema_rows:
+        for i, row in enumerate(self.schema_rows):
             filenames_to_test = []
             parent_filenames_to_test = []
             try:
