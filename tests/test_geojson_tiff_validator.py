@@ -1,8 +1,11 @@
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from unittest.mock import MagicMock, patch
 
 import pytest
 from test_tiff_validators_base_class import TestTiffValidators
+
+from src.ingest_validation_tests.geojson_tiff_validator import GeoJsonTiffValidator
 
 
 class TestGeoJsonTiffValidator(TestTiffValidators):
@@ -53,7 +56,6 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
         ),
     )
     def test_geojson_tiff_validator(self, test_data_fname, msg_re_list, assay_type, tmp_path):
-        from geojson_tiff_validator import GeoJsonTiffValidator
 
         test_data_path = Path(test_data_fname)
         zfile = zipfile.ZipFile(test_data_path)
@@ -61,3 +63,26 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
         validator = GeoJsonTiffValidator(tmp_path / test_data_path.stem, assay_type)
         errors = validator.collect_errors()[:]
         self.check_errors(msg_re_list, errors)
+
+    def test_get_file_path(self, tmp_path):
+        good_filenames = [
+            PurePosixPath(tmp_path / "test.qptiff"),
+            PurePosixPath(tmp_path / "test_dir/test.qptiff"),
+            PurePosixPath(tmp_path / "test_dir/extras.qptiff"),
+        ]
+        bad_filenames = [
+            PurePosixPath(tmp_path / "test.qptiff.raw"),
+            PurePosixPath(tmp_path / "test.raw.qptiff"),
+            PurePosixPath(tmp_path / "test_dir/test.qptiff.raw"),
+            PurePosixPath(tmp_path / "test_dir/test.raw.qptiff"),
+            PurePosixPath(tmp_path / "test_dir/extras/test.qptiff"),
+            PurePosixPath(tmp_path / "extras/test_dir/test.qptiff"),
+        ]
+        Path(tmp_path / "test_dir/extras").mkdir(parents=True)
+        Path(tmp_path / "extras/test_dir").mkdir(parents=True)
+        for file in [*good_filenames, *bad_filenames]:
+            with open(file, "w", newline="") as mock_file:
+                mock_file.write("should be ignored")
+        validator = GeoJsonTiffValidator([tmp_path], "")
+        assert validator._get_qptiffs_for_data_path(tmp_path) == good_filenames
+
