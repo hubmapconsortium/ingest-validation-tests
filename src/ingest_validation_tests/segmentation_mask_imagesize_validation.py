@@ -64,7 +64,7 @@ class ImageSizeValidator(Validator):
             try:
                 data_path = Path(row["data_path"])
                 if not data_path.is_absolute():
-                    data_path = Path(self.paths[0]).parent / data_path
+                    data_path = Path(self.paths[0]) / data_path
 
                 for glob_expr in self.files_to_find:
                     for file in data_path.glob(glob_expr):
