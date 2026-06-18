@@ -204,7 +204,10 @@ class GeoJsonTiffValidator(Validator):
         except Exception as e:
             return f"{geojson_path}: could not parse GeoJSON: {e}"
 
-        features = gj.get("features", [])
+        if gj.get("type") == "Feature":
+            features = [gj]
+        else:
+            features = gj.get("features", [])
         if not features:
             return f"{geojson_path}: no features found"
 
