@@ -43,6 +43,16 @@ import requests
             "Segmentation Mask",
         ),
         (
+            "test_data/seg_mask_duplicate_ids.zip",
+            True,
+            b'{"status":"PASSED","reporting":[]}',
+            [
+                "seg_mask_duplicate_ids/derived/segmentation_masks/seg_mask_duplicate_ids-objects.xlsx: Found duplicate Object IDs: 355 (2 occurrences)",
+                None,
+            ],
+            "Segmentation Mask",
+        ),
+        (
             "test_data/seg_mask_bad_metadata.zip",
             None,
             "",
