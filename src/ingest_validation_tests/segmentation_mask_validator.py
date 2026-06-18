@@ -1,8 +1,10 @@
 import logging
+from collections import Counter
 from functools import cached_property
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
+import pandas as pd
 import requests
 from requests.exceptions import HTTPError
 from validator import Validator
@@ -23,14 +25,15 @@ class SegmentationMaskValidator(Validator):
     def _collect_errors(self) -> list[str | None]:
         if not self.xlsx_files_list:
             return ["No object by feature .XLSX files found."]
-        rslt_list = [self.validate_file(file_path) for file_path in self.xlsx_files_list]
-        flat_list = []
-        for subitem in rslt_list:
-            if type(subitem) is list:
-                flat_list.extend(subitem)
+        rslt_list = []
+        for file_path in self.xlsx_files_list:
+            rslt_list.extend(self.check_duplicate_object_ids(file_path))
+            result = self.validate_file(file_path)
+            if type(result) is list:
+                rslt_list.extend(result)
             else:
-                flat_list.append(subitem)
-        return self._return_result(flat_list, self.xlsx_files_list)
+                rslt_list.append(result)
+        return self._return_result(rslt_list, self.xlsx_files_list)
 
     @cached_property
     def xlsx_files_list(self) -> list[Path]:
@@ -43,6 +46,27 @@ class SegmentationMaskValidator(Validator):
                 for file in expected_path.glob(suffix):
                     xlsx_files.append(file)
         return xlsx_files
+
+    def check_duplicate_object_ids(self, file_path: Path) -> list[str]:
+        errors = []
+        try:
+            # Row 9 (0-indexed: 8) is header, data starts row 10 (0-indexed: 9)
+            df = pd.read_excel(file_path, header=8)
+        except Exception as e:
+            logging.warning(f"Could not check duplicate Object IDs in {file_path}: {e}")
+            return errors
+        if "Object ID" not in df.columns:
+            return errors
+        object_ids = df["Object ID"].dropna()
+        counts = Counter(object_ids)
+        duplicates = {obj_id: count for obj_id, count in counts.items() if count > 1}
+        if duplicates:
+            dup_strs = [f"{obj_id} ({count} occurrences)" for obj_id, count in duplicates.items()]
+            errors.append(
+                f"{self.rel_filename_str(file_path)}: "
+                f"Found duplicate Object IDs: {', '.join(dup_strs)}"
+            )
+        return errors
 
     def validate_file(self, file_path: Path) -> str | list[str] | None:
         with open(file_path, "rb") as f:
