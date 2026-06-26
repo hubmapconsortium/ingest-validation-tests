@@ -54,15 +54,11 @@ class SegmentationMaskValidator(Validator):
             all_na = raw.isnull().all(axis=1)
             na_indices = all_na[all_na].index.tolist()
             if not na_indices:
-                return [
-                    f"Could not find header row in {rel_file_path}: no all-NA row found."
-                ]
+                return [f"Could not find header row in {rel_file_path}: no all-NA row found."]
             header_row = na_indices[0] + 1
             df = pd.read_excel(file_path, header=header_row)
         except Exception as e:
-            return [
-                f"Could not check duplicate Object IDs in {rel_file_path}: {e}"
-            ]
+            return [f"Could not check duplicate Object IDs in {rel_file_path}: {e}"]
         if "Object ID" not in df.columns:
             return [f"Could not find Object ID in {rel_file_path}."]
         object_ids = df["Object ID"].dropna()
@@ -70,10 +66,7 @@ class SegmentationMaskValidator(Validator):
         duplicates = {obj_id: count for obj_id, count in counts.items() if count > 1}
         if duplicates:
             dup_strs = [f"{obj_id} ({count} occurrences)" for obj_id, count in duplicates.items()]
-            return [
-                f"{rel_file_path}: "
-                f"Found duplicate Object IDs: {', '.join(dup_strs)}"
-            ]
+            return [f"{rel_file_path}: " f"Found duplicate Object IDs: {', '.join(dup_strs)}"]
         return []
 
     def validate_file(self, file_path: Path) -> str | list[str] | None:
