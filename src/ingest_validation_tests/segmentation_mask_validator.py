@@ -54,7 +54,7 @@ class SegmentationMaskValidator(Validator):
             na_indices = all_na[all_na].index.tolist()
             if not na_indices:
                 return [f"Could not find header row in {file_path}: no all-NA row found."]
-            header_row = na_indices[0] + 2
+            header_row = na_indices[0] + 1
             df = pd.read_excel(file_path, header=header_row)
         except Exception as e:
             return [f"Could not check duplicate Object IDs in {file_path}: {e}"]
