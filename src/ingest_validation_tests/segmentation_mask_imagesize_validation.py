@@ -62,9 +62,13 @@ class ImageSizeValidator(Validator):
             filenames_to_test = []
             parent_filenames_to_test = []
             try:
-                data_path = Path(row["data_path"])
-                if not data_path.is_absolute():
-                    data_path = Path(self.paths[0]) / data_path
+                md_data_path = Path(row["data_path"])
+
+                data_path = Path(self.paths[0]) / md_data_path
+                if not data_path.is_dir():
+                    data_path = Path(self.paths[0].parent) / md_data_path
+
+                assert (data_path.is_dir()), f"Data path does not exist ({data_path})"
 
                 for glob_expr in self.files_to_find:
                     for file in data_path.glob(glob_expr):
