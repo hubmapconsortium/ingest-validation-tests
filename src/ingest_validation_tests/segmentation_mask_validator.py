@@ -65,7 +65,7 @@ class SegmentationMaskValidator(Validator):
         duplicates = {obj_id: count for obj_id, count in counts.items() if count > 1}
         if duplicates:
             dup_strs = [f"{obj_id} ({count} occurrences)" for obj_id, count in duplicates.items()]
-            return[
+            return [
                 f"{self.rel_filename_str(file_path)}: "
                 f"Found duplicate Object IDs: {', '.join(dup_strs)}"
             ]
