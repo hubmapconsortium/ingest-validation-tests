@@ -68,7 +68,7 @@ class ImageSizeValidator(Validator):
                 if not data_path.is_dir():
                     data_path = Path(self.paths[0].parent) / md_data_path
 
-                assert (data_path.is_dir()), f"Data path does not exist ({data_path})"
+                assert data_path.is_dir(), f"Data path does not exist ({data_path})"
 
                 for glob_expr in self.files_to_find:
                     for file in data_path.glob(glob_expr):
