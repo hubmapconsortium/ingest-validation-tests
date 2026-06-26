@@ -28,6 +28,7 @@ import requests
             False,
             b'{"message":"Bad Excel file","cause":"Missing a separator row.","statusInfo":"400 Bad Request","fixSuggestion":"Please add a new blank row between the schema table and the data table to separate."}',
             [
+                "Could not find header row in seg_mask_bad_file/derived/segmentation_masks/seg_mask_bad_file-objects.xlsx: no all-NA row found.",
                 "Error while checking file seg_mask_bad_file/derived/segmentation_masks/seg_mask_bad_file-objects.xlsx: Bad Excel file. Cause: Missing a separator row. Suggestion: Please add a new blank row between the schema table and the data table to separate."
             ],
             "Segmentation Mask",
@@ -47,7 +48,7 @@ import requests
             True,
             b'{"status":"PASSED","reporting":[]}',
             [
-                "seg_mask_duplicate_ids/derived/segmentation_masks/seg_mask_duplicate_ids-objects.xlsx: Found duplicate Object IDs: 355 (2 occurrences)",
+                "seg_mask_duplicate_ids/derived/segmentation_masks/seg_mask_duplicate_ids-objects.xlsx: Found duplicate Object IDs: 1 (2 occurrences), 2 (2 occurrences)",
                 None,
             ],
             "Segmentation Mask",
