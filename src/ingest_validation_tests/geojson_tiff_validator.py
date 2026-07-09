@@ -124,7 +124,7 @@ class GeoJsonTiffValidator(Validator):
             self.errors.append(str(e))
             return {}
 
-        global_path = base_path / "global"
+        global_path = base_path / "global" / "lab_processed" / "images"
         global_ome_tiffs: list[Path] = []
         global_qptiffs: list[Path] = []
         if global_path.exists():
@@ -150,13 +150,25 @@ class GeoJsonTiffValidator(Validator):
                 continue
             ome_tiffs = list(
                 set(
-                    [p for p in row_paths if self._is_ome_tiff(p) and not self._is_in_extras(p)]
+                    [
+                        p
+                        for p in row_paths
+                        if self._is_ome_tiff(p)
+                        and self._is_in_images(p)
+                        and not self._is_in_extras(p)
+                    ]
                     + global_ome_tiffs
                 )
             )
             qptiffs = list(
                 set(
-                    [p for p in row_paths if self._is_qptiff(p) and not self._is_in_extras(p)]
+                    [
+                        p
+                        for p in row_paths
+                        if self._is_qptiff(p)
+                        and self._is_in_images(p)
+                        and not self._is_in_extras(p)
+                    ]
                     + global_qptiffs
                 )
             )
@@ -173,6 +185,9 @@ class GeoJsonTiffValidator(Validator):
 
     def _is_in_extras(self, path: Path) -> bool:
         return "extras" in path.parts
+
+    def _is_in_images(self, path: Path) -> bool:
+        return "lab_processed" in path.parts and "images" in path.parts
 
     def _is_ome_tiff(self, path: Path) -> bool:
         name = path.name.lower()
