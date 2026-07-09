@@ -1,14 +1,17 @@
 import json
+import os
+import re
 from functools import cached_property
 from pathlib import Path
 
 import tifffile
 from shapely.geometry import box, shape
-from validator import Validator, get_non_global_paths_by_row, ome_tiff_globs
-
-qptiff_glob = "**/*.[qQ][pP][tT][iI][fF][fF]"
-
-all_globs = ome_tiff_globs + [qptiff_glob]
+from validator import (
+    OME_TIFF_GLOBS,
+    QPTIFF_REGEX,
+    Validator,
+    get_non_global_paths_by_row,
+)
 
 
 class GeoJsonTiffValidator(Validator):
@@ -39,7 +42,7 @@ class GeoJsonTiffValidator(Validator):
             self.errors.extend(
                 self._check_tiff_counts(files_dict["ome_tiff"], files_dict["qptiff"])
             )
-            result = self._check_geojson_intersects_tiffs(files_dict["geojson"], tiff_files)
+            result = self._check_geojson_intersects_tiffs(files_dict["geojson"][0], tiff_files)
             if result is not None:
                 self.errors.append(result)
 
@@ -48,7 +51,7 @@ class GeoJsonTiffValidator(Validator):
     ####################
 
     @cached_property
-    def files_to_test(self) -> dict[Path | int, dict[str, Path | list[Path]]]:
+    def files_to_test(self) -> dict[int, dict[str, list[Path]]]:
         """
         For each data path, locate a single GeoJSON file and TIFF files.
         Returns:
@@ -68,18 +71,33 @@ class GeoJsonTiffValidator(Validator):
             ome_tiffs = list(
                 set(
                     f
-                    for glob_expr in ome_tiff_globs
+                    for glob_expr in OME_TIFF_GLOBS
                     for f in path.glob(glob_expr)
                     if not self._is_in_extras(f)
                 )
             )
-            qptiffs = list(set(f for f in path.glob(qptiff_glob) if not self._is_in_extras(f)))
+            qptiffs = self._get_qptiffs_for_data_path(path)
             files_to_test[path] = {
-                "geojson": geojson_file,
+                "geojson": [geojson_file],
                 "ome_tiff": ome_tiffs,
                 "qptiff": qptiffs,
             }
         return files_to_test
+
+    def _get_qptiffs_for_data_path(self, data_path: Path) -> list[Path]:
+        """
+        Exclude any QPTIFF files in extras/ or with .raw/raw. in the filename.
+        """
+        qptiffs = []
+        for path, _, files in os.walk(data_path):
+            qptiffs.extend(
+                [
+                    Path(path, name)
+                    for name in files
+                    if re.search(QPTIFF_REGEX, name) and not self._is_in_extras(Path(path, name))
+                ]
+            )
+        return qptiffs
 
     def _get_geojson_file(self, path: Path) -> Path | None:
         files = list(path.glob("**/*.geojson"))
@@ -114,15 +132,12 @@ class GeoJsonTiffValidator(Validator):
             global_ome_tiffs = list(
                 set(
                     f
-                    for glob_expr in ome_tiff_globs
+                    for glob_expr in OME_TIFF_GLOBS
                     for f in global_path.glob(glob_expr)
                     if not self._is_in_extras(f)
                 )
             )
-            global_qptiffs = list(
-                set(f for f in global_path.glob(qptiff_glob) if not self._is_in_extras(f))
-            )
-
+            global_qptiffs = self._get_qptiffs_for_data_path(global_path)
         all_files: dict[int, dict[str, Path | list[Path]]] = {}
         for row_num, row_paths in non_global_paths.items():
             geojson_files = [p for p in row_paths if p.suffix.lower() == ".geojson"]
@@ -184,7 +199,7 @@ class GeoJsonTiffValidator(Validator):
     def _get_tiff_bounds(self, path: Path) -> tuple[int, int] | str:
         try:
             with tifffile.TiffFile(path) as tf:
-                series = tf.series[0]
+                series = tf.series[0]  # type: ignore
                 axes = series.axes.upper()
                 shape_ = series.shape
                 if "Y" not in axes or "X" not in axes:
@@ -226,7 +241,7 @@ class GeoJsonTiffValidator(Validator):
                 geom = shape(feature["geometry"])
             except Exception as e:
                 return f"{geojson_path}: invalid geometry: {e}"
-            for tiff_path, (width, height) in tiff_dims:
+            for _, (width, height) in tiff_dims:
                 tiff_box = box(0, 0, width, height)
                 if tiff_box.intersects(geom):
                     return None  # at least one intersection found

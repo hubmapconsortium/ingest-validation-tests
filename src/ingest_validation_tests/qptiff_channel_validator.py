@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import xmlschema
 from validator import (
     BASE_OME_XML_SCHEMA,
+    QPTIFF_REGEX,
     Validator,
     csv_to_df,
     get_non_global_paths_by_row,
@@ -59,6 +60,7 @@ class QpTiffChannelValidator(Validator):
             assert (
                 self.files_to_test
             ), f"Could not find qptiff.channels.csv and associated QPTIFF files (required for {self.assay_type})."
+            self._log(f"Files to test: {self.files_to_test}")
         except Exception as e:
             if not self.errors:
                 self.errors.append(f"Error retrieving files to test: {e}")
@@ -91,8 +93,11 @@ class QpTiffChannelValidator(Validator):
             if self.shared_upload:
                 files_to_test.update(self._get_shared_upload_file_pairs(path.parent))
                 break
-            channel_csv = self._get_file_path(path / "lab_processed/images", ".channels.csv")
-            qptiff_file = self._get_file_path(path / "raw/images", ".qptiff")
+            channel_csv = self._get_file_path(path / "lab_processed/images", "qptiff.channels.csv")
+            qptiff_file = self._get_file_path(
+                path / "raw/images",
+                QPTIFF_REGEX,
+            )
             if not (channel_csv and qptiff_file):
                 continue
             files_to_test[path] = {"csv": channel_csv, "qptiff": qptiff_file}
@@ -113,7 +118,11 @@ class QpTiffChannelValidator(Validator):
         try:
             # get global values
             global_files = self._shared_upload_get_global_files(base_path)
-            # retrieve non_global files identified in metadata.tsv
+            # if both required files are in global, they will be used for all datasets;
+            # return to prevent looping through every dataset
+            if global_files["csv"] and global_files["qptiff"]:
+                return {0: global_files}  # type: ignore
+            # otherwise, retrieve non_global files identified in metadata.tsv
             non_global_paths = get_non_global_paths_by_row(self.schema_rows, base_path)
         except Exception as e:
             # if too many global files or any expected non_global path not found, return
@@ -184,7 +193,7 @@ class QpTiffChannelValidator(Validator):
                 f"Found {len(files_list)} {file_type}s ({paths_str}) for dataset in row {row} in shared upload."
             )
 
-    def _get_file_path(self, parent_path: Path, extension: str) -> Path | None:
+    def _get_file_path(self, parent_path: Path, regex_str: str) -> Path | None:
         if not parent_path.exists():
             self.errors.append(
                 f"Did not find expected directory {self.rel_filename_str(parent_path)}"
@@ -192,11 +201,11 @@ class QpTiffChannelValidator(Validator):
             return
         files = []
         for filename in parent_path.iterdir():
-            if str(filename).lower().endswith(extension):
+            if re.search(re.compile(regex_str), str(filename).lower()):
                 files.append(filename)
         if len(files) != 1:
             self.errors.append(
-                f"Found {len(files)} {extension} files in {self.rel_filename_str(parent_path)} directory."
+                f"Found {len(files)} files matching '{regex_str}' in {self.rel_filename_str(parent_path)} directory."
             )
             return
         return files[0]

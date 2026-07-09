@@ -11,6 +11,11 @@ import tifffile
 import xmlschema
 
 BASE_OME_XML_SCHEMA = Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd"
+OME_TIFF_GLOBS = [
+    "**/*.[oO][mM][eE].[tT][iI][fF]",
+    "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
+]
+QPTIFF_REGEX = ".*(?<!\\.raw|raw\\.)qptiff$"
 
 
 class Validator:
@@ -141,7 +146,7 @@ class Validator:
         raise Exception("no uuid was found in the path to the current working directory")
 
 
-def get_non_global_paths_by_row(rows: list[dict], base_path: Path) -> dict[str | int, str]:
+def get_non_global_paths_by_row(rows: list[dict], base_path: Path) -> dict[int, list[Path]]:
     """
     Create dict of non-global paths by row for a shared upload.
     {<row_index_0>: [<path_1>, <path_2>], <row_index_1>: [<path_3>, <path_4>]}
@@ -187,12 +192,6 @@ def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
         print(f"{file} is not a valid OME.TIFF file: {excp}")
         raise Exception(f"{file} is not a valid OME.TIFF file: {excp}")
     return xml_document
-
-
-ome_tiff_globs = [
-    "**/*.[oO][mM][eE].[tT][iI][fF]",
-    "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
-]
 
 
 def validation_class_iter() -> list[Validator]:
