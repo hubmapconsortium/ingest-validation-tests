@@ -64,6 +64,24 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
         errors = validator.collect_errors()[:]
         self.check_errors(msg_re_list, errors)
 
+    def test_geojson_tiff_validator_shared_good(self, tmp_path):
+        """
+        OME TIFF in global, geojson file in non_global.
+        """
+        test_data_dir = Path("test_data/geojson_shared_good.zip")
+        zfile = zipfile.ZipFile(test_data_dir)
+        zfile.extractall(tmp_path)
+        validator = GeoJsonTiffValidator(
+            [
+                tmp_path / test_data_dir.stem / "global",
+                tmp_path / test_data_dir.stem / "non_global",
+            ],
+            "visium",
+            schema_rows=[{"non_global_files": "tissue_boundary.geojson"}],
+        )
+        errors = validator.collect_errors()[:]
+        self.check_errors([None], errors)
+
     def test_get_file_path(self, tmp_path):
         good_filenames = [
             PurePosixPath(tmp_path / "test.qptiff"),

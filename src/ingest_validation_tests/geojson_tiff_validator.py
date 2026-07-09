@@ -109,9 +109,7 @@ class GeoJsonTiffValidator(Validator):
             return None
         return files[0] if files else None
 
-    def _get_shared_upload_file_pairs(
-        self, base_path: Path
-    ) -> dict[int, dict[str, Path | list[Path]]]:
+    def _get_shared_upload_file_pairs(self, base_path: Path) -> dict[int, dict[str, list[Path]]]:
         """
         non_global directory may contain GeoJSON and TIFF files per dataset row.
         Read non_global_files field of metadata.tsv and retrieve files from there.
@@ -138,7 +136,7 @@ class GeoJsonTiffValidator(Validator):
                 )
             )
             global_qptiffs = self._get_qptiffs_for_data_path(global_path)
-        all_files: dict[int, dict[str, Path | list[Path]]] = {}
+        all_files: dict[int, dict[str, list[Path]]] = {}
         for row_num, row_paths in non_global_paths.items():
             geojson_files = [p for p in row_paths if p.suffix.lower() == ".geojson"]
             if not geojson_files:
@@ -162,7 +160,7 @@ class GeoJsonTiffValidator(Validator):
                 )
             )
             all_files[row_num] = {
-                "geojson": geojson_files[0],
+                "geojson": geojson_files,
                 "ome_tiff": ome_tiffs,
                 "qptiff": qptiffs,
             }
