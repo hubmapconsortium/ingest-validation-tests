@@ -68,15 +68,16 @@ class GeoJsonTiffValidator(Validator):
             geojson_file = self._get_geojson_file(path)
             if geojson_file is None:
                 continue
+            images_path = path / "lab_processed" / "images"
             ome_tiffs = list(
                 set(
                     f
                     for glob_expr in OME_TIFF_GLOBS
-                    for f in path.glob(glob_expr)
+                    for f in images_path.glob(glob_expr)
                     if not self._is_in_extras(f)
                 )
             )
-            qptiffs = self._get_qptiffs_for_data_path(path)
+            qptiffs = self._get_qptiffs_for_data_path(images_path)
             files_to_test[path] = {
                 "geojson": [geojson_file],
                 "ome_tiff": ome_tiffs,
