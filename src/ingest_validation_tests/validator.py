@@ -12,10 +12,6 @@ import tifffile
 import xmlschema
 
 BASE_OME_XML_SCHEMA = Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd"
-OME_TIFF_GLOBS = [
-    "**/*.[oO][mM][eE].[tT][iI][fF]",
-    "**/*.[oO][mM][eE].[tT][iI][fF][fF]",
-]
 
 
 class Validator:
