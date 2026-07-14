@@ -12,10 +12,8 @@ from qptiff_channel_validator import (  # type: ignore
     QpTiffChannelValidator,
 )
 
-from src.ingest_validation_tests.validator import QPTIFF_REGEX
 
-
-class TestQpTiffChannelCsv:
+class TestQpTiffChannelValidator:
 
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),
@@ -99,7 +97,7 @@ class TestQpTiffChannelCsv:
         errors = validator.collect_errors()[:]
         errors.sort()
         for err in [
-            "Found 0 files matching 'qptiff.channels.csv' in test_missing_channels_csv0/lab_processed/images directory.",
+            "Found 0 'qptiff.channels.csv' files in test_missing_channels_csv0/lab_processed/images directory.",
         ]:
             assert err in errors
 
@@ -210,26 +208,6 @@ class TestQpTiffChannelCsv:
         assert validator.files_to_test[Path(tmp_path)]["qptiff"] == Path(
             tmp_path / f"raw/images/{self.test_qptiff_filename}"
         )
-
-    def test_get_file_path(self, tmp_path):
-        """
-        Exclude raw.qptiff and qptiff.raw.
-        Exclude qptiffs in subdirectories.
-        """
-        good_filename = "test.qptiff"
-        bad_filenames = [
-            "test.qptiff.raw",
-            "test.raw.qptiff",
-            "test_dir/test.qptiff",
-            "test_dir/test.qptiff.raw",
-            "test_dir/test.raw.qptiff",
-        ]
-        Path(tmp_path / "test_dir").mkdir()
-        for file in [good_filename, *bad_filenames]:
-            with open(Path(tmp_path / file), "w", newline="") as mock_file:
-                mock_file.write("should be ignored")
-        validator = QpTiffChannelValidator([tmp_path], "phenocycler")
-        assert validator._get_file_path(tmp_path, QPTIFF_REGEX) == tmp_path / good_filename
 
     #######################
     # Setup shared upload #

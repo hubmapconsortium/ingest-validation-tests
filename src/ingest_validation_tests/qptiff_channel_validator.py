@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import xmlschema
 from validator import (
     BASE_OME_XML_SCHEMA,
-    QPTIFF_REGEX,
+    QptiffFinder,
     Validator,
     csv_to_df,
     get_non_global_paths_by_row,
@@ -93,15 +93,57 @@ class QpTiffChannelValidator(Validator):
             if self.shared_upload:
                 files_to_test.update(self._get_shared_upload_file_pairs(path.parent))
                 break
-            channel_csv = self._get_file_path(path / "lab_processed/images", "qptiff.channels.csv")
-            qptiff_file = self._get_file_path(
-                path / "raw/images",
-                QPTIFF_REGEX,
-            )
+            self._check_required_dirs(path)
+            channel_csv = self._get_channels_filepath(path / "lab_processed/images")
+            qptiff_file = self._get_qptiff_filepath(path)
             if not (channel_csv and qptiff_file):
                 continue
             files_to_test[path] = {"csv": channel_csv, "qptiff": qptiff_file}
         return files_to_test
+
+    def _check_required_dirs(self, path: Path):
+        """
+        Log a verbose error if a required directory is missing.
+        """
+        missing_paths = []
+        for filepath in [Path(path / "raw/images"), Path(path / "lab_processed/images")]:
+            if not filepath.exists():
+                missing_paths.append(
+                    f"Did not find expected directory {self.rel_filename_str(filepath)}"
+                )
+        if missing_paths:
+            self.errors.extend(missing_paths)
+            return False
+        return True
+
+    def _get_qptiff_filepath(self, parent_path: Path) -> Path | None:
+        if not (Path(parent_path / "raw/images")).exists():
+            return None
+        files = QptiffFinder(parent_path).find(restrict_to_expected=True)
+        if len(files) != 1:
+            self.errors.append(
+                f"Found {len(files)} QPTIFF files in {self.rel_filename_str(parent_path)} directory."
+            )
+            return
+        return files[0]
+
+    def _get_channels_filepath(self, parent_path: Path) -> Path | None:
+        if not parent_path.exists():
+            return None
+        files = []
+        for filename in parent_path.iterdir():
+            if filename.name.endswith("qptiff.channels.csv"):
+                files.append(filename)
+        if len(files) != 1:
+            self.errors.append(
+                f"Found {len(files)} 'qptiff.channels.csv' files in {self.rel_filename_str(parent_path)} directory."
+            )
+            return
+        return files[0]
+
+    ##################
+    # Shared uploads #
+    ##################
 
     def _get_shared_upload_file_pairs(self, base_path: Path) -> dict[int, dict[str, Path]]:
         """
@@ -192,23 +234,6 @@ class QpTiffChannelValidator(Validator):
             self.errors.append(
                 f"Found {len(files_list)} {file_type}s ({paths_str}) for dataset in row {row} in shared upload."
             )
-
-    def _get_file_path(self, parent_path: Path, regex_str: str) -> Path | None:
-        if not parent_path.exists():
-            self.errors.append(
-                f"Did not find expected directory {self.rel_filename_str(parent_path)}"
-            )
-            return
-        files = []
-        for filename in parent_path.iterdir():
-            if re.search(re.compile(regex_str), str(filename).lower()):
-                files.append(filename)
-        if len(files) != 1:
-            self.errors.append(
-                f"Found {len(files)} files matching '{regex_str}' in {self.rel_filename_str(parent_path)} directory."
-            )
-            return
-        return files[0]
 
     ##################
     # CSV Validation #

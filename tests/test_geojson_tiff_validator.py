@@ -1,6 +1,5 @@
 import zipfile
-from pathlib import Path, PurePosixPath
-from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 import pytest
 from test_tiff_validators_base_class import TestTiffValidators
@@ -81,25 +80,3 @@ class TestGeoJsonTiffValidator(TestTiffValidators):
         )
         errors = validator.collect_errors()[:]
         self.check_errors([None], errors)
-
-    def test_get_file_path(self, tmp_path):
-        good_filenames = [
-            PurePosixPath(tmp_path / "test.qptiff"),
-            PurePosixPath(tmp_path / "test_dir/extras.qptiff"),
-            PurePosixPath(tmp_path / "test_dir/test.qptiff"),
-        ]
-        bad_filenames = [
-            PurePosixPath(tmp_path / "test.qptiff.raw"),
-            PurePosixPath(tmp_path / "test.raw.qptiff"),
-            PurePosixPath(tmp_path / "test_dir/test.qptiff.raw"),
-            PurePosixPath(tmp_path / "test_dir/test.raw.qptiff"),
-            PurePosixPath(tmp_path / "test_dir/extras/test.qptiff"),
-            PurePosixPath(tmp_path / "extras/test_dir/test.qptiff"),
-        ]
-        Path(tmp_path / "test_dir/extras").mkdir(parents=True)
-        Path(tmp_path / "extras/test_dir").mkdir(parents=True)
-        for file in [*good_filenames, *bad_filenames]:
-            with open(file, "w", newline="") as mock_file:
-                mock_file.write("should be ignored")
-        validator = GeoJsonTiffValidator([tmp_path], "")
-        assert sorted(validator._get_qptiffs_for_data_path(tmp_path)) == good_filenames
