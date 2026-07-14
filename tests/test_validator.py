@@ -7,19 +7,29 @@ class ValidatorTestClass(Validator):
     version = "1.0"
     required = ["required_type"]
 
-    def __init__(self, base_paths, assay_type, contains=[], **kwargs):
+    def __init__(
+        self,
+        base_paths,
+        assay_type,
+        rslt: list[str] = [],
+        data_tested: list[str] = [],
+        contains=[],
+        schema=None,
+        app_context={},
+        coreuse=None,
+    ):
         super().__init__(
             base_paths,
             assay_type,
             contains=contains,
             verbose=True,
-            schema=None,
+            schema=schema,
             globus_token="",
-            app_context={},
-            coreuse=None,
+            app_context=app_context,
+            coreuse=coreuse,
         )
-        self.rslt = kwargs.get("rslt")
-        self.data_tested = kwargs.get("data_tested")
+        self.rslt = rslt
+        self.data_tested = data_tested
 
     def _collect_errors(self):
         return self._return_result(self.rslt, self.data_tested)
