@@ -113,8 +113,6 @@ class QpTiffChannelValidator(Validator):
                 )
         if missing_paths:
             self.errors.extend(missing_paths)
-            return False
-        return True
 
     def _get_qptiff_filepath(self, parent_path: Path) -> Path | None:
         if not (Path(parent_path / "raw/images")).exists():

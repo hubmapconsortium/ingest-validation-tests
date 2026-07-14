@@ -134,8 +134,10 @@ def test_threads_default_to_1(monkeypatch):
         assert v.threads == 1
 
 
-def create_bad_filenames(dir_path: Path, expected_dir: bool = True):
-    bad_dirs = [  # exclude bad suffix
+def create_bad_files(dir_path: Path, expected_dir: bool = True):
+    if not dir_path.exists():
+        Path(dir_path).mkdir(parents=True)
+    bad_files = [  # exclude bad suffix
         PosixPath(dir_path / "test.qptiff.raw"),
         # exclude .raw.qptiff
         PosixPath(dir_path / "test.raw.qptiff"),
@@ -143,50 +145,94 @@ def create_bad_filenames(dir_path: Path, expected_dir: bool = True):
         PosixPath(dir_path / "test.intermediate.qptiff"),
     ]
     if expected_dir:
-        bad_dirs.extend(
+        bad_files.extend(
             [  # exclude valid file in subdir if expected dir is found
                 PosixPath(dir_path / "test_dir/test.qptiff"),
                 # exclude valid file in different dir if expected dir is found
                 PosixPath(dir_path / "test.qptiff"),
             ]
         )
-    return bad_dirs
+        Path(dir_path / "test_dir").mkdir(parents=True)
+    for file in bad_files:
+        write_file(file)
+    return bad_files
 
 
-def create_good_filenames(dir_path: Path, additional_paths: list[Path] = []):
-    return [
+def create_good_files(
+    dir_path: Path, expected_dir: bool = True, additional_paths: list[Path] = []
+):
+    if not dir_path.exists():
+        Path(dir_path).mkdir(parents=True)
+    good_files = [
         PosixPath(dir_path / "extras.qptiff"),
         PosixPath(dir_path / "test.qptiff"),
     ] + additional_paths
+    if not expected_dir:
+        good_files.append(PosixPath(dir_path / "test_dir/test.qptiff"))
+        Path(dir_path / "test_dir").mkdir(parents=True)
+    for path in additional_paths:
+        if not path.parent.exists():
+            Path(path.parent).mkdir(parents=True)
+    for file in good_files:
+        write_file(file)
+    return good_files
+
+
+def create_extra_files(dir_path: Path):
+    file = PosixPath(dir_path / "extras/test.qptiff")
+    Path(dir_path / "extras").mkdir(parents=True)
+    write_file(PosixPath(dir_path / "extras/test.qptiff"))
+    return file
+
+
+def write_file(file):
+    with open(file, "w", newline="") as mock_file:
+        mock_file.write("should be ignored")
 
 
 def test_qptifffinder_good_expected_dir(tmp_path):
     expected_dir_path = Path(tmp_path / "raw/images")
-    good_filenames = create_good_filenames(expected_dir_path)
-    bad_filenames = create_bad_filenames(expected_dir_path)
-    Path(expected_dir_path).mkdir(parents=True)
-    Path(tmp_path / "raw/images/test_dir").mkdir(parents=True)
-    Path(tmp_path / "test_dir").mkdir(parents=True)
-    for file in [*good_filenames, *bad_filenames]:
-        with open(file, "w", newline="") as mock_file:
-            mock_file.write("should be ignored")
+    good_filenames = create_good_files(expected_dir_path)
+    create_bad_files(expected_dir_path)
     assert sorted(QptiffFinder(tmp_path).find()) == good_filenames
 
 
 def test_qptifffinder_no_expected_dir(tmp_path):
-    good_filenames = create_good_filenames(
-        tmp_path,
-        # should look in subdirs
-        additional_paths=[PosixPath(tmp_path / "test_dir/test.qptiff")],
-    )
-    extras = [PosixPath(tmp_path / "extras/test.qptiff")]
-    bad_filenames = create_bad_filenames(tmp_path, expected_dir=False) + extras
-    Path(tmp_path / "test_dir").mkdir(parents=True)
-    Path(tmp_path / "extras").mkdir(parents=True)
-    for file in [*good_filenames, *bad_filenames]:
-        with open(file, "w", newline="") as mock_file:
-            mock_file.write("should be ignored")
+    good_filenames = create_good_files(tmp_path, expected_dir=False)
+    extra = create_extra_files(tmp_path)
+    create_bad_files(tmp_path, expected_dir=False)
     assert sorted(QptiffFinder(tmp_path).find()) == good_filenames
     assert sorted(QptiffFinder(tmp_path, exclude_extras=False).find()) == sorted(
-        extras + good_filenames
+        [extra, *good_filenames]
     )
+
+
+def test_qptifffinder_no_expected_dir_restricted(tmp_path):
+    assert sorted(QptiffFinder(tmp_path).find(restrict_to_expected=True)) == []
+
+
+def test_qptifffinder_find_all(tmp_path):
+    good_filenames = create_good_files(
+        tmp_path, expected_dir=False, additional_paths=[Path(tmp_path / "raw/images/test.qptiff")]
+    )
+    create_bad_files(tmp_path, expected_dir=False)
+    extra = create_extra_files(tmp_path)
+    assert sorted(QptiffFinder(tmp_path).find_all()) == sorted(good_filenames)
+    assert sorted(QptiffFinder(tmp_path, exclude_extras=False).find_all()) == sorted(
+        [*good_filenames, extra]
+    )
+
+
+def test_qptifffinder_valid_filenames():
+    files = [
+        ("S09_TMA07_030926_Scan1.qptiff", True),
+        ("S09_TMA07_030926_Scan1_Cycle16.raw.qptiff", False),
+        ("S09_TMA07_030926_Scan1_Cycle13.intermediate.qptiff", False),
+        ("S09_TMA07_030926_Scan1_Cycle19.raw.qptiff", False),
+        ("bad_file", False),
+        ("extra.qptiff", True),
+    ]
+    for file, rslt in [*files, ("extras/good.qptiff", False)]:
+        assert QptiffFinder.valid_filename(file) == rslt
+    for file, rslt in [*files, ("extras/good.qptiff", True)]:
+        assert QptiffFinder.valid_filename(file, exclude_extras=False) == rslt
