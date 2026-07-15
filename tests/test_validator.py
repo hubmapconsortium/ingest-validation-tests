@@ -1,6 +1,13 @@
 from pathlib import Path, PosixPath
 
-from validator import QptiffFinder, Validator
+from validator import (
+    FileTypes,
+    Validator,
+    find_all_files,
+    find_files,
+    verify_filename,
+    verify_qptiff_filename,
+)
 
 
 class ValidatorTestClass(Validator):
@@ -188,13 +195,6 @@ def create_good_files(
     return good_files
 
 
-def create_extra_files(dir_path: Path):
-    file = PosixPath(dir_path / "extras/test.qptiff")
-    Path(dir_path / "extras").mkdir(parents=True)
-    write_file(PosixPath(dir_path / "extras/test.qptiff"))
-    return file
-
-
 def write_file(file):
     with open(file, "w", newline="") as mock_file:
         mock_file.write("should be ignored")
@@ -204,21 +204,17 @@ def test_qptifffinder_good_expected_dir(tmp_path):
     expected_dir_path = Path(tmp_path / "raw/images")
     good_filenames = create_good_files(expected_dir_path)
     create_bad_files(expected_dir_path)
-    assert sorted(QptiffFinder(tmp_path).find()) == good_filenames
+    assert sorted(find_files(tmp_path, FileTypes.QPTIFF)) == sorted(good_filenames)
 
 
 def test_qptifffinder_no_expected_dir(tmp_path):
     good_filenames = create_good_files(tmp_path, expected_dir=False)
-    extra = create_extra_files(tmp_path)
     create_bad_files(tmp_path, expected_dir=False)
-    assert sorted(QptiffFinder(tmp_path).find()) == good_filenames
-    assert sorted(QptiffFinder(tmp_path, exclude_extras=False).find()) == sorted(
-        [extra, *good_filenames]
-    )
+    assert sorted(find_files(tmp_path, FileTypes.QPTIFF)) == sorted(good_filenames)
 
 
 def test_qptifffinder_no_expected_dir_restricted(tmp_path):
-    assert sorted(QptiffFinder(tmp_path).find(restrict_to_expected=True)) == []
+    assert sorted(find_files(tmp_path, FileTypes.QPTIFF, restrict_to_expected=True)) == []
 
 
 def test_qptifffinder_find_all(tmp_path):
@@ -226,11 +222,7 @@ def test_qptifffinder_find_all(tmp_path):
         tmp_path, expected_dir=False, additional_paths=[Path(tmp_path / "raw/images/test.qptiff")]
     )
     create_bad_files(tmp_path, expected_dir=False)
-    extra = create_extra_files(tmp_path)
-    assert sorted(QptiffFinder(tmp_path).find_all()) == sorted(good_filenames)
-    assert sorted(QptiffFinder(tmp_path, exclude_extras=False).find_all()) == sorted(
-        [*good_filenames, extra]
-    )
+    assert sorted(find_all_files(tmp_path, FileTypes.QPTIFF)) == sorted(good_filenames)
 
 
 def test_qptifffinder_valid_filenames():
@@ -241,8 +233,8 @@ def test_qptifffinder_valid_filenames():
         ("S09_TMA07_030926_Scan1_Cycle19.raw.qptiff", False),
         ("bad_file", False),
         ("extra.qptiff", True),
+        ("extras/good.qptiff", False),
     ]
-    for file, rslt in [*files, ("extras/good.qptiff", False)]:
-        assert QptiffFinder.valid_filename(file) == rslt
-    for file, rslt in [*files, ("extras/good.qptiff", True)]:
-        assert QptiffFinder.valid_filename(file, exclude_extras=False) == rslt
+    for file, rslt in files:
+        assert verify_filename(file, FileTypes.QPTIFF) == rslt
+        assert verify_qptiff_filename(file) == rslt

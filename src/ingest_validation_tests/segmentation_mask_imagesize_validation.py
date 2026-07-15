@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from tests_utils import GetParentData
-from validator import OmeTiffFinder, Validator, check_ome_tiff_file
+from validator import FileTypes, Validator, check_ome_tiff_file, find_all_files
 
 
 def get_ometiff_sizes(file) -> str | list[dict]:
@@ -73,7 +73,7 @@ class ImageSizeValidator(Validator):
                         row["parent_dataset_id"], self.token, self.app_context
                     ).get_path()
                 )
-                parent_filenames_to_test.extend(OmeTiffFinder(parent_path).find_all())
+                parent_filenames_to_test.extend(find_all_files(parent_path, FileTypes.OME_TIFF))
 
                 assert (
                     len(filenames_to_test) == 1

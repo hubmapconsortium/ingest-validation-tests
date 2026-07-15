@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from pathlib import Path
 
 import xmlschema
-from validator import OmeTiffFinder, Validator, check_ome_tiff_file
+from validator import FileTypes, Validator, check_ome_tiff_file, find_all_files
 
 
 class OmeTiffFieldValidator(Validator):
@@ -59,7 +59,7 @@ class OmeTiffFieldValidator(Validator):
 
         filenames_to_test = []
         for path in self.paths:
-            filenames_to_test.extend(OmeTiffFinder(path).find_all())
+            filenames_to_test.extend(find_all_files(path, FileTypes.OME_TIFF))
         if not filenames_to_test:
             return []
 

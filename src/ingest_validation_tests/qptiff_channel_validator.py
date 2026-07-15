@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING
 import xmlschema
 from validator import (
     BASE_OME_XML_SCHEMA,
-    QptiffFinder,
+    FileTypes,
     Validator,
     csv_to_df,
+    find_files,
     get_non_global_paths_by_row,
     get_rel_filename_str,
 )
@@ -117,7 +118,7 @@ class QpTiffChannelValidator(Validator):
     def _get_qptiff_filepath(self, parent_path: Path) -> Path | None:
         if not (Path(parent_path / "raw/images")).exists():
             return None
-        files = QptiffFinder(parent_path).find(restrict_to_expected=True)
+        files = find_files(parent_path, FileTypes.QPTIFF, restrict_to_expected=True)
         if len(files) != 1:
             self.errors.append(
                 f"Found {len(files)} QPTIFF files in {self.rel_filename_str(parent_path)} directory."

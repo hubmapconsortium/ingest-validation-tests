@@ -1,8 +1,8 @@
 import inspect
 import os
 import sys
-from abc import ABC
 from csv import DictReader
+from enum import Enum
 from importlib import util
 from os import cpu_count
 from pathlib import Path
@@ -57,13 +57,10 @@ class Validator:
             errors = v.collect_errors()
 
         """
-        if isinstance(base_paths, list):
-            self.paths = [Path(path) for path in base_paths]
-        elif isinstance(base_paths, (Path, str)):
+        if isinstance(base_paths, (Path, str)):
             self.paths = [Path(base_paths)]
         else:
-            # No plugin will run, halt validation
-            raise Exception(f"Validator init received base_paths arg as type {type(base_paths)}")
+            self.paths = [Path(path) for path in base_paths]
         self.assay_type = assay_type
         self.contains = contains
         self.verbose = verbose
@@ -76,12 +73,11 @@ class Validator:
         self.threads = coreuse if coreuse else num_cpus // 4 if (num_cpus and num_cpus >= 4) else 1
         self._log(f"Threading at {self.__class__.__name__} with {self.threads}")
 
-    def collect_errors(self, **kwargs) -> list[str | None]:
+    def collect_errors(self) -> list[str | None]:
         """
         Ensure plugin is valid, and if so, collect errors
         according to the subclass's _collect_errors method.
         """
-        # TODO: remove kwargs after plugin_kwargs logic is fixed upstream
         if not self.plugin_valid:
             return []
         self._log(f"Update: threading at {self.__class__.__name__} with {self.threads}")
@@ -142,92 +138,90 @@ class Validator:
         raise Exception("no uuid was found in the path to the current working directory")
 
 
-class FileFinder(ABC):
-    expected_subdir: str
-
-    def __init__(self, data_path: Path, exclude_extras: bool = True):
-        """
-        data_path: parent data path to check
-        exclude_extras: whether or not to exclude extras/ directory
-        """
-        self.data_path = data_path
-        self.exclude_extras = exclude_extras
-
-    @property
-    def expected_dir(self) -> Path:
-        return Path(self.data_path / self.expected_subdir)
-
-    def find(self, restrict_to_expected: bool = False) -> list[Path]:
-        """
-        Search for files in expected_dir; if expected_dir does not exist
-        or if no files found, search entire data_path.
-
-        Args:
-            restrict_to_expected: do not look outside of expected_dir
-        """
-        valid_files = []
-        if self.expected_dir.exists():
-            for filepath in self.expected_dir.iterdir():
-                if self.valid_filename(filepath):
-                    valid_files.append(filepath)
-        if not valid_files and not restrict_to_expected:
-            valid_files = self.find_all()
-        return valid_files
-
-    def find_all(self) -> list[Path]:
-        """
-        Recursively search entire data_path for matching files.
-        """
-        valid_files = []
-        for path, _, files in os.walk(self.data_path):
-            valid_files.extend(
-                [
-                    Path(path, filename)
-                    for filename in files
-                    if self.valid_filename(Path(path, filename), self.exclude_extras)
-                ]
-            )
-        return valid_files
-
-    @staticmethod
-    def valid_filename(file: str | Path, exclude_extras: bool = True) -> bool:
-        del file, exclude_extras
-        raise NotImplementedError()
+##############
+# Find files #
+##############
 
 
-class QptiffFinder(FileFinder):
-    expected_subdir = "raw/images"
-
-    @staticmethod
-    def valid_filename(file: str | Path, exclude_extras: bool = True) -> bool:
-        path = Path(str(file).lower())
-        try:
-            assert path.suffix == ".qptiff"
-            assert ".raw" not in path.stem
-            assert ".intermediate" not in path.stem
-            if exclude_extras:
-                assert "extras" not in path.parts
-        except AssertionError:
-            return False
-        return True
+class FileTypes(Enum):
+    QPTIFF = "raw/images"
+    OME_TIFF = "lab_processed/images"
 
 
-class OmeTiffFinder(FileFinder):
-    expected_subdir = "lab_processed/images"
+def find_files(
+    data_path: Path, file_type: FileTypes, restrict_to_expected: bool = False
+) -> list[Path]:
+    """
+    Search for files in expected_dir; if expected_dir does not exist
+    or if no files found, search entire data_path.
 
-    @staticmethod
-    def valid_filename(file: str | Path, exclude_extras: bool = True) -> bool:
-        path = Path(str(file).lower())
-        try:
-            assert path.suffix in [".tiff", ".tif"]
-            assert ".ome.tif" in path.name
-            assert ".raw" not in path.stem
-            assert ".intermediate" not in path.stem
-            if exclude_extras:
-                assert "extras" not in path.parts
-        except AssertionError:
-            return False
-        return True
+    Arguments:
+        data_path: base path to search
+        file_type: file type to search for
+        restrict_to_expected: do not look outside of expected_dir
+    """
+    valid_files = []
+    expected_dir = Path(data_path / file_type.value)
+    if expected_dir.exists():
+        for filepath in expected_dir.iterdir():
+            if verify_filename(filepath, file_type):
+                valid_files.append(filepath)
+    if not valid_files and not restrict_to_expected:
+        valid_files = find_all_files(data_path, file_type)
+    return valid_files
+
+
+def find_all_files(data_path: Path, file_type: FileTypes) -> list[Path]:
+    """
+    Recursively search entire data_path for matching files.
+    """
+    valid_files = []
+    for path, _, files in os.walk(data_path):
+        valid_files.extend(
+            [
+                Path(path, filename)
+                for filename in files
+                if verify_filename(Path(path, filename), file_type)
+            ]
+        )
+    return valid_files
+
+
+def verify_filename(filepath: Path | str, file_type: FileTypes) -> bool:
+    if file_type == FileTypes.QPTIFF:
+        return verify_qptiff_filename(filepath)
+    elif file_type == FileTypes.OME_TIFF:
+        return verify_ome_tiff_filename(filepath)
+
+
+def verify_qptiff_filename(file: str | Path) -> bool:
+    path = Path(str(file).lower())
+    try:
+        assert path.suffix == ".qptiff"
+        assert ".raw" not in path.stem
+        assert ".intermediate" not in path.stem
+        assert "extras" not in path.parts
+    except AssertionError:
+        return False
+    return True
+
+
+def verify_ome_tiff_filename(file: str | Path) -> bool:
+    path = Path(str(file).lower())
+    try:
+        assert path.suffix in [".tiff", ".tif"]
+        assert ".ome.tif" in path.name
+        assert ".raw" not in path.stem
+        assert ".intermediate" not in path.stem
+        assert "extras" not in path.parts
+    except AssertionError:
+        return False
+    return True
+
+
+#########
+# Utils #
+#########
 
 
 def get_non_global_paths_by_row(rows: list[dict], base_path: Path) -> dict[int, list[Path]]:
@@ -276,6 +270,11 @@ def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
         print(f"{file} is not a valid OME.TIFF file: {excp}")
         raise Exception(f"{file} is not a valid OME.TIFF file: {excp}")
     return xml_document
+
+
+#######
+# API #
+#######
 
 
 def validation_class_iter() -> list[Validator]:

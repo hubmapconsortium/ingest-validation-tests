@@ -5,10 +5,12 @@ from pathlib import Path
 import tifffile
 from shapely.geometry import box, shape
 from validator import (
-    OmeTiffFinder,
-    QptiffFinder,
+    FileTypes,
     Validator,
+    find_files,
     get_non_global_paths_by_row,
+    verify_ome_tiff_filename,
+    verify_qptiff_filename,
 )
 
 
@@ -66,8 +68,8 @@ class GeoJsonTiffValidator(Validator):
             geojson_file = self._get_geojson_file(path)
             if geojson_file is None:
                 continue
-            ome_tiffs = OmeTiffFinder(path).find()
-            qptiffs = QptiffFinder(path).find()
+            ome_tiffs = find_files(path, FileTypes.OME_TIFF)
+            qptiffs = find_files(path, FileTypes.QPTIFF)
             files_to_test[path] = {
                 "geojson": [geojson_file],
                 "ome_tiff": ome_tiffs,
@@ -103,8 +105,8 @@ class GeoJsonTiffValidator(Validator):
         global_ome_tiffs: list[Path] = []
         global_qptiffs: list[Path] = []
         if global_path.exists():
-            global_ome_tiffs = OmeTiffFinder(global_path).find()
-            global_qptiffs = QptiffFinder(global_path).find()
+            global_ome_tiffs = find_files(global_path, FileTypes.OME_TIFF)
+            global_qptiffs = find_files(global_path, FileTypes.QPTIFF)
         all_files: dict[int, dict[str, list[Path]]] = {}
         for row_num, row_paths in non_global_paths.items():
             geojson_files = [p for p in row_paths if p.suffix.lower() == ".geojson"]
@@ -117,10 +119,10 @@ class GeoJsonTiffValidator(Validator):
                 )
                 continue
             ome_tiffs = list(
-                set([p for p in row_paths if OmeTiffFinder.valid_filename(p)] + global_ome_tiffs)
+                set([p for p in row_paths if verify_ome_tiff_filename(p)] + global_ome_tiffs)
             )
             qptiffs = list(
-                set([p for p in row_paths if QptiffFinder.valid_filename(p)] + global_qptiffs)
+                set([p for p in row_paths if verify_qptiff_filename(p)] + global_qptiffs)
             )
             all_files[row_num] = {
                 "geojson": geojson_files,
