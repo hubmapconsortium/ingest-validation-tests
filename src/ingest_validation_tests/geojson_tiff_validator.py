@@ -1,16 +1,16 @@
 import json
-import os
-import re
 from functools import cached_property
 from pathlib import Path
 
 import tifffile
 from shapely.geometry import box, shape
 from validator import (
-    OME_TIFF_GLOBS,
-    QPTIFF_REGEX,
+    FileTypes,
     Validator,
+    find_files,
     get_non_global_paths_by_row,
+    verify_ome_tiff_filename,
+    verify_qptiff_filename,
 )
 
 
@@ -56,7 +56,7 @@ class GeoJsonTiffValidator(Validator):
         For each data path, locate a single GeoJSON file and TIFF files.
         Returns:
             {<data_path>: {
-                "geojson": <geojson_path>,
+                "geojson": [<geojson_path>],
                 "ome_tiff": [<ome_tiff_paths>],
                 "qptiff": [<qptiff_paths>]}}
         """
@@ -68,36 +68,14 @@ class GeoJsonTiffValidator(Validator):
             geojson_file = self._get_geojson_file(path)
             if geojson_file is None:
                 continue
-            ome_tiffs = list(
-                set(
-                    f
-                    for glob_expr in OME_TIFF_GLOBS
-                    for f in path.glob(glob_expr)
-                    if not self._is_in_extras(f)
-                )
-            )
-            qptiffs = self._get_qptiffs_for_data_path(path)
+            ome_tiffs = find_files(path, FileTypes.OME_TIFF)
+            qptiffs = find_files(path, FileTypes.QPTIFF)
             files_to_test[path] = {
                 "geojson": [geojson_file],
                 "ome_tiff": ome_tiffs,
                 "qptiff": qptiffs,
             }
         return files_to_test
-
-    def _get_qptiffs_for_data_path(self, data_path: Path) -> list[Path]:
-        """
-        Exclude any QPTIFF files in extras/ or with .raw/raw. in the filename.
-        """
-        qptiffs = []
-        for path, _, files in os.walk(data_path):
-            qptiffs.extend(
-                [
-                    Path(path, name)
-                    for name in files
-                    if re.search(QPTIFF_REGEX, name) and not self._is_in_extras(Path(path, name))
-                ]
-            )
-        return qptiffs
 
     def _get_geojson_file(self, path: Path) -> Path | None:
         files = list(path.glob("**/*.geojson"))
@@ -127,15 +105,8 @@ class GeoJsonTiffValidator(Validator):
         global_ome_tiffs: list[Path] = []
         global_qptiffs: list[Path] = []
         if global_path.exists():
-            global_ome_tiffs = list(
-                set(
-                    f
-                    for glob_expr in OME_TIFF_GLOBS
-                    for f in global_path.glob(glob_expr)
-                    if not self._is_in_extras(f)
-                )
-            )
-            global_qptiffs = self._get_qptiffs_for_data_path(global_path)
+            global_ome_tiffs = find_files(global_path, FileTypes.OME_TIFF)
+            global_qptiffs = find_files(global_path, FileTypes.QPTIFF)
         all_files: dict[int, dict[str, list[Path]]] = {}
         for row_num, row_paths in non_global_paths.items():
             geojson_files = [p for p in row_paths if p.suffix.lower() == ".geojson"]
@@ -148,16 +119,10 @@ class GeoJsonTiffValidator(Validator):
                 )
                 continue
             ome_tiffs = list(
-                set(
-                    [p for p in row_paths if self._is_ome_tiff(p) and not self._is_in_extras(p)]
-                    + global_ome_tiffs
-                )
+                set([p for p in row_paths if verify_ome_tiff_filename(p)] + global_ome_tiffs)
             )
             qptiffs = list(
-                set(
-                    [p for p in row_paths if self._is_qptiff(p) and not self._is_in_extras(p)]
-                    + global_qptiffs
-                )
+                set([p for p in row_paths if verify_qptiff_filename(p)] + global_qptiffs)
             )
             all_files[row_num] = {
                 "geojson": geojson_files,
@@ -169,16 +134,6 @@ class GeoJsonTiffValidator(Validator):
     ####################
     # TIFF validation  #
     ####################
-
-    def _is_in_extras(self, path: Path) -> bool:
-        return "extras" in path.parts
-
-    def _is_ome_tiff(self, path: Path) -> bool:
-        name = path.name.lower()
-        return name.endswith(".ome.tif") or name.endswith(".ome.tiff")
-
-    def _is_qptiff(self, path: Path) -> bool:
-        return path.name.lower().endswith(".qptiff")
 
     def _check_tiff_counts(self, ome_tiffs: list[Path], qptiffs: list[Path]) -> list[str]:
         errors = []

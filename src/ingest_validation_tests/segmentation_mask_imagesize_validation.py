@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from tests_utils import GetParentData
-from validator import Validator, check_ome_tiff_file
+from validator import FileTypes, Validator, check_ome_tiff_file, find_all_files
 
 
 def get_ometiff_sizes(file) -> str | list[dict]:
@@ -46,19 +46,13 @@ class ImageSizeValidator(Validator):
         "**/segmentation_masks/*.OME.TIFF",
         "**/segmentation_masks/*.OME.TIF",
     ]
-    parent_files_to_find = [
-        "**/*.ome.tif",
-        "**/*.ome.tiff",
-        "**/*.OME.TIFF",
-        "**/*.OME.TIF",
-    ]
 
     def _collect_errors(self) -> list[str | None]:
         if not self.schema_rows:
             return ["No metadata rows found."]
         files_tested = False
         output = []
-        for i, row in enumerate(self.schema_rows):
+        for row in self.schema_rows:
             filenames_to_test = []
             parent_filenames_to_test = []
             try:
@@ -74,13 +68,12 @@ class ImageSizeValidator(Validator):
                     for file in data_path.glob(glob_expr):
                         filenames_to_test.append(file)
 
-                for glob_expr in self.parent_files_to_find:
-                    for file in Path(
-                        GetParentData(
-                            row["parent_dataset_id"], self.token, self.app_context
-                        ).get_path()
-                    ).glob(glob_expr):
-                        parent_filenames_to_test.append(file)
+                parent_path = Path(
+                    GetParentData(
+                        row["parent_dataset_id"], self.token, self.app_context
+                    ).get_path()
+                )
+                parent_filenames_to_test.extend(find_all_files(parent_path, FileTypes.OME_TIFF))
 
                 assert (
                     len(filenames_to_test) == 1
