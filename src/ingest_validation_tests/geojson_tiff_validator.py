@@ -38,7 +38,7 @@ class GeoJsonTiffValidator(Validator):
 
     def _run_validation(self):
         for files_dict in self.files_to_test.values():
-            tiff_files = files_dict["ome_tiff"] + files_dict["qptiff"]
+            tiff_files = files_dict["ome_tiff"] if files_dict["ome_tiff"] else files_dict["qptiff"]
             self.errors.extend(
                 self._check_tiff_counts(files_dict["ome_tiff"], files_dict["qptiff"])
             )
