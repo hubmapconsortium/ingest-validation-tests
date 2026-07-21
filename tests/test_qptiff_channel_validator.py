@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Literal
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 from qptiff_channel_validator import (  # type: ignore
     Engine,
@@ -79,6 +80,41 @@ class TestQpTiffChannelValidator:
         )
         for error in msg_re_list:
             assert error in validator.errors
+
+    @pytest.mark.parametrize(
+        ("df_values", "expected_errors"),
+        (
+            # test case: valid float and int-like strings in both columns
+            (
+                {"minimum_threshold": ["0.5", "1"], "threshold": ["2.3", "-1"]},
+                [],
+            ),
+            # test case: non-numeric value in minimum_threshold
+            (
+                {"minimum_threshold": ["0.5", "bad"], "threshold": ["2.3", "1"]},
+                [
+                    "test.qptiff.channels.csv column 'minimum_threshold' must contain only float-castable values; found 'bad'"
+                ],
+            ),
+            # test case: non-numeric value in threshold
+            (
+                {"minimum_threshold": ["0.5", "1"], "threshold": ["2.3", "nope"]},
+                [
+                    "test.qptiff.channels.csv column 'threshold' must contain only float-castable values; found 'nope'"
+                ],
+            ),
+            # test case: columns not present, no errors
+            (
+                {"other_column": ["a", "b"]},
+                [],
+            ),
+        ),
+    )
+    def test_check_threshold_columns(self, df_values, expected_errors):
+        df = pd.DataFrame(df_values)
+        validator = QpTiffChannelValidator([Path("test")], "phenocycler")
+        validator._check_threshold_columns(df, Path("test.qptiff.channels.csv"))
+        assert validator.errors == expected_errors
 
     def test_missing_required_dir(self, tmp_path):
         validator = QpTiffChannelValidator(tmp_path, "phenocycler")

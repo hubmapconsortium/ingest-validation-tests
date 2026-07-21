@@ -261,6 +261,19 @@ class QpTiffChannelValidator(Validator):
                 self.errors.append(
                     f"{self.rel_filename_str(filename)} must have at least one 'Yes' value in column '{column}'"
                 )
+        self._check_threshold_columns(df, filename)
+
+    def _check_threshold_columns(self, df: pd.DataFrame, filename: Path):
+        for column in ["minimum_threshold", "threshold"]:
+            if column not in df.columns:
+                continue
+            for val in df[column]:
+                try:
+                    float(val)
+                except (TypeError, ValueError):
+                    self.errors.append(
+                        f"{self.rel_filename_str(filename)} column '{column}' must contain only float-castable values; found '{val}'"
+                    )
 
     def _check_column_order(self, df: pd.DataFrame, filename: Path) -> list:
         column_order_errors = []
