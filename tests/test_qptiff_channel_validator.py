@@ -108,6 +108,16 @@ class TestQpTiffChannelValidator:
                 {"other_column": ["a", "b"]},
                 [],
             ),
+            # test case: empty values allowed (downstream falls back to "nan")
+            (
+                {"minimum_threshold": ["0.5", ""], "threshold": ["2.3", ""]},
+                [],
+            ),
+            # test case: nan, integer, float empty values allowed (downstream falls back to "nan")
+            (
+                {"minimum_threshold": ["nan", "4"], "threshold": ["2.3", ""]},
+                [],
+            ),
         ),
     )
     def test_check_threshold_columns(self, df_values, expected_errors):

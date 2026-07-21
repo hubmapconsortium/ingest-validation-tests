@@ -269,7 +269,9 @@ class QpTiffChannelValidator(Validator):
                 continue
             for val in df[column]:
                 try:
-                    float(val)
+                    # matches downstream pipeline behavior: falsy values (e.g. "")
+                    # fall back to "nan", which is a valid float
+                    float(val or "nan")
                 except (TypeError, ValueError):
                     self.errors.append(
                         f"{self.rel_filename_str(filename)} column '{column}' must contain only float-castable values; found '{val}'"
