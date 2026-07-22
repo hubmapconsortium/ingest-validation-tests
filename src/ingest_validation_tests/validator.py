@@ -120,6 +120,10 @@ class Validator:
             self._log("No errors found.")
             return [None]
         self._log("Plugin not relevant. Not run.")
+        # TODO: is this case meaningful?
+        # elif self.plugin_valid:
+        #     self._log("Plugin relevant for dataset type but no relevant files found.")
+        #     return [None]
         return []
 
     def _log(self, message):
