@@ -264,7 +264,13 @@ class QpTiffChannelValidator(Validator):
         self._check_threshold_columns(df, filename)
 
     def _check_threshold_columns(self, df: pd.DataFrame, filename: Path):
-        for column in ["minimum_threshold", "minimum threshold", "threshold_low", "threshold low", "threshold"]:
+        for column in [
+            "minimum_threshold",
+            "minimum threshold",
+            "threshold_low",
+            "threshold low",
+            "threshold",
+        ]:
             if column not in df.columns:
                 continue
             for val in df[column]:
