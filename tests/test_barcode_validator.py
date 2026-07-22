@@ -85,3 +85,8 @@ class TestBarcodeValidator:
         v = BarcodeValidator([tmp_path], "Paired-Tag")
         assert v.find_and_check_barcode_file(tmp_path) == False
         assert v.collect_errors() == []
+
+    def test_wrong_type(self, tmp_path):
+        v = BarcodeValidator([tmp_path], "WrongType")
+        assert v.plugin_valid == False
+        assert v.collect_errors() == []
