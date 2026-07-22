@@ -121,6 +121,10 @@ class TestQpTiffChannelValidator:
             (
                 {"minimium threshold": ["nan", "4"], "threshold": ["2.3", ""]},
                 []
+            ),
+            (
+                {"threshold low": ["nan", "4"], "threshold_low": ["2.3", ""]},
+                []
             )
         ),
     )
