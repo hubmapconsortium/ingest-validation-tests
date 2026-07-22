@@ -118,6 +118,10 @@ class TestQpTiffChannelValidator:
                 {"minimum_threshold": ["nan", "4"], "threshold": ["2.3", ""]},
                 [],
             ),
+            (
+                {"minimium threshold": ["nan", "4"], "threshold": ["2.3", ""]},
+                []
+            )
         ),
     )
     def test_check_threshold_columns(self, df_values, expected_errors):
