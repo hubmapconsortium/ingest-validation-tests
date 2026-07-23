@@ -12,7 +12,7 @@ class TestBarcodeValidator:
                 f.write(f"{line}\n")
 
     def test_good_file(self, tmp_path):
-        contents = ["AGCT", "GACT", "TTTT"]
+        contents = ["AGCT", "gact", "TTTT", "N"]
         self.create_file(tmp_path, contents)
         v = BarcodeValidator([tmp_path], "Paired-Tag")
         assert v.find_and_check_barcode_file(tmp_path) == True

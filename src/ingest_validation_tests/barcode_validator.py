@@ -9,7 +9,7 @@ class BarcodeValidator(Validator):
     cost = 1.0
     version = "1.0"
     required = ["paired-tag"]
-    only_allowed_regex = r"[^ACTG]"
+    only_allowed_regex = r"[^AaCcTtGgNn]"
 
     def __init__(self, base_paths, assay_type, *args, **kwargs):
         super().__init__(base_paths, assay_type, *args, **kwargs)
@@ -33,7 +33,7 @@ class BarcodeValidator(Validator):
                     if re.search(self.only_allowed_regex, line)
                 ]
                 if errors:
-                    msg = f"Only characters 'A', 'C', 'T', 'G' allowed in {self.rel_filename_str(barcode_file)}."
+                    msg = f"Only characters 'A', 'C', 'T', 'G', 'N' (case-insensitive) allowed in {self.rel_filename_str(barcode_file)}."
                     if len(errors) <= 20:
                         self.errors.append(msg + f" Errors on lines {', '.join(errors)}.")
                     else:
