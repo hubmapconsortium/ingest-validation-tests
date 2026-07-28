@@ -78,13 +78,12 @@ class OmeTiffFieldValidator(Validator):
 
     def errors_by_schema(self, file: Path) -> list[str] | None:
         try:
-            xml_document = check_ome_tiff_file(file)
+            xml_resource = check_ome_tiff_file(file)
         except Exception as e:
             return [str(e)]
         compiled_errors = []
         for schema_name, schema in self.schemas.items():
-            ome_element_tree = xml_document.get_etree_document()
-            errors = {e.reason for e in schema.iter_errors(ome_element_tree) if e.reason}
+            errors = {e.reason for e in schema.iter_errors(xml_resource) if e.reason}
             if errors:
                 msg = f"{file} is not a valid OME.TIFF file per schema '{schema_name.name}': {'; '.join(sorted(errors))}"
                 self._log(msg)

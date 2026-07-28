@@ -10,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 import tifffile
 import xmlschema
+from xmlschema.exceptions import XMLResourceParseError
 
 BASE_OME_XML_SCHEMA = Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd"
 
@@ -258,18 +259,28 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
     return rows
 
 
-def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
+def check_ome_tiff_file(file: str | Path) -> xmlschema.XMLResource:
+    """
+    Extract OME-XML from an OME.TIFF file and validate against the base schema.
+    """
     try:
         with tifffile.TiffFile(file) as tf:
-            xml_document = xmlschema.XmlDocument(tf.ome_metadata, schema=BASE_OME_XML_SCHEMA)  # type: ignore
-            if xml_document.schema and not xml_document.schema.is_valid(xml_document):
-                raise Exception(f"{file} is not a valid OME.TIFF file: schema not valid")
-            elif not xml_document.schema:
-                raise Exception(f"Can't read OME XML from file {file}.")
+            if not (extracted_xml := tf.ome_metadata):
+                raise Exception("No XML found in OME.TIFF file.")
+        xml_resource = check_ome_xml(extracted_xml)
+    except XMLResourceParseError as excp:
+        raise Exception(f"Error parsing {file}: {excp}")
     except Exception as excp:
         print(f"{file} is not a valid OME.TIFF file: {excp}")
         raise Exception(f"{file} is not a valid OME.TIFF file: {excp}")
-    return xml_document
+    return xml_resource
+
+
+def check_ome_xml(xml_string: str) -> xmlschema.XMLResource:
+    schema = xmlschema.XMLSchema(BASE_OME_XML_SCHEMA)
+    xml_resource = xmlschema.XMLResource(xml_string)
+    schema.validate(xml_resource)
+    return xml_resource
 
 
 #######

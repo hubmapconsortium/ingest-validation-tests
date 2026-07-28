@@ -1,13 +1,16 @@
 from pathlib import Path, PosixPath
 
+import pytest
 from validator import (
     FileTypes,
     Validator,
+    check_ome_xml,
     find_all_files,
     find_files,
     verify_filename,
     verify_qptiff_filename,
 )
+from xmlschema.exceptions import XMLResourceParseError
 
 
 class ValidatorTestClass(Validator):
@@ -238,3 +241,10 @@ def test_qptifffinder_valid_filenames():
     for file, rslt in files:
         assert verify_filename(file, FileTypes.QPTIFF) == rslt
         assert verify_qptiff_filename(file) == rslt
+
+
+def test_invalid_ome_xml():
+    file = Path(__file__).parent.parent / "test_data/bad_ome_xml.xml"
+    with open(file, "r") as f:
+        with pytest.raises(XMLResourceParseError):
+            check_ome_xml(f)
