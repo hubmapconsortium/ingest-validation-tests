@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import xmlschema
 from tests_utils import GetParentData
 from validator import FileTypes, Validator, check_ome_tiff_file, find_all_files
 
@@ -11,7 +10,7 @@ def get_ometiff_sizes(file) -> str | list[dict]:
             xml_document = check_ome_tiff_file(file)
         except Exception as e:
             return str(e)
-        images = xmlschema.to_dict(xml_document).get("Image")  # type: ignore | xmlschema.DecodeType causing issues
+        images = xml_document.schema.to_dict(xml_document).get("Image")  # type: ignore | xmlschema.DecodeType causing issues
     except Exception as e:
         return f"{file} is not a valid OME.TIFF file: {e}"
     try:

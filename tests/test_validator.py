@@ -1,4 +1,5 @@
 from pathlib import Path, PosixPath
+from xml.etree.ElementTree import ParseError
 
 import pytest
 from validator import (
@@ -10,7 +11,6 @@ from validator import (
     verify_filename,
     verify_qptiff_filename,
 )
-from xmlschema.exceptions import XMLResourceParseError
 
 
 class ValidatorTestClass(Validator):
@@ -244,7 +244,6 @@ def test_qptifffinder_valid_filenames():
 
 
 def test_invalid_ome_xml():
-    file = Path(__file__).parent.parent / "test_data/bad_ome_xml.xml"
-    with open(file, "r") as f:
-        with pytest.raises(XMLResourceParseError):
-            check_ome_xml(f)
+    bad_ome_xml = "\x00\x00\x00\x00etadata><Key>Image_H001_DUO_01A.vsi #22 Value #151</Key><Value>-24.699999999999996</Value></OriginalMetadata></Value></XMLAnnotation></StructuredAnnotations></OME>"
+    with pytest.raises(ParseError):
+        check_ome_xml(bad_ome_xml)

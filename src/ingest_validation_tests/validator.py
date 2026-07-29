@@ -6,11 +6,11 @@ from enum import Enum
 from importlib import util
 from os import cpu_count
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pandas as pd
 import tifffile
 import xmlschema
-from xmlschema.exceptions import XMLResourceParseError
 
 BASE_OME_XML_SCHEMA = Path(__file__).resolve().parent / "ome_tiff_schemas/2016-06_ome.xsd"
 
@@ -267,8 +267,8 @@ def check_ome_tiff_file(file: str | Path) -> xmlschema.XMLResource:
         with tifffile.TiffFile(file) as tf:
             if not (extracted_xml := tf.ome_metadata):
                 raise Exception("No XML found in OME.TIFF file.")
-        xml_resource = check_ome_xml(extracted_xml)
-    except XMLResourceParseError as excp:
+            xml_resource = check_ome_xml(extracted_xml)
+    except (xmlschema.exceptions.XMLResourceParseError, ElementTree.ParseError) as excp:
         raise Exception(f"Error parsing {file}: {excp}")
     except Exception as excp:
         print(f"{file} is not a valid OME.TIFF file: {excp}")
@@ -276,11 +276,14 @@ def check_ome_tiff_file(file: str | Path) -> xmlschema.XMLResource:
     return xml_resource
 
 
-def check_ome_xml(xml_string: str) -> xmlschema.XMLResource:
-    schema = xmlschema.XMLSchema(BASE_OME_XML_SCHEMA)
-    xml_resource = xmlschema.XMLResource(xml_string)
-    schema.validate(xml_resource)
-    return xml_resource
+def check_ome_xml(xml_string: str) -> xmlschema.XmlDocument:
+    ElementTree.fromstring(xml_string)  # yields more descriptive parsing error
+    xml_document = xmlschema.XmlDocument(xml_string, schema=BASE_OME_XML_SCHEMA)  # type: ignore
+    if xml_document.schema and not xml_document.schema.is_valid(xml_document):
+        raise Exception("Schema not valid.")
+    elif not xml_document.schema:
+        raise Exception("Can't read OME XML.")
+    return xml_document
 
 
 #######
