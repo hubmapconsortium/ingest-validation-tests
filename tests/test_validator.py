@@ -1,8 +1,11 @@
 from pathlib import Path, PosixPath
+from xml.etree.ElementTree import ParseError
 
+import pytest
 from validator import (
     FileTypes,
     Validator,
+    check_ome_xml,
     find_all_files,
     find_files,
     verify_filename,
@@ -238,3 +241,9 @@ def test_qptifffinder_valid_filenames():
     for file, rslt in files:
         assert verify_filename(file, FileTypes.QPTIFF) == rslt
         assert verify_qptiff_filename(file) == rslt
+
+
+def test_invalid_ome_xml():
+    bad_ome_xml = "\x00\x00\x00\x00etadata><Key>Image_H001_DUO_01A.vsi #22 Value #151</Key><Value>-24.699999999999996</Value></OriginalMetadata></Value></XMLAnnotation></StructuredAnnotations></OME>"
+    with pytest.raises(ParseError):
+        check_ome_xml(bad_ome_xml)
