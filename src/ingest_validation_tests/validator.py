@@ -259,7 +259,7 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
     return rows
 
 
-def check_ome_tiff_file(file: str | Path) -> xmlschema.XMLResource:
+def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     """
     Extract OME-XML from an OME.TIFF file and validate against the base schema.
     """
