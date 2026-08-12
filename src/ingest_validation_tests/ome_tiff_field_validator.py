@@ -11,6 +11,7 @@ from validator import (
     FileTypes,
     Validator,
     check_ome_xml,
+    convert_to_micrometers,
     extract_ome_xml,
     find_all_files,
 )
@@ -140,7 +141,10 @@ class OmeTiffFieldValidator(Validator):
                 errors.append(f"PhysicalSize{coordinate} missing")
                 continue
             try:
-                if float(value) > max:
+                micrometer_value = convert_to_micrometers(
+                    float(value), xml_image_data.get(f"PhysicalSize{coordinate}Unit", "um")
+                )
+                if micrometer_value > max:
                     errors.append(
                         f"PhysicalSize{coordinate} {value} is greater than maximum value {max}"
                     )

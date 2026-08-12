@@ -296,6 +296,22 @@ def check_ome_xml(xml_string: str, file: str | Path) -> xmlschema.XmlDocument:
     return xml_document
 
 
+def convert_to_micrometers(value: float | int, unit: str) -> float:
+    """
+    Very minimal set of options for converting unit measurements
+    valid in OME-XML "PhysicalSizeUnit" field.
+    """
+    match unit:
+        case "mm":
+            return value * 1000
+        case "µm" | "um":
+            return value
+        case "nm":
+            return value / 1000
+        case _:
+            raise Exception(f"Unit '{unit}' is not supported.")
+
+
 #######
 # API #
 #######
