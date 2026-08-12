@@ -4,7 +4,6 @@ import sys
 from csv import DictReader
 from enum import Enum
 from importlib import util
-from io import StringIO
 from os import cpu_count
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -258,17 +257,6 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
         rows = list(DictReader(f, dialect="excel-tab"))
         f.close()
     return rows
-
-
-def strip_namespace(extracted_xml: str) -> ET.Element:
-    """
-    Remove namespaces from XML to allow lookup by key name.
-    """
-    it = ET.iterparse(StringIO(extracted_xml))
-    for _, el in it:
-        _, _, el.tag = el.tag.rpartition("}")
-    root = it.root  # type: ignore
-    return root
 
 
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:

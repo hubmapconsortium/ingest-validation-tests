@@ -6,13 +6,13 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import xmlschema
+from ome_utils import strip_namespace_and_parse
 from validator import (
     FileTypes,
     Validator,
     check_ome_tiff_file,
     extract_ome_xml,
     find_all_files,
-    strip_namespace,
 )
 
 
@@ -86,7 +86,7 @@ class OmeTiffFieldValidator(Validator):
 
     def get_ome_xml_errors(self, file: Path) -> list[str] | None:
         try:
-            extracted_ome_xml = strip_namespace(extract_ome_xml(file))
+            extracted_ome_xml = strip_namespace_and_parse(extract_ome_xml(file))
             xml_document = check_ome_tiff_file(file)
         except Exception as e:
             return [str(e)]
