@@ -10,7 +10,7 @@ from ome_utils import strip_namespace_and_parse
 from validator import (
     FileTypes,
     Validator,
-    check_ome_tiff_file,
+    check_ome_xml,
     extract_ome_xml,
     find_all_files,
 )
@@ -86,14 +86,16 @@ class OmeTiffFieldValidator(Validator):
 
     def get_ome_xml_errors(self, file: Path) -> list[str] | None:
         try:
-            extracted_ome_xml = strip_namespace_and_parse(extract_ome_xml(file))
-            xml_document = check_ome_tiff_file(file)
+            extracted_ome_xml = extract_ome_xml(file)
+            xml_document = check_ome_xml(extracted_ome_xml, file)
         except Exception as e:
             return [str(e)]
         compiled_errors = []
         if schema_errors := self.errors_by_schema(file, xml_document):
             compiled_errors.extend(schema_errors)
-        if physicalsize_errors := self.check_physicalsize_fields(file, extracted_ome_xml):
+        if physicalsize_errors := self.check_physicalsize_fields(
+            file, strip_namespace_and_parse(extracted_ome_xml)
+        ):
             compiled_errors.append(physicalsize_errors)
         return compiled_errors if compiled_errors else None
 
