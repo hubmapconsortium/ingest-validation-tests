@@ -4,9 +4,10 @@ import sys
 from csv import DictReader
 from enum import Enum
 from importlib import util
+from io import StringIO
 from os import cpu_count
 from pathlib import Path
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import pandas as pd
 import tifffile
@@ -259,30 +260,51 @@ def read_tsv(path: Path, encoding: str = "utf-8") -> list[dict]:
     return rows
 
 
+def strip_namespace(extracted_xml: str) -> ET.Element:
+    """
+    Remove namespaces from XML to allow lookup by key name.
+    """
+    it = ET.iterparse(StringIO(extracted_xml))
+    for _, el in it:
+        _, _, el.tag = el.tag.rpartition("}")
+    root = it.root  # type: ignore
+    return root
+
+
 def check_ome_tiff_file(file: str | Path) -> xmlschema.XmlDocument:
     """
-    Extract OME-XML from an OME.TIFF file and validate against the base schema.
+    OME-TIFF -> validated XmlDocument
+    """
+    extracted_xml = extract_ome_xml(file)
+    return check_ome_xml(extracted_xml, file)
+
+
+def extract_ome_xml(file: str | Path) -> str:
+    """
+    OME-TIFF -> OME-XML string
+    """
+    with tifffile.TiffFile(file) as tf:
+        if not (extracted_xml := tf.ome_metadata):
+            raise Exception(f"{file} is not a valid OME.TIFF file: No XML found in OME.TIFF file.")
+    return extracted_xml
+
+
+def check_ome_xml(xml_string: str, file: str | Path) -> xmlschema.XmlDocument:
+    """
+    OME-XML string -> validated XmlDocument
     """
     try:
-        with tifffile.TiffFile(file) as tf:
-            if not (extracted_xml := tf.ome_metadata):
-                raise Exception("No XML found in OME.TIFF file.")
-            xml_resource = check_ome_xml(extracted_xml)
-    except (xmlschema.exceptions.XMLResourceParseError, ElementTree.ParseError) as excp:
+        ET.fromstring(xml_string)  # yields more descriptive parsing error
+        xml_document = xmlschema.XmlDocument(xml_string, schema=BASE_OME_XML_SCHEMA)  # type: ignore
+        if xml_document.schema and not xml_document.schema.is_valid(xml_document):
+            raise Exception("Schema not valid.")
+        elif not xml_document.schema:
+            raise Exception("Can't read OME XML.")
+    except (xmlschema.exceptions.XMLResourceParseError, ET.ParseError) as excp:
         raise Exception(f"Error parsing {file}: {excp}")
     except Exception as excp:
         print(f"{file} is not a valid OME.TIFF file: {excp}")
         raise Exception(f"{file} is not a valid OME.TIFF file: {excp}")
-    return xml_resource
-
-
-def check_ome_xml(xml_string: str) -> xmlschema.XmlDocument:
-    ElementTree.fromstring(xml_string)  # yields more descriptive parsing error
-    xml_document = xmlschema.XmlDocument(xml_string, schema=BASE_OME_XML_SCHEMA)  # type: ignore
-    if xml_document.schema and not xml_document.schema.is_valid(xml_document):
-        raise Exception("Schema not valid.")
-    elif not xml_document.schema:
-        raise Exception("Can't read OME XML.")
     return xml_document
 
 

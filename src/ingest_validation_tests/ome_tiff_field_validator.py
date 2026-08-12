@@ -3,9 +3,17 @@ import re
 from functools import cached_property, partial
 from multiprocessing import Pool
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import xmlschema
-from validator import FileTypes, Validator, check_ome_tiff_file, find_all_files
+from validator import (
+    FileTypes,
+    Validator,
+    check_ome_tiff_file,
+    extract_ome_xml,
+    find_all_files,
+    strip_namespace,
+)
 
 
 class OmeTiffFieldValidator(Validator):
@@ -33,7 +41,7 @@ class OmeTiffFieldValidator(Validator):
     }
     default_x_max = 10
     default_y_max = 10
-    default_z_max = 10
+    default_z_max = None
 
     def get_schemas(self):
         if self.schemas:
@@ -78,14 +86,15 @@ class OmeTiffFieldValidator(Validator):
 
     def get_ome_xml_errors(self, file: Path) -> list[str] | None:
         try:
+            extracted_ome_xml = strip_namespace(extract_ome_xml(file))
             xml_document = check_ome_tiff_file(file)
         except Exception as e:
             return [str(e)]
         compiled_errors = []
         if schema_errors := self.errors_by_schema(file, xml_document):
             compiled_errors.extend(schema_errors)
-        if physicalsize_errors := self.check_physicalsize_fields(file, xml_document):
-            compiled_errors.extend(physicalsize_errors)
+        if physicalsize_errors := self.check_physicalsize_fields(file, extracted_ome_xml):
+            compiled_errors.append(physicalsize_errors)
         return compiled_errors if compiled_errors else None
 
     def errors_by_schema(
@@ -103,37 +112,40 @@ class OmeTiffFieldValidator(Validator):
 
     @cached_property
     def maximums(self):
-        # TODO: for assay-specific maximums, use e.g. switch
-        # statement to get correct values comparing against
-        # self.assay_type
+        """
+        Property allows for setting assay-specific maximums,
+        e.g. using a switch statement with self.assay_type.
+        """
         return {
-            "x_max": self.default_x_max,
-            "y_max": self.default_y_max,
-            "z_max": self.default_z_max,
+            "X": self.default_x_max,
+            "Y": self.default_y_max,
+            "Z": self.default_z_max,
         }
 
-    def check_physicalsize_fields(
-        self, file: Path, xml_document: xmlschema.XmlDocument
-    ) -> list[str] | None:
+    def check_physicalsize_fields(self, file: Path, xml_etree: ET.Element) -> str | None:
+        """
+        Compare PhysicalSizeX / Y / Z values in OME XML images against
+        values in self.maximums. Catch values that exceed maximum as well
+        as missing / malformed values.
+        """
         errors = []
-        images = xml_document.schema.to_dict(xml_document).get("Image")  # type: ignore
-        for i, image in enumerate(images):
-            xml_image_data = image.get("Pixels")
-            physicalsizex = xml_image_data.get("@PhysicalSizeX")
-            physicalsizey = xml_image_data.get("@PhysicalSizeY")
-            # TODO: not sure about role of Z yet
-            physicalsizez = xml_image_data.get("@PhysicalSizeZ")
-            for field_name, value, max_value in [
-                ("PhysicalSizeX", physicalsizex, self.maximums["x_max"]),
-                ("PhysicalSizeY", physicalsizey, self.maximums["y_max"]),
-                ("PhysicalSizeZ", physicalsizez, self.maximums["z_max"]),
-            ]:
-                try:
-                    if int(value) > max_value:
-                        errors.append(
-                            f"In file {self.rel_filename_str(file)}, image {i}, {field_name} with value {value} is greater than maximum value {max_value}"
-                        )
-                except (ValueError, TypeError):
+        if (xml_image_data := xml_etree.find("Image/Pixels")) is None:
+            return f"No Image/Pixels found in file {self.rel_filename_str(file)}"
+        for coordinate in ["X", "Y", "Z"]:
+            if not (max := self.maximums[coordinate]):
+                continue
+            if not (value := xml_image_data.get(f"PhysicalSize{coordinate}")):
+                errors.append(f"PhysicalSize{coordinate} missing")
+                continue
+            try:
+                if float(value) > max:
                     errors.append(
-                        f"In file {self.rel_filename_str(file)}, image {i}, {field_name} with value {value} cannot be cast to int (type is {type(value)}"
+                        f"PhysicalSize{coordinate} {value} is greater than maximum value {max}"
                     )
+            except (ValueError, TypeError):
+                errors.append(f"PhysicalSize{coordinate} '{value}' type is {type(value).__name__}")
+        if errors:
+            error_str = (
+                f"{self.rel_filename_str(file)} OME-XML errors: {'; '.join(sorted(errors))}"
+            )
+            return error_str
