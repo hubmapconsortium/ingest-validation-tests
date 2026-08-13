@@ -141,8 +141,9 @@ class OmeTiffFieldValidator(Validator):
                 errors.append(f"PhysicalSize{coordinate} missing")
                 continue
             try:
+                # OME-XML assumed default is µm
                 micrometer_value = convert_to_micrometers(
-                    float(value), xml_image_data.get(f"PhysicalSize{coordinate}Unit", "um")
+                    float(value), xml_image_data.get(f"PhysicalSize{coordinate}Unit", "µm")
                 )
                 if micrometer_value > max:
                     errors.append(

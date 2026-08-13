@@ -304,7 +304,7 @@ def convert_to_micrometers(value: float | int, unit: str) -> float:
     match unit:
         case "mm":
             return value * 1000
-        case "µm" | "um":
+        case "µm":
             return value
         case "nm":
             return value / 1000
