@@ -31,11 +31,8 @@ class TiffValidator(Validator):
                 for file in path.glob(glob_expr):
                     filenames_to_test.append(file)
         try:
-            rslt_list: list[str | None] = list(
-                rslt
-                for rslt in pool.imap_unordered(_check_tiff_file, filenames_to_test)
-                if rslt is not None
-            )
+            unfiltered_results = pool.imap_unordered(_check_tiff_file, filenames_to_test)
+            rslt_list = [rslt for rslt in unfiltered_results if rslt is not None]
         except Exception as e:
             self._log(f"Error {e}")
             rslt_list = [f"Error {e}"]
