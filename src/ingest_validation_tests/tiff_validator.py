@@ -36,6 +36,7 @@ class TiffValidator(Validator):
         except Exception as e:
             self._log(f"Error {e}")
             rslt_list = [f"Error {e}"]
-        pool.close()
-        pool.join()
+        finally:
+            pool.close()
+            pool.join()
         return self._return_result(rslt_list, filenames_to_test)
