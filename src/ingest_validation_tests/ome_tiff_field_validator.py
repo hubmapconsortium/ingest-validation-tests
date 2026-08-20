@@ -64,17 +64,23 @@ class OmeTiffFieldValidator(Validator):
             return []
 
         pool = Pool(self.threads)
-        rslt_list = [
-            rslt
-            for rslt in pool.imap_unordered(partial(self.errors_by_schema), filenames_to_test)
-            if rslt is not None
-        ]
-        pool.close()
-        pool.join()
-        return self._return_result(
-            list(itertools.chain.from_iterable(rslt_list)) if rslt_list else None,
-            filenames_to_test,
-        )
+        rslt_list = []
+        try:
+            if unfiltered_results := pool.imap_unordered(
+                partial(self.errors_by_schema), filenames_to_test
+            ):
+                rslt_list.extend(
+                    itertools.chain.from_iterable(
+                        [rslt for rslt in unfiltered_results if rslt is not None]
+                    )
+                )
+        except Exception as e:
+            self._log(f"Error {e}")
+            rslt_list.append(f"Error {e}")
+        finally:
+            pool.close()
+            pool.join()
+        return self._return_result(rslt_list, filenames_to_test)
 
     def errors_by_schema(self, file: Path) -> list[str] | None:
         try:
