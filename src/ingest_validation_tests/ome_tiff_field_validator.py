@@ -7,7 +7,7 @@ from xml.etree import ElementTree as ET
 
 import xmlschema
 from ome_utils import strip_namespace_and_parse
-from pint import DimensionalityError, UnitRegistry
+from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from validator import (
     FileTypes,
     Validator,
@@ -40,8 +40,8 @@ class OmeTiffFieldValidator(Validator):
         Path(__file__).parent
         / "ome_tiff_schemas/ome_tiff_field_schema_require_physicalsizexy.xsd": [".*"],
     }
-    default_x_max = 10
-    default_y_max = 10
+    default_x_max = 10.0
+    default_y_max = 10.0
     default_z_max = None
 
     def get_schemas(self):
@@ -60,29 +60,35 @@ class OmeTiffFieldValidator(Validator):
                     break
         self._log(f"Schemas: {list(self.schemas)}")
 
+    @cached_property
+    def filenames_to_test(self) -> list[Path]:
+        filenames_to_test = []
+        for path in self.paths:
+            filenames_to_test.extend(find_all_files(path, FileTypes.OME_TIFF))
+        return filenames_to_test
+
     def _collect_errors(self) -> list[str | None]:
         try:
             self.get_schemas()
         except Exception as e:
             return [str(e)]
 
-        filenames_to_test = []
-        for path in self.paths:
-            filenames_to_test.extend(find_all_files(path, FileTypes.OME_TIFF))
-        if not filenames_to_test:
+        if not self.filenames_to_test:
             return []
 
         pool = Pool(self.threads)
         rslt_list = [
             rslt
-            for rslt in pool.imap_unordered(partial(self.get_ome_xml_errors), filenames_to_test)
+            for rslt in pool.imap_unordered(
+                partial(self.get_ome_xml_errors), self.filenames_to_test
+            )
             if rslt is not None
         ]
         pool.close()
         pool.join()
         return self._return_result(
             list(itertools.chain.from_iterable(rslt_list)) if rslt_list else None,
-            filenames_to_test,
+            self.filenames_to_test,
         )
 
     def get_ome_xml_errors(self, file: Path) -> list[str] | None:
@@ -125,7 +131,7 @@ class OmeTiffFieldValidator(Validator):
             "Z": self.default_z_max,
         }
 
-    def check_physicalsize_fields(self, file: Path, xml_etree: ET.Element) -> str | None:
+    def check_physicalsize_fields(self, filename: Path, xml_etree: ET.Element) -> str | None:
         """
         Compare PhysicalSizeX / Y / Z values in OME XML images against
         values in self.maximums.
@@ -134,9 +140,9 @@ class OmeTiffFieldValidator(Validator):
         # This uses the first Image element found; multiple Image elements are possible
         # in a single OME-TIFF but the first *should* be the full-sized image.
         if (xml_image_data := xml_etree.find("Image/Pixels")) is None:
-            return f"No Image/Pixels found in file {self.rel_filename_str(file)}"
+            return f"No Image/Pixels found in file {self.rel_filename_str(filename)}"
         for coordinate in ["X", "Y", "Z"]:
-            if not (max := self.maximums[coordinate]):
+            if not (max := self.maximums.get(coordinate)):
                 continue
             key = f"PhysicalSize{coordinate}"
             if not (value := xml_image_data.get(key)):
@@ -148,7 +154,7 @@ class OmeTiffFieldValidator(Validator):
                 errors.append(str(e))
         if errors:
             error_str = (
-                f"{self.rel_filename_str(file)} OME-XML errors: {'; '.join(sorted(errors))}"
+                f"{self.rel_filename_str(filename)} OME-XML errors: {'; '.join(sorted(errors))}"
             )
             return error_str
 
@@ -173,14 +179,14 @@ class OmeTiffFieldValidator(Validator):
         """
         try:
             micrometer_value = convert_to_micrometers(float(value), units)
-        except DimensionalityError as e:
-            raise Exception(f"Error in unit parsing or conversion for {key}: {e}") from e
-        except (ValueError, TypeError) as e:
+        except ValueError as e:
             raise Exception(f"{key} '{value}' type is {type(value).__name__}") from e
+        except (DimensionalityError, UndefinedUnitError) as e:
+            raise Exception(f"Error in unit parsing or conversion for {key}: {e}") from e
         except Exception as e:
             raise Exception(f"Error with {key}: {e}") from e
         if micrometer_value > max:
-            raise Exception(f"{key} {value} is greater than maximum value {max}")
+            raise Exception(f"{key} {value} {units} is greater than maximum value {max} µm")
 
 
 def convert_to_micrometers(value: float, units: str) -> float:
