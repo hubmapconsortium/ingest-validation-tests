@@ -7,11 +7,11 @@ from xml.etree import ElementTree as ET
 
 import xmlschema
 from ome_utils import strip_namespace_and_parse
+from pint import DimensionalityError, UnitRegistry
 from validator import (
     FileTypes,
     Validator,
     check_ome_xml,
-    convert_to_micrometers,
     extract_ome_xml,
     find_all_files,
 )
@@ -128,31 +128,62 @@ class OmeTiffFieldValidator(Validator):
     def check_physicalsize_fields(self, file: Path, xml_etree: ET.Element) -> str | None:
         """
         Compare PhysicalSizeX / Y / Z values in OME XML images against
-        values in self.maximums. Catch values that exceed maximum as well
-        as missing / malformed values.
+        values in self.maximums.
         """
         errors = []
+        # This uses the first Image element found; multiple Image elements are possible
+        # in a single OME-TIFF but the first *should* be the full-sized image.
         if (xml_image_data := xml_etree.find("Image/Pixels")) is None:
             return f"No Image/Pixels found in file {self.rel_filename_str(file)}"
         for coordinate in ["X", "Y", "Z"]:
             if not (max := self.maximums[coordinate]):
                 continue
-            if not (value := xml_image_data.get(f"PhysicalSize{coordinate}")):
-                errors.append(f"PhysicalSize{coordinate} missing")
+            key = f"PhysicalSize{coordinate}"
+            if not (value := xml_image_data.get(key)):
+                errors.append(f"{key} missing")
                 continue
             try:
-                # OME-XML assumed default is µm
-                micrometer_value = convert_to_micrometers(
-                    float(value), xml_image_data.get(f"PhysicalSize{coordinate}Unit", "µm")
-                )
-                if micrometer_value > max:
-                    errors.append(
-                        f"PhysicalSize{coordinate} {value} is greater than maximum value {max}"
-                    )
-            except (ValueError, TypeError):
-                errors.append(f"PhysicalSize{coordinate} '{value}' type is {type(value).__name__}")
+                self.check_coordinate(key, value, xml_image_data.get(f"{key}Unit", "µm"), max)
+            except Exception as e:
+                errors.append(str(e))
         if errors:
             error_str = (
                 f"{self.rel_filename_str(file)} OME-XML errors: {'; '.join(sorted(errors))}"
             )
             return error_str
+
+    def check_coordinate(
+        self,
+        key: str,
+        value: float | int | str,
+        units: str,
+        max: float,
+    ):
+        """
+        Ensure that a given coordinate converts to micrometers and is
+        below the specified maximum.
+
+        Args:
+            key: name of coordinate (e.g. "PhysicalSizeX")
+            value: value of coordinate
+            units: units of measurement specified for coordinate
+            max: maximum value for comparison
+
+        Return None on success; otherwise raise.
+        """
+        try:
+            micrometer_value = convert_to_micrometers(float(value), units)
+        except DimensionalityError as e:
+            raise Exception(f"Error in unit parsing or conversion for {key}: {e}") from e
+        except (ValueError, TypeError) as e:
+            raise Exception(f"{key} '{value}' type is {type(value).__name__}") from e
+        except Exception as e:
+            raise Exception(f"Error with {key}: {e}") from e
+        if micrometer_value > max:
+            raise Exception(f"{key} {value} is greater than maximum value {max}")
+
+
+def convert_to_micrometers(value: float, units: str) -> float:
+    ureg = UnitRegistry(system="SI")
+    q = ureg.Quantity(value, units)
+    return float(q.to("micrometers").magnitude)
