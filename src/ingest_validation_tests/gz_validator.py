@@ -46,6 +46,7 @@ class GZValidator(Validator):
             data_output2.extend(f"Error: {e}")
         else:
             [data_output2.append(output) for output in data_output if output]
-        pool.close()
-        pool.join()
+        finally:
+            pool.close()
+            pool.join()
         return self._return_result(data_output2, file_list)

@@ -275,13 +275,12 @@ class FASTQValidatorLogic:
                 data_output = pool.imap_unordered(engine, full_file_list)
                 [data_found_one.extend(output) for output in data_output if output]
             except Exception as e:
-                pool.close()
-                pool.join()
                 _log(f"Error {e}")
                 self.errors.append(f"Error {e}")
-            else:
+            finally:
                 pool.close()
                 pool.join()
+            if self.files_were_found:
                 for path, files in self.files_by_path.items():
                     # Only want to make groups and check line counts within a given data_path.
                     groups = self._make_groups(files)

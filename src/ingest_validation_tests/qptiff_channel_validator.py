@@ -333,21 +333,17 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
         pool = Pool(self.threads)
         engine = Engine()
         try:
-            rslt_list: list[str] = list(
-                rslt
-                for rslt in pool.starmap(
-                    engine,
-                    [
-                        (data_path, file_dict, self.tmp_dir)
-                        for data_path, file_dict in self.files_to_test.items()
-                    ],
-                )
-                if rslt is not None
+            rslt_list = pool.starmap(
+                engine,
+                [
+                    (data_path, file_dict, self.tmp_dir)
+                    for data_path, file_dict in self.files_to_test.items()
+                ],
             )
-            self.errors.extend(rslt_list)
+            self.errors.extend([rslt for rslt in rslt_list if rslt is not None])
         except Exception as e:
             self._log(f"Error {e}")
-            raise
+            self.errors.append(f"Error {e}")
         finally:
             pool.close()
             pool.join()
