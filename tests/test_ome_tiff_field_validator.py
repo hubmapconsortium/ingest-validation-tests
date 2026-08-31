@@ -77,8 +77,6 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
         validator.schema_regex_mapping[
             Path(__file__).parent.parent / "test_data/test_ome_tiff_field_schema.xsd"
         ] = ["test_dataset_type"]
-        if assay_type == "test_dataset_type":
-            validator.default_z_max = 10
         validator.get_schemas()
         errors = validator.collect_errors()[:]
         validator.schema_regex_mapping = OmeTiffFieldValidator.schema_regex_mapping

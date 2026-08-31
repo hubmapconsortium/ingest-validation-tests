@@ -8,8 +8,7 @@ import xmlschema
 from validator import (
     FileTypes,
     Validator,
-    check_ome_xml,
-    extract_ome_xml,
+    check_ome_tiff_file,
     find_all_files,
 )
 
@@ -86,8 +85,9 @@ class OmeTiffFieldValidator(Validator):
         )
 
     def get_ome_xml_errors(self, file: Path) -> list[str] | None:
+        # TODO: consolidate with errors_by_schema
         try:
-            xml_document = check_ome_xml(extract_ome_xml(file), file)
+            xml_document = check_ome_tiff_file(file)
         except Exception as e:
             return [str(e)]
         compiled_errors = []
