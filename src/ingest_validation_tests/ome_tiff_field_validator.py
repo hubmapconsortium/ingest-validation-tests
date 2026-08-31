@@ -3,11 +3,8 @@ import re
 from functools import cached_property, partial
 from multiprocessing import Pool
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 import xmlschema
-from ome_utils import strip_namespace_and_parse
-from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from validator import (
     FileTypes,
     Validator,
@@ -19,7 +16,7 @@ from validator import (
 
 class OmeTiffFieldValidator(Validator):
     description = "Recursively test all ome-tiff files for an assay-specific list of fields"
-    cost = 1.0
+    cost = 2.0
     version = "1.0"
     schemas = {}
     """
@@ -40,9 +37,6 @@ class OmeTiffFieldValidator(Validator):
         Path(__file__).parent
         / "ome_tiff_schemas/ome_tiff_field_schema_require_physicalsizexy.xsd": [".*"],
     }
-    default_x_max = 10.0
-    default_y_max = 10.0
-    default_z_max = None
 
     def get_schemas(self):
         if self.schemas:
@@ -93,17 +87,12 @@ class OmeTiffFieldValidator(Validator):
 
     def get_ome_xml_errors(self, file: Path) -> list[str] | None:
         try:
-            extracted_ome_xml = extract_ome_xml(file)
-            xml_document = check_ome_xml(extracted_ome_xml, file)
+            xml_document = check_ome_xml(extract_ome_xml(file), file)
         except Exception as e:
             return [str(e)]
         compiled_errors = []
         if schema_errors := self.errors_by_schema(file, xml_document):
             compiled_errors.extend(schema_errors)
-        if physicalsize_errors := self.check_physicalsize_fields(
-            file, strip_namespace_and_parse(extracted_ome_xml)
-        ):
-            compiled_errors.append(physicalsize_errors)
         return compiled_errors if compiled_errors else None
 
     def errors_by_schema(
@@ -118,78 +107,3 @@ class OmeTiffFieldValidator(Validator):
                 self._log(msg)
                 compiled_errors.append(msg)
         return compiled_errors
-
-    @cached_property
-    def maximums(self):
-        """
-        Property allows for setting assay-specific maximums,
-        e.g. using a switch statement with self.assay_type.
-        """
-        return {
-            "X": self.default_x_max,
-            "Y": self.default_y_max,
-            "Z": self.default_z_max,
-        }
-
-    def check_physicalsize_fields(self, filename: Path, xml_etree: ET.Element) -> str | None:
-        """
-        Compare PhysicalSizeX / Y / Z values in OME XML images against
-        values in self.maximums.
-        """
-        errors = []
-        # This uses the first Image element found; multiple Image elements are possible
-        # in a single OME-TIFF but the first *should* be the full-sized image.
-        if (xml_image_data := xml_etree.find("Image/Pixels")) is None:
-            return f"No Image/Pixels found in file {self.rel_filename_str(filename)}"
-        for coordinate in ["X", "Y", "Z"]:
-            if not (max := self.maximums.get(coordinate)):
-                continue
-            key = f"PhysicalSize{coordinate}"
-            if not (value := xml_image_data.get(key)):
-                errors.append(f"{key} missing")
-                continue
-            try:
-                self.check_coordinate(key, value, xml_image_data.get(f"{key}Unit", "µm"), max)
-            except Exception as e:
-                errors.append(str(e))
-        if errors:
-            error_str = (
-                f"{self.rel_filename_str(filename)} OME-XML errors: {'; '.join(sorted(errors))}"
-            )
-            return error_str
-
-    def check_coordinate(
-        self,
-        key: str,
-        value: float | int | str,
-        units: str,
-        max: float,
-    ):
-        """
-        Ensure that a given coordinate converts to micrometers and is
-        below the specified maximum.
-
-        Args:
-            key: name of coordinate (e.g. "PhysicalSizeX")
-            value: value of coordinate
-            units: units of measurement specified for coordinate
-            max: maximum value for comparison
-
-        Return None on success; otherwise raise.
-        """
-        try:
-            micrometer_value = convert_to_micrometers(float(value), units)
-        except ValueError as e:
-            raise Exception(f"{key} '{value}' type is {type(value).__name__}") from e
-        except (DimensionalityError, UndefinedUnitError) as e:
-            raise Exception(f"Error in unit parsing or conversion for {key}: {e}") from e
-        except Exception as e:
-            raise Exception(f"Error with {key}: {e}") from e
-        if micrometer_value > max:
-            raise Exception(f"{key} {value} {units} is greater than maximum value {max} µm")
-
-
-def convert_to_micrometers(value: float, units: str) -> float:
-    ureg = UnitRegistry(system="SI")
-    q = ureg.Quantity(value, units)
-    return float(q.to("micrometers").magnitude)
