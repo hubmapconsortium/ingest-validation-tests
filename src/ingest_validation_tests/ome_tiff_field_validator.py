@@ -1,16 +1,21 @@
 import itertools
 import re
-from functools import partial
+from functools import cached_property, partial
 from multiprocessing import Pool
 from pathlib import Path
 
 import xmlschema
-from validator import FileTypes, Validator, check_ome_tiff_file, find_all_files
+from validator import (
+    FileTypes,
+    Validator,
+    check_ome_tiff_file,
+    find_all_files,
+)
 
 
 class OmeTiffFieldValidator(Validator):
     description = "Recursively test all ome-tiff files for an assay-specific list of fields"
-    cost = 1.0
+    cost = 2.0
     version = "1.0"
     schemas = {}
     """
@@ -32,9 +37,6 @@ class OmeTiffFieldValidator(Validator):
         / "ome_tiff_schemas/ome_tiff_field_schema_require_physicalsizexy.xsd": [".*"],
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def get_schemas(self):
         if self.schemas:
             self._log(f"Prior schemas: {list(self.schemas)}")
@@ -51,32 +53,38 @@ class OmeTiffFieldValidator(Validator):
                     break
         self._log(f"Schemas: {list(self.schemas)}")
 
+    @cached_property
+    def filenames_to_test(self) -> list[Path]:
+        filenames_to_test = []
+        for path in self.paths:
+            filenames_to_test.extend(find_all_files(path, FileTypes.OME_TIFF))
+        return filenames_to_test
+
     def _collect_errors(self) -> list[str | None]:
         try:
             self.get_schemas()
         except Exception as e:
             return [str(e)]
 
-        filenames_to_test = []
-        for path in self.paths:
-            filenames_to_test.extend(find_all_files(path, FileTypes.OME_TIFF))
-        if not filenames_to_test:
+        if not self.filenames_to_test:
             return []
 
         pool = Pool(self.threads)
         rslt_list = [
             rslt
-            for rslt in pool.imap_unordered(partial(self.errors_by_schema), filenames_to_test)
+            for rslt in pool.imap_unordered(
+                partial(self.get_ome_xml_errors), self.filenames_to_test
+            )
             if rslt is not None
         ]
         pool.close()
         pool.join()
         return self._return_result(
             list(itertools.chain.from_iterable(rslt_list)) if rslt_list else None,
-            filenames_to_test,
+            self.filenames_to_test,
         )
 
-    def errors_by_schema(self, file: Path) -> list[str] | None:
+    def get_ome_xml_errors(self, file: Path) -> list[str] | None:
         try:
             xml_document = check_ome_tiff_file(file)
         except Exception as e:
