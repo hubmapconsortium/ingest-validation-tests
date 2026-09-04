@@ -43,7 +43,6 @@ class TestOmeTiffFieldValidator(TestTiffValidators):
         validator = self.validator(test_data_fname, assay_type, tmp_path, coreuse=4)
         errors = validator.collect_errors()[:]
         self.check_errors(msg_re_list, errors)
-        print(errors)
 
     @pytest.mark.parametrize(
         ("test_data_fname", "msg_re_list", "assay_type"),

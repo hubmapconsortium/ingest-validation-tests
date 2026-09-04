@@ -21,8 +21,7 @@ class VisiumPhysicalsizeValidator(Validator):
     description = "Test image sizes in Visium OME-TIFF files"
     cost = 2.0
     version = "1.0"
-    # TODO: specific subtypes?
-    assay_type = ["visium"]
+    assay_type = ["visium (with probes)", "visium (no probes)"]
 
     default_x_max = 50.0
     default_y_max = 50.0

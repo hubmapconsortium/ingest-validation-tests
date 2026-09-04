@@ -308,9 +308,6 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
     description = "Check channels in QPTIFF against channels in qptiff.channels.csv"
     tmp_dir_base = Path("/tmp")
 
-    def __init__(self, base_paths, assay_type, *args, **kwargs):
-        super().__init__(base_paths, assay_type, *args, **kwargs)
-
     def _collect_errors(self):
         try:
             self._check_tmp_dir()
