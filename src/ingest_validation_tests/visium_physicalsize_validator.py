@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from functools import cached_property, partial
 from multiprocessing import Pool
@@ -16,6 +17,54 @@ class SizeData:
     size: float
     unit: str
 
+    @property
+    def key(self) -> str:
+        return f"PhysicalSize{self.coordinate}"
+
+    def __post_init__(self):
+        """
+        Ensure that Size and PhysicalSize are (castable to) floats.
+        """
+        try:
+            self.size = float(self.size)
+        except ValueError as e:
+            raise Exception(
+                f"Size{self.coordinate} '{self.size}' type is {type(self.size).__name__}"
+            ) from e
+        try:
+            self.physicalsize = float(self.physicalsize)
+        except ValueError as e:
+            raise Exception(
+                f"{self.key} '{self.physicalsize}' type is {type(self.physicalsize).__name__}"
+            ) from e
+
+    def converted_value(self, units: str):
+        """
+        Ensure that a given coordinate's PhysicalSize converts to given unit,
+        and return value.
+        """
+        try:
+            ureg = UnitRegistry(system="SI")
+            q = ureg.Quantity(self.physicalsize, self.unit)
+            return float(q.to(units).magnitude)
+        except ValueError as e:
+            raise Exception(
+                f"{self.key} '{self.physicalsize}' type is {type(self.physicalsize).__name__}"
+            ) from e
+        except (DimensionalityError, UndefinedUnitError) as e:
+            raise Exception(f"Error in unit parsing or conversion for {self.key}: {e}") from e
+        except Exception as e:
+            raise Exception(f"Error with {self.key}: {e}") from e
+
+    def compare_to_maximum(self, max: float, max_units: str):
+        """
+        Ensure that PhysicalSize (converted to max_units) * Size is less than the specified maximum.
+        """
+        if (self.converted_value(max_units) * self.size) > max:
+            raise Exception(
+                f"{self.key} {self.physicalsize} {self.unit} * Size{self.coordinate} {self.size} is greater than maximum value {max} {max_units}"
+            )
+
 
 class VisiumPhysicalsizeValidator(Validator):
     description = "Test image sizes in Visium OME-TIFF files"
@@ -23,6 +72,7 @@ class VisiumPhysicalsizeValidator(Validator):
     version = "1.0"
     assay_type = ["visium (with probes)", "visium (no probes)"]
 
+    max_units = "mm"
     default_x_max = 50.0
     default_y_max = 50.0
     default_z_max = None
@@ -67,12 +117,14 @@ class VisiumPhysicalsizeValidator(Validator):
     def get_physicalsize_errors(self, file: Path) -> str | None:
         try:
             extracted_ome_xml = extract_ome_xml(file)
+            logging.info(f"Checking {file}...")
+            if physicalsize_errors := self.check_physicalsize_fields(
+                file, strip_namespace_and_parse(extracted_ome_xml)
+            ):
+                logging.info(f"Errors found for {file.name}!")
+                return physicalsize_errors
         except Exception as e:
-            return str(e)
-        if physicalsize_errors := self.check_physicalsize_fields(
-            file, strip_namespace_and_parse(extracted_ome_xml)
-        ):
-            return physicalsize_errors
+            return f"{self.rel_filename_str(file)}: {e}"
 
     def check_physicalsize_fields(self, filename: Path, xml_etree: ET.Element) -> str | None:
         """
@@ -88,7 +140,8 @@ class VisiumPhysicalsizeValidator(Validator):
             if not (max := self.maximums.get(coordinate)):
                 continue
             try:
-                self.check_coordinate(self.get_size_data(xml_image_data, coordinate), max)
+                coord_data = self.get_size_data(xml_image_data, coordinate)
+                coord_data.compare_to_maximum(max, self.max_units)
             except Exception as e:
                 errors.append(str(e))
         if errors:
@@ -98,6 +151,10 @@ class VisiumPhysicalsizeValidator(Validator):
             return error_str
 
     def get_size_data(self, xml_image_data: ET.Element, coordinate: str) -> SizeData:
+        """
+        Return a SizeData instance with PhysicalSize, Size, and Unit info
+        for a given coordinate.
+        """
         errors = []
         sizes = {}
         required_keys = {
@@ -113,41 +170,3 @@ class VisiumPhysicalsizeValidator(Validator):
         if errors:
             raise Exception(", ".join(errors))
         return SizeData(**sizes, coordinate=coordinate)
-
-    def check_coordinate(self, size_data: SizeData, max: float):
-        """
-        Ensure that a given coordinate's PhysicalSize converts to micrometers,
-        Size is a float, and PhysicalSize * Size is less than the specified maximum.
-
-        Args:
-            sizes: SizeData object for coordinate (PhysicalSize, Size, and PhysicalSizeUnit)
-            max: maximum value for comparison
-
-        Return None on success; otherwise raise.
-        """
-        physicalsize = size_data.physicalsize
-        key = f"PhysicalSize{size_data.coordinate}"
-        try:
-            size = float(size_data.size)
-        except ValueError as e:
-            raise Exception(
-                f"{key}Unit '{size_data.size}' type is {type(size_data.size).__name__}"
-            ) from e
-        try:
-            micrometer_value = convert_to_micrometers(float(physicalsize), size_data.unit)
-        except ValueError as e:
-            raise Exception(f"{key} '{physicalsize}' type is {type(physicalsize).__name__}") from e
-        except (DimensionalityError, UndefinedUnitError) as e:
-            raise Exception(f"Error in unit parsing or conversion for {key}: {e}") from e
-        except Exception as e:
-            raise Exception(f"Error with {key}: {e}") from e
-        if (micrometer_value * size) > max:
-            raise Exception(
-                f"{key} {physicalsize} {size_data.unit} * Size{size_data.coordinate} {size} is greater than maximum value {max} µm"
-            )
-
-
-def convert_to_micrometers(value: float, units: str) -> float:
-    ureg = UnitRegistry(system="SI")
-    q = ureg.Quantity(value, units)
-    return float(q.to("micrometers").magnitude)

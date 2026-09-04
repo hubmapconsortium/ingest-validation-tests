@@ -42,7 +42,6 @@ class TestVisiumPhysicalsizeValidator(TestTiffValidators):
         validator = VisiumPhysicalsizeValidator("", "visium")
         monkeypatch.setattr(VisiumPhysicalsizeValidator, "maximums", {})
         mock = Mock()
-        monkeypatch.setattr(VisiumPhysicalsizeValidator, "check_coordinate", mock)
         extracted_ome_xml = strip_namespace_and_parse(mutate_ome_xml())
         assert validator.check_physicalsize_fields("", extracted_ome_xml) is None
         mock.assert_not_called()
@@ -57,6 +56,7 @@ class TestVisiumPhysicalsizeValidator(TestTiffValidators):
     def test_physicalsize_max_bad_gt_based_on_physicalsize(self, monkeypatch):
         validator = VisiumPhysicalsizeValidator("", "visium")
         monkeypatch.setattr(VisiumPhysicalsizeValidator, "maximums", {"X": 0.1, "Y": 0.1})
+        monkeypatch.setattr(VisiumPhysicalsizeValidator, "max_units", "µm")
         extracted_ome_xml = strip_namespace_and_parse(mutate_ome_xml())
         errors = validator.check_physicalsize_fields("", extracted_ome_xml)
         assert "PhysicalSizeX 10.0 µm * SizeX 1.0 is greater than maximum value 0.1 µm" in errors
@@ -65,23 +65,25 @@ class TestVisiumPhysicalsizeValidator(TestTiffValidators):
     def test_physicalsize_max_bad_gt_based_on_size(self):
         validator = VisiumPhysicalsizeValidator("", "visium")
         extracted_ome_xml = strip_namespace_and_parse(
-            mutate_ome_xml(pixel_updates={"SizeX": "1000", "SizeY": "2000"})
+            mutate_ome_xml(pixel_updates={"SizeX": "100000", "SizeY": "200000"})
         )
         errors = validator.check_physicalsize_fields("", extracted_ome_xml)
         assert (
-            "PhysicalSizeX 10.0 µm * SizeX 1000.0 is greater than maximum value 50.0 µm" in errors
+            "PhysicalSizeX 10.0 µm * SizeX 100000.0 is greater than maximum value 50.0 mm"
+            in errors
         )
         assert (
-            "PhysicalSizeY 10.0 µm * SizeY 2000.0 is greater than maximum value 50.0 µm" in errors
+            "PhysicalSizeY 10.0 µm * SizeY 200000.0 is greater than maximum value 50.0 mm"
+            in errors
         )
 
     def test_physicalsize_max_bad_gt_unit_conversion(self):
         validator = VisiumPhysicalsizeValidator("", "visium")
         extracted_ome_xml = strip_namespace_and_parse(
-            mutate_ome_xml(pixel_updates={"PhysicalSizeXUnit": "mm"})
+            mutate_ome_xml(pixel_updates={"PhysicalSizeXUnit": "km"})
         )
         assert (
-            "PhysicalSizeX 10.0 mm * SizeX 1.0 is greater than maximum value 50.0 µm"
+            "PhysicalSizeX 10.0 km * SizeX 1.0 is greater than maximum value 50.0 mm"
             in validator.check_physicalsize_fields("", extracted_ome_xml)
         )
 
