@@ -344,7 +344,7 @@ class QpTiffChannelComparisonValidator(QpTiffChannelValidator):
             self.errors.extend(rslt_list)
         except Exception as e:
             self._log(f"Error {e}")
-            raise
+            rslt_list = [str(e)]
         finally:
             pool.close()
             pool.join()

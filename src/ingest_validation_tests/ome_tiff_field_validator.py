@@ -70,15 +70,20 @@ class OmeTiffFieldValidator(Validator):
             return []
 
         pool = Pool(self.threads)
-        rslt_list = [
-            rslt
-            for rslt in pool.imap_unordered(
-                partial(self.get_ome_xml_errors), self.filenames_to_test
-            )
-            if rslt is not None
-        ]
-        pool.close()
-        pool.join()
+        try:
+            rslt_list = [
+                rslt
+                for rslt in pool.imap_unordered(
+                    partial(self.get_ome_xml_errors), self.filenames_to_test
+                )
+                if rslt is not None
+            ]
+        except Exception as e:
+            self._log(f"Error {e}")
+            rslt_list = [str(e)]
+        finally:
+            pool.close()
+            pool.join()
         return self._return_result(
             list(itertools.chain.from_iterable(rslt_list)) if rslt_list else None,
             self.filenames_to_test,
