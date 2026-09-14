@@ -1,8 +1,10 @@
 git+https://github.com/hubmapconsortium/fastq-utils.git@v0.2.5#egg=hubmap-fastq-utils
+git+https://github.com/hubmapconsortium/ome-utils.git
 imagecodecs==2025.8.2
 jsonschema==4.23.0
 openpyxl==3.1.5
 pandas==2.2.3
+Pint==0.25.3
 python-frontmatter>=1.1.0
 requests==2.32.3
 shapely==2.1.2
